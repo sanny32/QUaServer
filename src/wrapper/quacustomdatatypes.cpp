@@ -206,9 +206,7 @@ bool QUaDataType::isSupportedQType(const QMetaType::Type& type)
 
 QMetaType::Type QUaDataType::qTypeByNodeId(const UA_NodeId& nodeId)
 {
-#if !defined(UA_ENABLE_HISTORIZING) && !defined(UA_ENABLE_SUBSCRIPTIONS_EVENTS)
-	Q_ASSERT(m_custTypesByNodeId.contains(nodeId));
-#endif
+	// unmapped types are expected, e.g. session diagnostics variables created by open62541 >= 1.4
 	return m_custTypesByNodeId.value(nodeId, QMetaType::UnknownType);
 }
 

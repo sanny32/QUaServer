@@ -130,8 +130,11 @@ void QUaServer::uaDestructor(UA_Server       * server,
 	// get server
 	void* serverContext = nullptr;
 	auto st = UA_Server_getNodeContext(server, UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER), &serverContext);
-	Q_ASSERT(st == UA_STATUSCODE_GOOD);
-	Q_UNUSED(st);
+	// UA_Server_delete may remove the Server node first; ~QUaServer already deleted the C++ nodes
+	if (st != UA_STATUSCODE_GOOD || !serverContext)
+	{
+		return;
+	}
 #ifdef QT_DEBUG 
 	auto srv = qobject_cast<QUaServer*>(static_cast<QObject*>(serverContext));
 	Q_CHECK_PTR(srv);
@@ -1222,6 +1225,11 @@ quint8 QUaServer::eventNotifier() const
 }
 void QUaServer::setEventNotifier(const quint8& eventNotifier)
 {
+	// open62541 1.5 feeds EventNotifier writes to event monitored items as data changes
+	if (eventNotifier == this->eventNotifier())
+	{
+		return;
+	}
 	auto st = UA_Server_writeEventNotifier(m_server, UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER), eventNotifier);
 	Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	Q_UNUSED(st);
@@ -1834,9 +1842,9 @@ bool QUaServer::start()
 		if (!m_running) { return; }
 		// iterate and restart
 		m_iterWaitTimer.stop();
-		// NOTE : any other delay or not waitInternal make subscribing to
-		//        events painfully slow
-		UA_Server_run_iterate(m_server, true);
+		// UA_Server_run_iterate(server, true) blocks up to 500 ms since open62541 1.4, stalling Qt and delaying responses
+		UA_EventLoop* eventLoop = UA_Server_getConfig(m_server)->eventLoop;
+		eventLoop->run(eventLoop, QUA_ITERATE_TIMEOUT_MS);
 		m_iterWaitTimer.start(0);
 	}, Qt::QueuedConnection);
 	// start iterations

@@ -1,0 +1,7 @@
+function(quaserver_configure_unit_tests)
+    quaserver_add_test(quaserver_tests_custom_data_types test_customdatatypes.cpp)
+    quaserver_add_test(quaserver_tests_types_converter   test_typesconverter.cpp)
+    quaserver_add_test(quaserver_tests_server            test_server.cpp)
+    quaserver_add_test(quaserver_tests_address_space     test_addressspace.cpp)
+    quaserver_add_test(quaserver_tests_serialization     test_serialization.cpp)
+endfunction()

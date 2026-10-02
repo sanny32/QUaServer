@@ -130,8 +130,7 @@ void QUaBaseVariable::onRead(
 #else
 	auto srv = static_cast<QUaServer*>(serverContext);
 #endif // QT_DEBUG 
-	// check session
-	Q_ASSERT(srv->m_hashSessions.contains(*sessionId));
+	// local reads (UA_Server_read) come from the admin session, which is not a client session
 	srv->m_currentSession = srv->m_hashSessions.contains(*sessionId) ?
 		srv->m_hashSessions[*sessionId] : nullptr;
 	// get variable from context

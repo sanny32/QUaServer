@@ -1135,6 +1135,10 @@ void registerCustomTypes()
 	QMetaType::registerConverter<QString, QUaStatusCode>([](QString strStatusCode) {
 		return QUaStatusCode(strStatusCode);
 	});
+	// used by uaVariantFromQVariantScalar<UA_StatusCode, quint32>
+	QMetaType::registerConverter<QUaStatusCode, quint32>([](QUaStatusCode statusCode) {
+		return static_cast<quint32>(statusCode.operator UA_StatusCode());
+	});
 	// qualified name
 	Q_ASSERT(qMetaTypeId<QUaQualifiedName>() >= QMetaType::User);
 	QMetaType::registerConverter<QUaQualifiedName, QString>([](QUaQualifiedName qualName) {

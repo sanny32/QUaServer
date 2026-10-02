@@ -30,6 +30,7 @@ option(QUASERVER_EVENTS              "Enable events support (ua_events)"        
 option(QUASERVER_ALARMS_CONDITIONS   "Enable alarms & conditions support (ua_alarms_conditions)"          OFF)
 option(QUASERVER_HISTORIZING         "Enable historizing support (ua_historizing)"                        OFF)
 option(QUASERVER_BUILD_EXAMPLES      "Build the examples"                                                 ${PROJECT_IS_TOP_LEVEL})
+option(QUASERVER_BUILD_TESTS         "Build the tests"                                                    OFF)
 
 # Alarms & conditions require events, events require the full namespace zero
 if(QUASERVER_ALARMS_CONDITIONS)
@@ -49,6 +50,11 @@ if(QUASERVER_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
+if(QUASERVER_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(src/tests)
+endif()
+
 message(STATUS "QUaServer configuration:")
 message(STATUS "  Qt version             : ${Qt6_VERSION}")
 message(STATUS "  Namespace zero full    : ${QUASERVER_NAMESPACE_FULL}")
@@ -57,3 +63,4 @@ message(STATUS "  Events                 : ${QUASERVER_EVENTS}")
 message(STATUS "  Alarms & conditions    : ${QUASERVER_ALARMS_CONDITIONS}")
 message(STATUS "  Historizing            : ${QUASERVER_HISTORIZING}")
 message(STATUS "  Examples               : ${QUASERVER_BUILD_EXAMPLES}")
+message(STATUS "  Tests                  : ${QUASERVER_BUILD_TESTS}")

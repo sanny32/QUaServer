@@ -56,6 +56,11 @@ quint8 QUaBaseObject::eventNotifier() const
 
 void QUaBaseObject::setEventNotifier(const quint8 & eventNotifier)
 {
+	// open62541 1.5 feeds EventNotifier writes to event monitored items as data changes
+	if (eventNotifier == this->eventNotifier())
+	{
+		return;
+	}
 	auto st = UA_Server_writeEventNotifier(m_qUaServer->m_server, m_nodeId, eventNotifier);
 	Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	Q_UNUSED(st);

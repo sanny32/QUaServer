@@ -28,6 +28,7 @@ class QUaRefreshRequiredEvent;
 #endif // UA_ENABLE_HISTORIZING
 
 #define QUA_MAX_LOG_MESSAGE_SIZE 1024
+#define QUA_ITERATE_TIMEOUT_MS   10
 
 typedef std::function<QUaNodeId(const QUaNodeId&, const QUaQualifiedName&)> QUaChildNodeIdCallback;
 

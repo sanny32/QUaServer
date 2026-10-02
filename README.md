@@ -87,6 +87,7 @@ The dependencies are built automatically as part of the CMake project. The libra
 | `QUASERVER_ALARMS_CONDITIONS` | `OFF` | Alarms and conditions support (implies `QUASERVER_EVENTS`) |
 | `QUASERVER_HISTORIZING` | `OFF` | Historizing support |
 | `QUASERVER_BUILD_EXAMPLES` | `ON` (top level) | Build the examples |
+| `QUASERVER_BUILD_TESTS` | `OFF` | Build the tests |
 
 The [`./depends/open62541.git`](./depends/open62541.git) submodule on this repo tracks the latest **compatible** *open62541* version, which might not be the most recent version of their master branch. Compatibility of *QUaServer* with the latest version of *open62541* is not always guaranteed.
 
@@ -113,6 +114,18 @@ cmake --build build
 ```
 
 The executables are placed in `build/bin`.
+
+### Tests
+
+The tests use *Qt Test* and *CTest* and live in `./src/tests`. Integration tests start the server on a free local port and talk to it with the *open62541* client. Tests for events, alarms and historizing are built only when the matching option is enabled:
+
+```bash
+cmake -S . -B build -DCMAKE_PREFIX_PATH=<path to Qt6> -DQUASERVER_BUILD_TESTS=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+The `quaserver_check` target builds and runs all of them at once.
 
 ---
 

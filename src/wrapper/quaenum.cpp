@@ -11,7 +11,8 @@ UA_StatusCode QUaServer::addEnumValues(UA_Server * server, UA_NodeId * parent, c
 	attr.valueRank               = 1;
 	attr.arrayDimensionsSize     = 1;
 	UA_UInt32 arrayDimensions[1];
-	arrayDimensions[0]           = numEnumValues; // WHY 0; ?
+	// 0 = any length, so entries can be added or removed later (open62541 >= 1.3 checks it on write)
+	arrayDimensions[0]           = 0;
 	attr.arrayDimensions         = &arrayDimensions[0];
 	attr.dataType                = UA_NODEID_NUMERIC(0, UA_NS0ID_ENUMVALUETYPE);
 	// create array of enum values
