@@ -627,3 +627,6 @@ CMakeUserPresets.json
 /examples/10_historizing/10_historizing
 /examples/11_alarms_conditions/11_alarms_conditions
 *.sqlite-journal
+
+# AI agents instructions
+AGENTS.md
