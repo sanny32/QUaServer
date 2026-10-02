@@ -68,58 +68,51 @@ How to create server alarms and conditions.
 
 ## Include
 
-This library requires at least `Qt 5.9` or higher and `C++ 11`.
+This library requires `Qt 6.9` or higher, `C++ 17` and `CMake 3.21` or higher. *Python 3* is required to generate the *open62541* sources.
 
-To use *QUaServer*, first a copy of the *open62541* shared library is needed. The [open62541 repo](https://github.com/open62541/open62541) is included in this project as a **git submodule** ([`./depends/open62541.git`](./depends/open62541.git)). So don't forget to clone this repository **recursively**, or run `git submodule update --init --recursive` after cloning this repo.
+The dependencies are included in this project as **git submodules**:
 
-The *open62541* amalgamation on can be created using the following *QMake* command on the [amalgamation project](./src/amalgamation) included in this repo:
+* [open62541](https://github.com/open62541/open62541) v1.5 ([`./depends/open62541.git`](./depends/open62541.git))
+* [mbedtls](https://github.com/Mbed-TLS/mbedtls) v3.6 LTS ([`./depends/mbedtls.git`](./depends/mbedtls.git)), only needed for encryption
 
-```bash
-cd ./src/amalgamation
-# Windows
-qmake -tp vc amalgamation.pro
-msbuild open62541.vcxproj /p:Configuration=Debug
-msbuild open62541.vcxproj /p:Configuration=Release
-# Linux
-qmake amalgamation.pro
-make all
-```
+So don't forget to clone this repository **recursively**, or run `git submodule update --init --recursive` after cloning this repo.
 
-The [`./depends/open62541.git`](./depends/open62541.git) submodule on this repo (used in the [amalgamation project](./src/amalgamation)), tracks the latest **compatible** *open62541* version, which might not be the most recent version of their master branch. Compatibility of *QUaServer* with the latest version of *open62541* is not always guaranteed.
+The dependencies are built automatically as part of the CMake project. The library features are selected with the following options:
 
-After compiling the amalgamation, to include *QUaServer* in your project, just include [./src/wrapper/quaserver.pri](./src/wrapper/quaserver.pri) into your Qt project file (`*.pro` file). For example:
+| Option | Default | Description |
+|---|---|---|
+| `QUASERVER_NAMESPACE_FULL` | `OFF` | Build *open62541* with the full namespace zero |
+| `QUASERVER_ENCRYPTION` | `OFF` | Encryption support (builds *mbedtls*) |
+| `QUASERVER_EVENTS` | `OFF` | Events support (implies `QUASERVER_NAMESPACE_FULL`) |
+| `QUASERVER_ALARMS_CONDITIONS` | `OFF` | Alarms and conditions support (implies `QUASERVER_EVENTS`) |
+| `QUASERVER_HISTORIZING` | `OFF` | Historizing support |
+| `QUASERVER_BUILD_EXAMPLES` | `ON` (top level) | Build the examples |
+
+The [`./depends/open62541.git`](./depends/open62541.git) submodule on this repo tracks the latest **compatible** *open62541* version, which might not be the most recent version of their master branch. Compatibility of *QUaServer* with the latest version of *open62541* is not always guaranteed.
+
+To include *QUaServer* in your CMake project, add this repository as a subdirectory and link against the `QUaServer::QUaServer` target. For example:
 
 ```cmake
-QT += core
-QT -= gui
+cmake_minimum_required(VERSION 3.21)
+project(my_project LANGUAGES C CXX)
 
-CONFIG += c++11
+set(QUASERVER_EVENTS ON CACHE BOOL "" FORCE)
+add_subdirectory(QUaServer)
 
-TARGET = my_project
-CONFIG += console
-CONFIG -= app_bundle
-
-TEMPLATE = app
-
-INCLUDEPATH += $$PWD/
-
-SOURCES += main.cpp
-
-include($$PWD/../../src/wrapper/quaserver.pri)
+add_executable(my_project main.cpp)
+target_link_libraries(my_project PRIVATE QUaServer::QUaServer)
 ```
 
 ### Examples
 
-This library comes with examples in the `./examples` folder, which are explained in detail throughout this document. To build the examples use the [`examples.pro`](./examples.pro) included in the root of this repository:
+This library comes with examples in the `./examples` folder, which are explained in detail throughout this document. The examples are built by default when building this repository:
 
 ```bash
-# Windows
-qmake -r -tp vc examples.pro
-msbuild examples.sln /p:Configuration=Debug
-# Linux
-qmake -r examples.pro
-make all
+cmake -S . -B build -DCMAKE_PREFIX_PATH=<path to Qt6>
+cmake --build build
 ```
+
+The executables are placed in `build/bin`.
 
 ---
 
@@ -1260,33 +1253,16 @@ Build and test the server example in [./examples/06_users](./examples/06_users/m
 
 In this section the *QUaServer* library is configured to encrypt communications. Before continuing, make sure to go through the *Server* section in detail and generate all the required certificates and keys.
 
-To support encryption, it is necessary to add the [mbedtls library](https://github.com/ARMmbed/mbedtls) to the project's dependencies. A copy of a compatible version of the `mbedtls` library is included in this repo as a *git cubmodule* in [`./depends/mbedtls.git`](./depends/mbedtls.git).
+To support encryption, it is necessary to add the [mbedtls library](https://github.com/Mbed-TLS/mbedtls) to the project's dependencies. A copy of a compatible version of the `mbedtls` library (3.6 LTS) is included in this repo as a *git submodule* in [`./depends/mbedtls.git`](./depends/mbedtls.git).
 
-The `mbedtls` library is built automatically when compiling the [amalgamation project](./src/amalgamation), by passing the `ua_encryption` option as follows:
-
-
-```bash
-cd ./src/amalgamation
-# Windows
-qmake "CONFIG+=ua_encryption" -tp vc amalgamation.pro
-msbuild open62541.vcxproj
-# Linux
-qmake "CONFIG+=ua_encryption" amalgamation.pro
-make all
-```
-
-To compile the examples, run `qmake` again over your project to load the new configuration. For example, to update the examples in this repo run:
+The `mbedtls` library is built automatically as part of the CMake project when the `QUASERVER_ENCRYPTION` option is enabled:
 
 ```bash
-# Windows
-qmake "CONFIG+=ua_encryption" -r -tp vc examples.pro
-msbuild examples.sln
-# Linux
-qmake "CONFIG+=ua_encryption" -r examples.pro
-make all
+cmake -S . -B build -DCMAKE_PREFIX_PATH=<path to Qt6> -DQUASERVER_ENCRYPTION=ON
+cmake --build build
 ```
 
-After running `qmake` it is often necessary to **rebuild** the complete project to avoid *missing symbols* errors.
+When changing options of an existing build directory, it is recommended to **rebuild** the complete project.
 
 Now copy the server's **certificate** and **private key** to the path where your binary is (`server.crt.der` and `server.key.der` created in the *Server* section).
 
@@ -1343,53 +1319,23 @@ Build and test the encryption example in [./examples/07_encryption](./examples/0
 
 ## Events
 
-To use events, it is necessary to create a new amalgamation from the *open62541* source code that supports events. This can be done by building it with the following commands:
+To use events, configure the project with the `QUASERVER_EVENTS` option:
 
 ```bash
-cd ./depends/open62541.git
-mkdir build; cd build
-# Adjust your Cmake generator accordingly
-cmake -DUA_ENABLE_AMALGAMATION=ON -DUA_NAMESPACE_ZERO=FULL -DUA_ENABLE_SUBSCRIPTIONS_EVENTS=ON .. -G "Visual Studio 15 2017 Win64"
+cmake -S . -B build -DCMAKE_PREFIX_PATH=<path to Qt6> -DQUASERVER_EVENTS=ON
+cmake --build build
 ```
 
-* The `-DUA_NAMESPACE_ZERO=FULL` option is needed because by default *open62541* does not include the complete address space of the OPC UA standard in order to reduce binary size. But to support events, it is actually necessary to have the `FULL` address space available in the server application.
+* The *open62541* library is then built with `UA_NAMESPACE_ZERO=FULL`, because by default *open62541* does not include the complete address space of the OPC UA standard in order to reduce binary size. But to support events, it is actually necessary to have the `FULL` address space available in the server application.
 
-* The `-DUA_ENABLE_SUBSCRIPTIONS_EVENTS=ON` is the flag that enables events.
+* `UA_ENABLE_SUBSCRIPTIONS_EVENTS=ON` is the *open62541* flag that enables events.
 
-Note that the amalgamation files are now considerably larger because now they contain the full default OPC UA address space.
+Note that the binaries are now considerably larger because they contain the full default OPC UA address space.
 
-Now build the library using the Qt project included in this repo:
-
-```bash
-cd ./src/amalgamation
-# Windows
-qmake "CONFIG+=ua_events" -tp vc amalgamation.pro
-msbuild open62541.vcxproj
-# Linux
-qmake "CONFIG+=ua_events" amalgamation.pro
-make all
-```
-
-To update the examples to support events:
+Options can be combined, for example to enable both events and encryption:
 
 ```bash
-# Windows
-qmake "CONFIG+=ua_events" -r -tp vc examples.pro
-msbuild examples.sln
-# Linux
-qmake "CONFIG+=ua_events" -r examples.pro
-make all
-```
-
-After running `qmake` it is often necessary to **rebuild** the application to avoid *missing symbols* errors.
-
-The building process above is similar than the one described in the encryption section. To enable both events and encryption the we have to add both options to *QMake*:
-
-```bash
-# Windows
-qmake "CONFIG+=ua_encryption ua_events" -r -tp vc examples.pro
-# Linux
-qmake "CONFIG+=ua_encryption ua_events" -r examples.pro
+cmake -S . -B build -DCMAKE_PREFIX_PATH=<path to Qt6> -DQUASERVER_EVENTS=ON -DQUASERVER_ENCRYPTION=ON
 ```
 
 Events now can be used in the C++ code. To create an event, first is necessary to **subtype** the `QUaBaseEvent` class, for example:
@@ -1552,7 +1498,7 @@ objsFolder->addMethod("DestroyVariable", [objsFolder](QString strVariableName) {
 });
 ```
 
-Note it is possible to make *UaExpert* refresh the *Address Space* automatically, by compiling the snippet above with `qmake "CONFIG+=ua_events"`.
+Note it is possible to make *UaExpert* refresh the *Address Space* automatically, by compiling the snippet above with the `QUASERVER_EVENTS` CMake option.
 
 All the nodes created at *runtime* exist only in memory, so if the server program is restarted, all those nodes will be lost.
 
@@ -1699,27 +1645,11 @@ Build and test the events example in [./examples/09_serialization](./examples/09
 
 The *QUaServer* supports storing *histrical data* and *historical events*, exposing them through the [*HistoryRead* service](https://reference.opcfoundation.org/v104/Core/docs/Part4/5.10.3/).
 
-To enable this functionality, build the library using the Qt project included in this repo using the `ua_historizing` configuration flag:
+To enable this functionality, configure the project with the `QUASERVER_HISTORIZING` option:
 
 ```bash
-cd ./src/amalgamation
-# Windows
-qmake "CONFIG+=ua_historizing" -tp vc amalgamation.pro
-msbuild open62541.vcxproj
-# Linux
-qmake "CONFIG+=ua_historizing" amalgamation.pro
-make all
-```
-
-To update the examples to support *historizing*:
-
-```bash
-# Windows
-qmake "CONFIG+=ua_historizing" -r -tp vc examples.pro
-msbuild examples.sln
-# Linux
-qmake "CONFIG+=ua_historizing" -r examples.pro
-make all
+cmake -S . -B build -DCMAKE_PREFIX_PATH=<path to Qt6> -DQUASERVER_HISTORIZING=ON
+cmake --build build
 ```
 
 To support *historizing*, `QUaServer` provides the `setHistorizer` method:
@@ -1907,7 +1837,7 @@ Similarly, to allow clients to modify the historical data, the `QUaBaseVariable:
 
 ### Historizing Events
 
-Historizing events is only possible if the `QUaServer` project is compiled using the `CONFIG+=ua_events` flag. See the *Events* section of this document for more information.
+Historizing events is only possible if the `QUaServer` project is configured with the `QUASERVER_EVENTS` CMake option. See the *Events* section of this document for more information.
 
 To historize events, the historizer `T` can be any C++ *type* implementing the following interface:
 
@@ -2076,47 +2006,14 @@ Build and test the historizing example in [./examples/10_historizing](./examples
 
 At the time of writing, alarms and conditions are considered an `EXPERIMENTAL` feature in the *open62541* library, therefore the same applies for *QUaServer*. Please use with caution.
 
-To use alarms and conditions, it is necessary to create a new amalgamation from the *open62541* source code that supports alarms. This can be done by building it with the following commands:
+To use alarms and conditions, configure the project with the `QUASERVER_ALARMS_CONDITIONS` option. It automatically enables events (`QUASERVER_EVENTS`) and the full namespace zero, so *open62541* is built with `UA_NAMESPACE_ZERO=FULL`, `UA_ENABLE_SUBSCRIPTIONS_EVENTS=ON` and `UA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS=ON`:
 
 ```bash
-cd ./depends/open62541.git
-mkdir build; cd build
-# Adjust your Cmake generator accordingly
-cmake -DUA_ENABLE_AMALGAMATION=ON -DUA_NAMESPACE_ZERO=FULL -DUA_ENABLE_SUBSCRIPTIONS_EVENTS=ON -DUA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS=ON .. -G "Visual Studio 15 2017 Win64"
+cmake -S . -B build -DCMAKE_PREFIX_PATH=<path to Qt6> -DQUASERVER_ALARMS_CONDITIONS=ON
+cmake --build build
 ```
 
-* The `-DUA_NAMESPACE_ZERO=FULL` option is needed because by default *open62541* does not include the complete address space of the OPC UA standard in order to reduce binary size. But to support events, it is actually necessary to have the `FULL` address space available in the server application.
-
-* The `-DUA_ENABLE_SUBSCRIPTIONS_EVENTS=ON` is the flag that enables events.
-
-* The `-DUA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS=ON` is the flag that enables alarms and conditions.
-
-Note that the amalgamation files are now considerably larger because now they contain the full default OPC UA address space.
-
-Now build the library using the Qt project included in this repo:
-
-```bash
-cd ./src/amalgamation
-# Windows
-qmake "CONFIG+=ua_alarms_conditions" -tp vc amalgamation.pro
-msbuild open62541.vcxproj
-# Linux
-qmake "CONFIG+=ua_alarms_conditions" amalgamation.pro
-make all
-```
-
-To update the examples to support events:
-
-```bash
-# Windows
-qmake "CONFIG+=ua_alarms_conditions" -r -tp vc examples.pro
-msbuild examples.sln
-# Linux
-qmake "CONFIG+=ua_alarms_conditions" -r examples.pro
-make all
-```
-
-After running `qmake` it is often necessary to **rebuild** the application to avoid *missing symbols* errors.
+Note that the binaries are now considerably larger because they contain the full default OPC UA address space.
 
 Two types of alarms are available out of the box by the `QUaServer` API:
 
@@ -2238,7 +2135,7 @@ levelAlarm->setHistorizingBranches(true);
 
 ### Amalgamation
 
-The amalgamation source code found in `./src/amalgamation` is licensed by **open62541** under the [Mozilla Public License 2.0](https://github.com/open62541/open62541/blob/master/LICENSE).
+The *open62541* source code found in `./depends/open62541.git` is licensed by **open62541** under the [Mozilla Public License 2.0](https://github.com/open62541/open62541/blob/master/LICENSE).
 
 ### QUaTypesConverter
 

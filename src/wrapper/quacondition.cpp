@@ -632,6 +632,12 @@ QUaProperty* QUaCondition::getClientUserId()
 	return this->browseChild<QUaProperty>("ClientUserId");
 }
 
+// NOTE : open62541 >= 1.3 decodes the arguments as IntegerId (alias of UInt32)
+static bool quaIsIntegerId(const UA_Variant* var)
+{
+	return UA_Variant_isScalar(var) && var->type && var->type->typeKind == UA_DATATYPEKIND_UINT32;
+}
+
 UA_StatusCode QUaCondition::ConditionRefresh(
 	UA_Server*        server,
 	const UA_NodeId*  sessionId,
@@ -663,17 +669,19 @@ UA_StatusCode QUaCondition::ConditionRefresh(
 	srv->m_refreshEndEvent->setEventId(QUaBaseEvent::generateEventId());
 	srv->m_refreshEndEvent->setTime(time);
 	srv->m_refreshEndEvent->setReceiveTime(time);
-	/* Check if valid subscriptionId */
-	UA_Session* session = UA_Server_getSessionById(server, sessionId);
-	UA_Subscription* subscription =
-		UA_Session_getSubscriptionById(session, *((UA_UInt32*)input[0].data));
-	if (!subscription)
-		return UA_STATUSCODE_BADSUBSCRIPTIONIDINVALID;
+		/* Check if valid subscriptionId */
+	if (inputSize < 1 || !quaIsIntegerId(&input[0]))
+		return UA_STATUSCODE_BADINVALIDARGUMENT;
+	UA_UInt32 subscriptionId = *((UA_UInt32*)input[0].data);
+	// NOTE : only subscriptions with event monitored items are tracked
+	auto subscriptions = srv->m_hashEventMonitoredItems.value(*sessionId);
+	if (!subscriptions.contains(subscriptionId))
+		return UA_STATUSCODE_GOOD;
 	/* process each monitoredItem in the subscription */
-	UA_MonitoredItem* monitoredItem = NULL;
-	LIST_FOREACH(monitoredItem, &subscription->monitoredItems, listEntry) 
+	const auto monitoredItems = subscriptions.value(subscriptionId);
+	for (auto it = monitoredItems.constBegin(); it != monitoredItems.constEnd(); ++it)
 	{
-		QUaCondition::processMonitoredItem(monitoredItem, srv);
+		QUaCondition::processMonitoredItem(sessionId, subscriptionId, it.key(), it.value(), srv);
 	}
 	return UA_STATUSCODE_GOOD;
 }
@@ -697,7 +705,6 @@ UA_StatusCode QUaCondition::ConditionRefresh2(
 	Q_UNUSED(methodContext);
 	Q_UNUSED(objectId);
 	Q_UNUSED(objectContext);
-	Q_UNUSED(inputSize);
 	Q_UNUSED(outputSize);
 	Q_UNUSED(output);
 	QUaServer* srv = QUaServer::getServerNodeContext(server);
@@ -710,27 +717,35 @@ UA_StatusCode QUaCondition::ConditionRefresh2(
 	srv->m_refreshEndEvent->setTime(time);
 	srv->m_refreshEndEvent->setReceiveTime(time);
 	/* Check if valid subscriptionId */
-	UA_Session* session = UA_Server_getSessionById(server, sessionId);
-	UA_Subscription* subscription =
-		UA_Session_getSubscriptionById(session, *((UA_UInt32*)input[0].data));
-	if (!subscription)
+	if (inputSize < 2 ||
+		!quaIsIntegerId(&input[0]) ||
+		!quaIsIntegerId(&input[1]))
+		return UA_STATUSCODE_BADINVALIDARGUMENT;
+	UA_UInt32 subscriptionId  = *((UA_UInt32*)input[0].data);
+	UA_UInt32 monitoredItemId = *((UA_UInt32*)input[1].data);
+	auto subscriptions = srv->m_hashEventMonitoredItems.value(*sessionId);
+	if (!subscriptions.contains(subscriptionId))
 		return UA_STATUSCODE_BADSUBSCRIPTIONIDINVALID;
 	/* Process monitored item */
-	UA_MonitoredItem* monitoredItem =
-		UA_Subscription_getMonitoredItem(subscription, *((UA_UInt32*)input[1].data));
-	if (!monitoredItem)
+	const auto monitoredItems = subscriptions.value(subscriptionId);
+	if (!monitoredItems.contains(monitoredItemId))
 		return UA_STATUSCODE_BADMONITOREDITEMIDINVALID;
-
-	QUaCondition::processMonitoredItem(monitoredItem, srv);
+	QUaCondition::processMonitoredItem(sessionId, subscriptionId, monitoredItemId, monitoredItems.value(monitoredItemId), srv);
 	return UA_STATUSCODE_GOOD;
 }
 
-void QUaCondition::processMonitoredItem(UA_MonitoredItem* monitoredItem, QUaServer* srv)
+void QUaCondition::processMonitoredItem(
+	const UA_NodeId* sessionId,
+	const UA_UInt32  subscriptionId,
+	const UA_UInt32  monitoredItemId,
+	const UA_NodeId& monitoredNodeId,
+	QUaServer* srv
+)
 {
-	QUaNode* node = QUaNode::getNodeContext(monitoredItem->itemToMonitor.nodeId, srv->m_server);
+	QUaNode* node = QUaNode::getNodeContext(monitoredNodeId, srv->m_server);
 	// NOTE : clients can still have in their subscriptions node ids that have been deleted
     static UA_NodeId server = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER);
-    if (!node && !UA_NodeId_equal(&monitoredItem->itemToMonitor.nodeId, &server))
+    if (!node && !UA_NodeId_equal(&monitoredNodeId, &server))
 	{
 		// TODO : log error message
 		return;
@@ -758,9 +773,11 @@ void QUaCondition::processMonitoredItem(UA_MonitoredItem* monitoredItem, QUaServ
 	srv->m_refreshStartEvent->setSourceName(sourceDisplayName);
 	srv->m_refreshStartEvent->setMessage(tr("Start refresh for source %1 [%2].").arg(sourceDisplayName).arg(sourceNodeId));
 	retval = QUaServer_Anex::UA_Event_addEventToMonitoredItem(
-		srv->m_server, 
-		&srv->m_refreshStartEvent->m_nodeId, 
-		monitoredItem, 
+		srv->m_server,
+		&srv->m_refreshStartEvent->m_nodeId,
+		sessionId,
+		subscriptionId,
+		monitoredItemId,
 		nullptr
 	);
 	Q_ASSERT(retval == UA_STATUSCODE_GOOD);
@@ -773,9 +790,11 @@ void QUaCondition::processMonitoredItem(UA_MonitoredItem* monitoredItem, QUaServ
 			continue;
 		}
 		retval = QUaServer_Anex::UA_Event_addEventToMonitoredItem(
-			srv->m_server, 
-			&condition->m_nodeId, 
-			monitoredItem, 
+			srv->m_server,
+			&condition->m_nodeId,
+			sessionId,
+			subscriptionId,
+			monitoredItemId,
 			nullptr
 		);
 		Q_ASSERT(retval == UA_STATUSCODE_GOOD);
@@ -783,9 +802,11 @@ void QUaCondition::processMonitoredItem(UA_MonitoredItem* monitoredItem, QUaServ
 		for (auto &branch : condition->branches())
 		{
 			retval = QUaServer_Anex::UA_Event_addEventToMonitoredItem(
-				srv->m_server, 
-				&condition->m_nodeId, 
-				monitoredItem, 
+				srv->m_server,
+				&condition->m_nodeId,
+				sessionId,
+				subscriptionId,
+				monitoredItemId,
 				[branch](const QUaBrowsePath& browsePath) -> QVariant
 				{
 					return branch->value(browsePath);
@@ -799,9 +820,11 @@ void QUaCondition::processMonitoredItem(UA_MonitoredItem* monitoredItem, QUaServ
 	srv->m_refreshEndEvent->setSourceName(sourceDisplayName);
 	srv->m_refreshEndEvent->setMessage(tr("End refresh for source %1 [%2].").arg(sourceDisplayName).arg(sourceNodeId));
 	retval = QUaServer_Anex::UA_Event_addEventToMonitoredItem(
-		srv->m_server, 
-		&srv->m_refreshEndEvent->m_nodeId, 
-		monitoredItem, 
+		srv->m_server,
+		&srv->m_refreshEndEvent->m_nodeId,
+		sessionId,
+		subscriptionId,
+		monitoredItemId,
 		nullptr
 	);
 	Q_ASSERT(retval == UA_STATUSCODE_GOOD);

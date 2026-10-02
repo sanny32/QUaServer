@@ -237,7 +237,10 @@ private:
 
 	// helpers
 	static void processMonitoredItem(
-		UA_MonitoredItem* monitoredItem,
+		const UA_NodeId* sessionId,
+		const UA_UInt32  subscriptionId,
+		const UA_UInt32  monitoredItemId,
+		const UA_NodeId& monitoredNodeId,
 		QUaServer* svr
 	);
 

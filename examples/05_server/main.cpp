@@ -23,7 +23,11 @@ int main(int argc, char *argv[])
 	QFile certServer;
 	certServer.setFileName("server.crt.der");
 	Q_ASSERT(certServer.exists());
-	certServer.open(QIODevice::ReadOnly);
+	if (!certServer.open(QIODevice::ReadOnly))
+	{
+		qWarning() << "Could not open" << certServer.fileName();
+		return -1;
+	}
 	server.setCertificate(certServer.readAll());
 	certServer.close();
 

@@ -997,9 +997,9 @@ void QUaHistoryBackend::readEvent(
 	quint64 maxPerEmitter = maxPerEmitterRequest > 0 && maxPerEmitterServer > 0 ?
 		(std::min)(maxPerEmitterServer, maxPerEmitterRequest) : 
 		maxPerEmitterRequest > 0 ?
-		maxPerEmitterServer :
-		maxPerEmitterServer > 0 ?
 		maxPerEmitterRequest :
+		maxPerEmitterServer > 0 ?
+		maxPerEmitterServer :
 		static_cast<quint64>((std::numeric_limits<quint32>::max)());
 	// get time range to read for each emitter
 	auto startTimestamp = historyReadDetails->startTime;

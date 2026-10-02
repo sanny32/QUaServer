@@ -604,8 +604,11 @@ compile_commands.json
 
 # QtCreator local machine specific files for imported projects
 *creator.user*
-/src/amalgamation/open62541.h
-/src/amalgamation/open62541.c
+# CMake build directories
+/build/
+/build-*/
+/out/
+CMakeUserPresets.json
 /src/wrapper/pch_open62541.h.cpp
 /src/wrapper/pch_open62541.h.c
 *.sqlite

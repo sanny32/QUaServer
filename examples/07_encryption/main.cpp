@@ -12,14 +12,22 @@ int main(int argc, char *argv[])
 	QFile certServer;
 	certServer.setFileName("server.crt.der");
 	Q_ASSERT(certServer.exists());
-	certServer.open(QIODevice::ReadOnly);
+	if (!certServer.open(QIODevice::ReadOnly))
+	{
+		qWarning() << "Could not open" << certServer.fileName();
+		return -1;
+	}
 
 #ifdef UA_ENABLE_ENCRYPTION
 	// Load server private key
 	QFile privServer;
 	privServer.setFileName("server.key.der");
 	Q_ASSERT(privServer.exists());
-	privServer.open(QIODevice::ReadOnly);
+	if (!privServer.open(QIODevice::ReadOnly))
+	{
+		qWarning() << "Could not open" << privServer.fileName();
+		return -1;
+	}
 	// Instantiate server by passing certificate and key
 	QUaServer server;
 	server.setCertificate(certServer.readAll());

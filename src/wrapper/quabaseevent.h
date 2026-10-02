@@ -14,6 +14,7 @@ class QUaBaseEvent : public QUaBaseObject
 friend class QUaServer;
 friend class QUaNode;
 friend class QUaBaseObject;
+friend class QUaServer_Anex;
 #ifdef UA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS
 friend class QUaConditionBranch;
 #endif // UA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS

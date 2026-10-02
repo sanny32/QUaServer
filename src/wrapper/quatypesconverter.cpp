@@ -88,11 +88,7 @@ QString nodeIdToQString(const UA_NodeId & id)
 		const UA_Guid &src = id.identifier.guid;
 		const QUuid uuid(src.data1, src.data2, src.data3, src.data4[0], src.data4[1], src.data4[2],
 			src.data4[3], src.data4[4], src.data4[5], src.data4[6], src.data4[7]);
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-        result.append(QStringLiteral("g=")).append(uuid.toString().midRef(1, 36));
-#else
         result.append(QStringLiteral("g=")).append(uuid.toString().mid(1, 36));
-#endif
 		break;
         }
     case UA_NODEIDTYPE_BYTESTRING:
@@ -230,11 +226,7 @@ QMetaType::Type getQArrayType(const QByteArray &typeName)
 	}
 	// TODO : check and use with QUaDataType::
 	QByteArray byteName = typeName.split('<').value(1).split('>').value(0);
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-	return static_cast<QMetaType::Type>( QMetaType::type(byteName) );
-#else
 	return static_cast<QMetaType::Type>( QMetaType::fromName(byteName).id() );
-#endif
 }
 
 bool isSupportedQType(const QMetaType::Type & type)
@@ -251,9 +243,6 @@ bool isSupportedQType(const QMetaType::Type & type)
 
 bool canConvertQVariantList(const QVariant &value)
 {
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-		return value.canConvert<QVariantList>();
-#else
 		// NOTE: Qt5 and Qt6 variant canConvert<QVariantList> result is different
 		// Qt6 QString and QByteArray can convert to QVariantList but Qt5 cannot
 		// prevent QString and QByteArray to convert to array
@@ -261,7 +250,6 @@ bool canConvertQVariantList(const QVariant &value)
 		return value.canConvert<QVariantList>() &&
 				(typeId != QMetaType::QString) &&
 				(typeId != QMetaType::QByteArray);
-#endif
 }
 
 UA_NodeId uaTypeNodeIdFromQType(const QMetaType::Type & type)
@@ -297,11 +285,7 @@ UA_Variant uaVariantFromQVariant(const QVariant & var
 	}
 	else
 	{
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-		qtType = static_cast<QMetaType::Type>( var.type() );
-#else
 		qtType = static_cast<QMetaType::Type>( var.typeId() );
-#endif
 		if (qtType == QMetaType::User) qtType = static_cast<QMetaType::Type>( var.userType() );
 		uaType = uaTypeFromQType(qtType);
 	}
@@ -499,11 +483,7 @@ UA_Variant uaVariantFromQVariantArray(const QVariant & var)
 	if (iter.size() > 0)
 	{
 		QVariant innerVar = iter.at(0);
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-		qtType = static_cast<QMetaType::Type>( innerVar.type() );
-#else
 		qtType = static_cast<QMetaType::Type>( innerVar.typeId() );
-#endif
 		if (qtType == QMetaType::User) qtType = static_cast<QMetaType::Type>( innerVar.userType() );
 	}
 	else qtType = QUaTypesConverter::getQArrayType( var.typeName() );
@@ -659,7 +639,31 @@ QMetaType::Type uaTypeToQType(const UA_DataType * uaType)
 	if (uaType == nullptr) {
 		return QMetaType::UnknownType;
 	}
-	return QUaDataType::qTypeByTypeIndex(uaType->typeIndex);
+	return QUaDataType::qTypeByTypeIndex(uaTypeIndex(uaType));
+}
+
+UA_UInt32 uaTypeIndex(const UA_DataType * uaType)
+{
+	if (uaType == nullptr) {
+		return UA_TYPES_COUNT;
+	}
+	if (uaType >= &UA_TYPES[0] && uaType < &UA_TYPES[UA_TYPES_COUNT]) {
+		return static_cast<UA_UInt32>(uaType - UA_TYPES);
+	}
+	// custom enums are encoded as Int32
+	if (uaType->typeKind == UA_DATATYPEKIND_ENUM) {
+		return UA_TYPES_INT32;
+	}
+	// custom copies of builtin types (e.g. OptionSet subtypes) share the binary encoding
+	if (!UA_NodeId_isNull(&uaType->binaryEncodingId)) {
+		for (UA_UInt32 i = 0; i < UA_TYPES_COUNT; i++) {
+			if (UA_NodeId_equal(&uaType->binaryEncodingId, &UA_TYPES[i].binaryEncodingId) &&
+				uaType->memSize == UA_TYPES[i].memSize) {
+				return i;
+			}
+		}
+	}
+	return UA_TYPES_COUNT;
 }
 
 QVariant uaVariantToQVariant(const UA_Variant & uaVariant, const ArrayType& arrType /*= ArrayType::QList*/)
@@ -675,7 +679,7 @@ QVariant uaVariantToQVariant(const UA_Variant & uaVariant, const ArrayType& arrT
 		return uaVariantToQVariantArray(uaVariant, arrType);
 	}
 	// handle scalar
-	auto index = uaVariant.type->typeIndex;
+	auto index = uaTypeIndex(uaVariant.type);
 	switch (index) {
 	case UA_TYPES_VARIANT:
 		return uaVariantToQVariantScalar<QVariant   , UA_Variant   >(uaVariant, QMetaType::UnknownType);
@@ -761,7 +765,7 @@ QVariant uaVariantToQVariantList(const UA_Variant & uaVariant)
 		return QVariant();
 	}
 	// handle array
-	auto index = uaVariant.type->typeIndex;
+	auto index = uaTypeIndex(uaVariant.type);
 	switch (index) {
 	case UA_TYPES_VARIANT:
         return uaVariantToQVariantArray<QList<QVariant>   , UA_Variant   >(uaVariant, QMetaType::UnknownType);
@@ -830,7 +834,7 @@ QVariant uaVariantToQVariantVector(const UA_Variant & uaVariant)
 		return QVariant();
 	}
 	// handle array
-	auto index = uaVariant.type->typeIndex;
+	auto index = uaTypeIndex(uaVariant.type);
 	switch (index) {
 	case UA_TYPES_VARIANT:
         return uaVariantToQVariantArray<QVector<QVariant>   , UA_Variant   >(uaVariant, QMetaType::UnknownType);
@@ -911,18 +915,10 @@ QVariant uaVariantToQVariantArray(const UA_Variant & var, QMetaType::Type type)
 		QVariant   tempVar  = QVariant::fromValue(tempTarg);
 		// convert if necessary
 		if (type != QMetaType::UnknownType && 
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-			type != static_cast<QMetaType::Type>(tempVar.type()) &&
-#else
 			type != static_cast<QMetaType::Type>(tempVar.typeId()) &&
-#endif
 			type < QMetaType::User)
 		{
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-			tempVar.convert(type);
-#else
 			tempVar.convert( QMetaType(type) );
-#endif
 			tempTarg = tempVar.value<TARGETTYPE>();
 		}
 		retList.append(tempTarg);
@@ -938,20 +934,12 @@ QVariant uaVariantToQVariantScalar(const UA_Variant & uaVariant, QMetaType::Type
 	QVariant tempVar = QVariant::fromValue(uaVariantToQVariantScalar<TARGETTYPE, UATYPE>(temp));
 	if (type != QMetaType::UnknownType && 
 		type < QMetaType::User &&
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-		type != static_cast<QMetaType::Type>(tempVar.type()))
-#else
 		type != static_cast<QMetaType::Type>(tempVar.typeId()))
-#endif
 	{
 		// bool QVariant::convert(int targetTypeId) : Casts the variant to the requested type, targetTypeId. 
 		// If the cast cannot be done, the variant is still changed to the requested type, 
 		// but is left in a cleared null state similar to that constructed by QVariant(Type).
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-		tempVar.convert(type);
-#else
 		tempVar.convert( QMetaType(type) );
-#endif
 	}
 	return tempVar;
 }
@@ -1086,6 +1074,31 @@ void registerCustomTypes()
 		return;
 	}
 	registerCustomTypesRegistered = true;
+	// NOTE : in Qt6 container types are only registered by name once used,
+	//        but they are looked up by name (QMetaType::fromName) for array values
+	qRegisterMetaType<QList<bool>>();
+	qRegisterMetaType<QList<signed char>>();
+	qRegisterMetaType<QList<char>>();
+	qRegisterMetaType<QList<uchar>>();
+	qRegisterMetaType<QList<short>>();
+	qRegisterMetaType<QList<ushort>>();
+	qRegisterMetaType<QList<int>>();
+	qRegisterMetaType<QList<uint>>();
+	qRegisterMetaType<QList<qlonglong>>();
+	qRegisterMetaType<QList<qulonglong>>();
+	qRegisterMetaType<QList<float>>();
+	qRegisterMetaType<QList<double>>();
+	qRegisterMetaType<QList<QString>>();
+	qRegisterMetaType<QList<QDateTime>>();
+	qRegisterMetaType<QList<QUuid>>();
+	qRegisterMetaType<QList<QByteArray>>();
+	qRegisterMetaType<QList<QVariant>>();
+	qRegisterMetaType<QList<QTimeZone>>();
+	qRegisterMetaType<QList<QUaDataType>>();
+	qRegisterMetaType<QList<QUaStatusCode>>();
+	qRegisterMetaType<QList<QUaLocalizedText>>();
+	qRegisterMetaType<QList<QUaQualifiedName>>();
+	qRegisterMetaType<QList<QUaChangeStructureDataType>>();
 	// Qt Stuff
 	Q_ASSERT(qMetaTypeId<QTimeZone>()        >= QMetaType::User);
 	Q_ASSERT(qMetaTypeId<QUaReferenceType>() >= QMetaType::User);

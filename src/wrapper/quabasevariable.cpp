@@ -8,25 +8,6 @@
 // NOTE : added this ugly workaround that passes the "same datatypes" condition in
 // server/ua_services_attribute.c::compatibleDataType so we can actually set the value
 // of an optionset satatype
-/* OptionSet */
-static UA_DataTypeMember OptionSet_members[2] = {
-{
-	UA_TYPES_BYTESTRING, /* .memberTypeIndex */
-	0, /* .padding */
-	true, /* .namespaceZero */
-	false, /* .isArray */
-	false  /* .isOptional */
-	UA_TYPENAME("Value") /* .memberName */
-},
-{
-	UA_TYPES_BYTESTRING, /* .memberTypeIndex */
-	offsetof(UA_OptionSet, validBits) - offsetof(UA_OptionSet, value) - sizeof(UA_ByteString), /* .padding */
-	true, /* .namespaceZero */
-	false, /* .isArray */
-	false  /* .isOptional */
-	UA_TYPENAME("ValidBits") /* .memberName */
-}, };
-
 QHash<UA_NodeId, UA_DataType*> mapOptionSetDatatypes;
 UA_DataType* getDataTypeFromNodeId(const UA_NodeId& optNodeId)
 {
@@ -34,18 +15,9 @@ UA_DataType* getDataTypeFromNodeId(const UA_NodeId& optNodeId)
 	{
 		return mapOptionSetDatatypes[optNodeId];
 	}
-	UA_DataType* tmpType = new UA_DataType({
-		optNodeId, /* .typeId */
-		{0, UA_NODEIDTYPE_NUMERIC, {12765}}, /* .binaryEncodingId */
-		sizeof(UA_OptionSet), /* .memSize */
-		UA_TYPES_OPTIONSET, /* .typeIndex */
-		UA_DATATYPEKIND_STRUCTURE, /* .typeKind */
-		false, /* .pointerFree */
-		false, /* .overlayable */
-		2, /* .membersSize */
-		OptionSet_members  /* .members */
-		UA_TYPENAME("OptionSet") /* .typeName */
-	});
+	// copy of the builtin OptionSet type with the custom type id
+	UA_DataType* tmpType = new UA_DataType(UA_TYPES[UA_TYPES_OPTIONSET]);
+	tmpType->typeId = optNodeId;
 	mapOptionSetDatatypes[optNodeId] = tmpType;
 	return tmpType;
 }
@@ -281,11 +253,7 @@ void QUaBaseVariable::setValue(
 			if (iter.size() > 0)
 			{
 				QVariant innerVar = iter.at(0);
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-				newType = static_cast<QMetaType::Type>( innerVar.type() );
-#else
 				newType = static_cast<QMetaType::Type>( innerVar.typeId() );
-#endif
 				if (newType == QMetaType::User) newType = static_cast<QMetaType::Type>( innerVar.userType() );
 			}
 			else newType = QUaTypesConverter::getQArrayType( value.typeName() );
@@ -293,48 +261,30 @@ void QUaBaseVariable::setValue(
 		// if scalar
 		else
 		{
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-			newType = static_cast<QMetaType::Type>( value.type() );
-#else
 			newType = static_cast<QMetaType::Type>( value.typeId() );
-#endif
 			if (newType == QMetaType::User) newType = static_cast<QMetaType::Type>( value.userType() );
 		}
 
 		// if new type different from old type, try to keep old type
 		if (newType != oldType)
 		{
-#if (QT_VERSION >= QT_VERSION_CHECK(6,0,0))
 			QMetaType oldMetaType(oldType);
-#endif
 			if (isArray)
 			{
 				// can convert to old type
 				QVariant innerVar;
 				auto iter = value.value<QSequentialIterable>();
 				if (iter.size()>0) innerVar = iter.at(0);
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-				else { innerVar = QVariant( static_cast<QVariant::Type>(newType) ); }
-#else
 				else { innerVar = QVariant( QMetaType(newType) ); }
-#endif
 
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-				if (innerVar.canConvert(oldType))
-#else
 				if (innerVar.canConvert(oldMetaType))
-#endif
 				{
 					// convert to old type
 					QVariantList listOldType;
 					for (auto it = iter.begin(), itEnd = iter.end(); it != itEnd; ++it)
 					{
 						QVariant val = *it;
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-						val.convert(oldType);
-#else
 						val.convert(oldMetaType);
-#endif
 						listOldType.append(val);
 					}
 
@@ -344,17 +294,10 @@ void QUaBaseVariable::setValue(
 				}
 			}
 			// if scalar and can convert to old type
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-			else if (newValue.canConvert(oldType))
-			{
-				// convert to old type
-				newValue.convert(oldType);
-#else
 			else if (newValue.canConvert(oldMetaType))
 			{
 				// convert to old type
 				newValue.convert(oldMetaType);
-#endif
 				// preserve old type
 				newType = oldType;
 			}
@@ -646,9 +589,7 @@ void QUaBaseVariable::setDataType(const QMetaType::Type & newTypeConst)
 	Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	// get old value
 	QVariant oldValue = this->value();
-#if (QT_VERSION >= QT_VERSION_CHECK(6,0,0))
 	QMetaType dataMetaType(dataType);
-#endif
 	// handle array
 	if (QUaTypesConverter::canConvertQVariantList(oldValue))
 	{
@@ -658,19 +599,11 @@ void QUaBaseVariable::setDataType(const QMetaType::Type & newTypeConst)
 		for (auto it = iter.begin(), itEnd = iter.end(); it != itEnd; ++it)
 		{
 			QVariant varCurr = *it;
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-			if (varCurr.canConvert(dataType)) { varCurr.convert(dataType); }
-#else
 			if (varCurr.canConvert(dataMetaType)) { varCurr.convert(dataMetaType); }
-#endif
 			else
 			{
 				// else set default value for type
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-				varCurr = QVariant(static_cast<QVariant::Type>(dataType));
-#else
 				varCurr = QVariant(dataMetaType);
-#endif
 			}
 			// append to list of converted values
 			listConvValues.append(varCurr);
@@ -679,18 +612,6 @@ void QUaBaseVariable::setDataType(const QMetaType::Type & newTypeConst)
 		oldValue = listConvValues;
 	}
 	// handle scalar
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-	else if (oldValue.canConvert(dataType))
-	{
-		// convert in place
-		oldValue.convert(dataType);
-	}
-	else
-	{
-		// else set default value for type
-		oldValue = QVariant(static_cast<QVariant::Type>(dataType));
-	}
-#else
 	else if (oldValue.canConvert(dataMetaType))
 	{
 		// convert in place
@@ -701,7 +622,6 @@ void QUaBaseVariable::setDataType(const QMetaType::Type & newTypeConst)
 		// else set default value for type
 		oldValue = QVariant(dataMetaType);
 	}
-#endif
 	// set converted or default value
 	auto tmpVar = QUaTypesConverter::uaVariantFromQVariant(oldValue);
 	m_bInternalWrite = true;
@@ -727,11 +647,7 @@ void QUaBaseVariable::setDataTypeEnum(const QMetaEnum & metaEnum)
 	// compose enum name
     QString strEnumName = QStringLiteral("%1::%2").arg(
 				QString::fromLatin1(metaEnum.scope()),
-#if (QT_VERSION >= QT_VERSION_CHECK(5,12,0))
 				QString::fromLatin1(metaEnum.enumName()));
-#else
-				QString::fromLatin1(metaEnum.name()));
-#endif
 	// register if not exists
 	if (!m_qUaServer->m_hashEnums.contains(strEnumName))
 	{
@@ -769,34 +685,16 @@ void QUaBaseVariable::setDataTypeEnum(const UA_NodeId & enumTypeNodeId)
 	// get old value
 	QVariant oldValue = this->value();
 	// handle array
-#if (QT_VERSION >= QT_VERSION_CHECK(6,0,0))
 	QMetaType metaTypeInt = QMetaType::fromType<int>();
-#endif
 	if (QUaTypesConverter::canConvertQVariantList(oldValue))
 	{
 		auto iter = oldValue.value<QSequentialIterable>();
 		// get first value if any
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-		QVariant varFirst = iter.size() > 0 ? iter.at(0) : QVariant(static_cast<QVariant::Type>(QMetaType::Int));
-#else
 		QVariant varFirst = iter.size() > 0 ? iter.at(0) : QVariant(metaTypeInt);
-#endif
 		// overwrite old value
 		oldValue = varFirst;
 	}
 	// handle scalar
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-	if (oldValue.canConvert(QMetaType::Int))
-	{
-		// convert in place
-		oldValue.convert(QMetaType::Int);
-	}
-	else
-	{
-		// else set default value for type
-		oldValue = QVariant(static_cast<QVariant::Type>(QMetaType::Int));
-	}
-#else
 	if (oldValue.canConvert(metaTypeInt))
 	{
 		// convert in place
@@ -807,9 +705,14 @@ void QUaBaseVariable::setDataTypeEnum(const UA_NodeId & enumTypeNodeId)
 		// else set default value for type
 		oldValue = QVariant(metaTypeInt);
 	}
-#endif
 	// set converted or default value
 	auto tmpVar = QUaTypesConverter::uaVariantFromQVariant(oldValue);
+	// NOTE : value must be of the enum type, else it is not compatible with the new data type
+	const UA_DataType* enumType = UA_Server_findDataType(m_qUaServer->m_server, &enumTypeNodeId);
+	if (enumType && enumType->typeKind == UA_DATATYPEKIND_ENUM && tmpVar.type == &UA_TYPES[UA_TYPES_INT32])
+	{
+		tmpVar.type = enumType;
+	}
 	m_bInternalWrite = true;
 	st = this->setValueInternal(tmpVar);
 	Q_ASSERT(st == UA_STATUSCODE_GOOD);
@@ -1132,12 +1035,16 @@ void QUaBaseVariable::setMaxHistoryDataResponseSize(const quint64& maxHistoryDat
 	m_maxHistoryDataResponseSize = (std::max)(static_cast<quint64>(50), maxHistoryDataResponseSize);
 	// check if historizing already set
 	auto gathering = m_qUaServer->getGathering();
-	UA_NodeIdStoreContext* ctx = (UA_NodeIdStoreContext*)gathering.context;
-	UA_NodeIdStoreContextItem_gathering_default* item = getNodeIdStoreContextItem_gathering_default(ctx, &m_nodeId);
-	if (!item) {
+	// NOTE : the default gathering returns a pointer to the setting stored internally
+	auto psetting = const_cast<UA_HistorizingNodeIdSettings*>(gathering.getHistorizingSetting(
+		m_qUaServer->m_server,
+		gathering.context,
+		&m_nodeId
+	));
+	if (!psetting) {
 		return;
 	}
-	item->setting.maxHistoryDataResponseSize = m_maxHistoryDataResponseSize; // max size client can ask for
+	psetting->maxHistoryDataResponseSize = m_maxHistoryDataResponseSize; // max size client can ask for
 }
 #endif // UA_ENABLE_HISTORIZING
 
@@ -1206,11 +1113,7 @@ void QUaBaseVariable::setWriteHistoryAccess(const bool& bHistoryWrite)
 // [STATIC]
 qint32 QUaBaseVariable::GetValueRankFromQVariant(const QVariant & varValue)
 {
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-	auto originalType = static_cast<QMetaType::Type>( varValue.type() );
-#else
 	auto originalType = static_cast<QMetaType::Type>( varValue.typeId() );
-#endif
 	if (originalType == QMetaType::UnknownType)
 	{
 		return UA_VALUERANK_ANY;

@@ -148,7 +148,8 @@ QHash<QMetaType::Type, QUaDataType::TypeData> QUaDataType::m_custTypesByType = {
 	{ QMetaType_LocalizedText           , {QStringLiteral("QUaLocalizedText")           , UA_NODEID_NUMERIC(0, UA_NS0ID_LOCALIZEDTEXT)               , &UA_TYPES[UA_TYPES_LOCALIZEDTEXT               ]} },
 #ifdef UA_GENERATED_NAMESPACE_ZERO_FULL
 	// TODO : image
-	{ QMetaType_Image                   , {QStringLiteral("QImage")                     , UA_NODEID_NUMERIC(0, UA_NS0ID_IMAGE)                       , &UA_TYPES[UA_TYPES_IMAGEPNG                    ]} },
+	// NOTE : QMetaType_Image is the same as QMetaType::QByteArray, which must map to ByteString
+	//        (ImagePNG is a different data type since open62541 v1.3)
 	{ QMetaType_OptionSet               , {QStringLiteral("QUaOptionSet")               , UA_NODEID_NUMERIC(0, UA_NS0ID_OPTIONSET)                   , &UA_TYPES[UA_TYPES_OPTIONSET                   ]} },
 #endif // UA_GENERATED_NAMESPACE_ZERO_FULL
 #ifdef UA_ENABLE_SUBSCRIPTIONS_EVENTS
@@ -1209,13 +1210,8 @@ bool QUaEventHistoryQueryData::isValid() const
 QByteArray QUaEventHistoryQueryData::toByteArray(const QUaEventHistoryQueryData& inQueryData)
 {
 	QByteArray byteArray;
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-	QDataStream outStream(&byteArray, QIODevice::WriteOnly | QIODevice::Truncate);
-	outStream.setVersion(QDataStream::Qt_5_6);
-#else
 	QDataStream outStream(&byteArray, QIODeviceBase::OpenMode( QIODeviceBase::WriteOnly | QIODeviceBase::Truncate) );
 	outStream.setVersion(QDataStream::Qt_6_3);
-#endif
 	outStream.setByteOrder(QDataStream::BigEndian);
 	outStream << inQueryData;
 	return byteArray;
@@ -1229,11 +1225,7 @@ QUaEventHistoryQueryData QUaEventHistoryQueryData::fromByteArray(const QByteArra
 		return outQueryData;
 	}
 	QDataStream inStream(byteArray);
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-	inStream.setVersion(QDataStream::Qt_5_6);
-#else
 	inStream.setVersion(QDataStream::Qt_6_3);
-#endif
 	inStream.setByteOrder(QDataStream::BigEndian);
 	inStream >> outQueryData;
 	return outQueryData;
@@ -1242,13 +1234,8 @@ QUaEventHistoryQueryData QUaEventHistoryQueryData::fromByteArray(const QByteArra
 QByteArray QUaEventHistoryQueryData::ContinuationToByteArray(const QUaEventHistoryContinuationPoint& inContinuation)
 {
 	QByteArray byteArray;
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-	QDataStream outStream(&byteArray, QIODevice::WriteOnly | QIODevice::Truncate);
-	outStream.setVersion(QDataStream::Qt_5_6);
-#else
 	QDataStream outStream(&byteArray, QIODeviceBase::OpenMode( QIODeviceBase::WriteOnly | QIODeviceBase::Truncate) );
 	outStream.setVersion(QDataStream::Qt_6_3);
-#endif
 	outStream.setByteOrder(QDataStream::BigEndian);
 	outStream << inContinuation;
 	return byteArray;
@@ -1262,11 +1249,7 @@ QUaEventHistoryContinuationPoint QUaEventHistoryQueryData::ContinuationFromByteA
 		return outContinuation;
 	}
 	QDataStream inStream(byteArray);
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-	inStream.setVersion(QDataStream::Qt_5_6);
-#else
 	inStream.setVersion(QDataStream::Qt_6_3);
-#endif
 	inStream.setByteOrder(QDataStream::BigEndian);
 	inStream >> outContinuation;
 	return outContinuation;
@@ -1316,89 +1299,41 @@ QUaLog::QUaLog(const QByteArray& baMessage,
 {
 }
 
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-uint QUa::qHash(const Status &key, uint seed)
-{
-    Q_UNUSED(seed);
-    return static_cast<uint>(key);
-}
-#else
 size_t QUa::qHash(const Status &key, size_t seed)
 {
     Q_UNUSED(seed);
     return static_cast<size_t>(key);
 }
-#endif
 
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-uint QUa::qHash(const LogLevel &key, uint seed)
-{
-    Q_UNUSED(seed);
-    return static_cast<uint>(key);
-}
-#else
 size_t QUa::qHash(const LogLevel &key, size_t seed)
 {
     Q_UNUSED(seed);
     return static_cast<size_t>(key);
 }
-#endif
 
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-uint QUa::qHash(const LogCategory &key, uint seed)
-{
-    Q_UNUSED(seed);
-    return static_cast<uint>(key);
-}
-#else
 size_t QUa::qHash(const LogCategory &key, size_t seed)
 {
     Q_UNUSED(seed);
     return static_cast<size_t>(key);
 }
-#endif
 
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-uint QUa::qHash(const ExclusiveLimitState &key, uint seed)
-{
-    Q_UNUSED(seed);
-    return static_cast<uint>(key);
-}
-#else
 size_t QUa::qHash(const ExclusiveLimitState &key, size_t seed)
 {
     Q_UNUSED(seed);
     return static_cast<size_t>(key);
 }
-#endif
 
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-uint QUa::qHash(const ExclusiveLimitTransition &key, uint seed)
-{
-    Q_UNUSED(seed);
-    return static_cast<uint>(key);
-}
-#else
 size_t QUa::qHash(const ExclusiveLimitTransition &key, size_t seed)
 {
     Q_UNUSED(seed);
     return static_cast<size_t>(key);
 }
-#endif
 
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-uint QUa::qHash(const ChangeVerb &key, uint seed)
-{
-    Q_UNUSED(seed);
-    return static_cast<uint>(key);
-}
-#else
 size_t QUa::qHash(const ChangeVerb &key, size_t seed)
 {
     Q_UNUSED(seed);
     return static_cast<size_t>(key);
 }
-#endif
 
 #ifdef UA_GENERATED_NAMESPACE_ZERO_FULL
 QUaOptionSet::QUaOptionSet() :
@@ -1535,11 +1470,7 @@ quint64 QUaOptionSet::values() const
 	quint64 values;
 	Q_ASSERT(m_value.size() == 8);
 	QDataStream inStream(m_value);
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-	inStream.setVersion(QDataStream::Qt_5_6);
-#else
 	inStream.setVersion(QDataStream::Qt_6_3);
-#endif
 	inStream.setByteOrder(QDataStream::LittleEndian);
 	inStream >> values;
 	return values;
@@ -1547,13 +1478,8 @@ quint64 QUaOptionSet::values() const
 
 void QUaOptionSet::setValues(const quint64& values)
 {
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-	QDataStream valueStream(&m_value, QIODevice::WriteOnly | QIODevice::Truncate);
-	valueStream.setVersion(QDataStream::Qt_5_6);
-#else
 	QDataStream valueStream(&m_value, QIODeviceBase::OpenMode( QIODeviceBase::WriteOnly | QIODeviceBase::Truncate) );
 	valueStream.setVersion(QDataStream::Qt_6_3);
-#endif
 	valueStream.setByteOrder(QDataStream::LittleEndian);
 	valueStream << static_cast<quint64>(values);
 	Q_ASSERT(m_value.size() == 8);
@@ -1564,11 +1490,7 @@ quint64 QUaOptionSet::validBits() const
 	quint64 validBits;
 	Q_ASSERT(m_validBits.size() == 8);
 	QDataStream inStream(m_validBits);
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-	inStream.setVersion(QDataStream::Qt_5_6);
-#else
 	inStream.setVersion(QDataStream::Qt_6_3);
-#endif
 	inStream.setByteOrder(QDataStream::LittleEndian);
 	inStream >> validBits;
 	return validBits;
@@ -1576,13 +1498,8 @@ quint64 QUaOptionSet::validBits() const
 
 void QUaOptionSet::setValidBits(const quint64& validBits)
 {
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-	QDataStream validBitsStream(&m_validBits, QIODevice::WriteOnly | QIODevice::Truncate);
-	validBitsStream.setVersion(QDataStream::Qt_5_6);
-#else
 	QDataStream validBitsStream(&m_validBits, QIODeviceBase::OpenMode( QIODeviceBase::WriteOnly | QIODeviceBase::Truncate) );
 	validBitsStream.setVersion(QDataStream::Qt_6_3);
-#endif
 	validBitsStream.setByteOrder(QDataStream::LittleEndian);
 	validBitsStream << static_cast<quint64>(validBits);
 	Q_ASSERT(m_validBits.size() == 8);

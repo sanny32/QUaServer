@@ -302,6 +302,8 @@ private:
 	bool                    m_anonymousLoginAllowed;
 	QUaFolderObject       * m_pobjectsFolder;
 	char                    m_logBuffer[QUA_MAX_LOG_MESSAGE_SIZE];
+	UA_Logger               m_logger; // NOTE : must outlive m_server (referenced by server config)
+	UA_GlobalNodeLifecycle  m_nodeLifecycle; // NOTE : referenced by server config
     bool                    m_beingDestroyed;
 
 #ifdef UA_ENABLE_ENCRYPTION
@@ -320,6 +322,8 @@ private:
 
 	QHash<QString         , QString      > m_hashUsers;
 	QHash<UA_NodeId       , QUaSession*  > m_hashSessions;
+	// remote address of open secure channels (key is the secure channel id)
+	QHash<UA_UInt32, QPair<QString, quint16>> m_hashChannelAddresses;
 	QMap <QString         , UA_NodeId    > m_mapTypes;
 	QHash<QString         , QMetaObject  > m_hashMetaObjects;
 	QHash<QString         , UA_NodeId    > m_hashEnums;
@@ -333,6 +337,13 @@ private:
     QHash<QUaNodeId, QSet<QUaQualifiedName>> m_hashMandatoryChildren;
 
 	QUaValidationCallback m_validationCallback;
+	// default open62541 implementation, wrapped by QUaServer::activateSession
+	UA_StatusCode (*m_defaultActivateSession)(UA_Server *server, UA_AccessControl *ac,
+		const UA_EndpointDescription *endpointDescription,
+		const UA_ByteString *secureChannelRemoteCertificate,
+		const UA_NodeId *sessionId,
+		const UA_ExtensionObject *userIdentityToken,
+		void **sessionContext);
 
     QUaChildNodeIdCallback m_childNodeIdCallback;
 
@@ -358,12 +369,16 @@ private:
     QUaRefreshEndEvent  * m_refreshEndEvent;
     QUaRefreshRequiredEvent* m_refreshRequiredEvent;
     QHash<QUaNode*, QSet<QUaCondition*>> m_retainedConditions;
+    // event monitored items : session id -> subscription id -> monitored item id -> monitored node id
+    // NOTE : needed to implement ConditionRefresh using only the public open62541 API
+    QHash<UA_NodeId, QHash<UA_UInt32, QHash<UA_UInt32, UA_NodeId>>> m_hashEventMonitoredItems;
     bool m_conditionsRefreshRequired;
     void requireConditionsRefresh(const QUaLocalizedText &message = QUaLocalizedText());
 #endif // UA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS
 
 #ifdef UA_ENABLE_HISTORIZING
     UA_HistoryDatabase m_historDatabase;
+    UA_HistoryDataGathering m_historGathering; // NOTE : shares context with the one in m_historDatabase
     QUaHistoryBackend  m_historBackend;
     UA_HistoryDataGathering getGathering() const;
     quint8 eventNotifier() const;
@@ -379,7 +394,9 @@ private:
 		                                    UA_ByteString    &outUaCert, 
 		                                    QByteArray       &outByteCert);
     void setupServer();
-	UA_Logger getLogger();
+	void setupLogger();
+	// apply custom callbacks to the server config
+	void setupConfigCallbacks();
 	// types
     template<typename T>
     void registerSpecificationType(const UA_NodeId& typeNodeId, const bool abstract = false);
@@ -396,6 +413,16 @@ private:
 	UA_NodeId  enumValuesNodeId(const UA_NodeId &enumNodeId) const;
 	UA_Variant enumValues(const UA_NodeId &enumNodeId) const;
 	void       updateEnum(const UA_NodeId &enumNodeId, const QUaEnumMap &mapEnum);
+	// NOTE : open62541 >= 1.3 requires a UA_DataType of kind enumeration
+	//        for variables of a custom enum type to accept Int32 values
+	struct QUaCustomDataType
+	{
+		UA_DataType      type;
+		UA_DataTypeArray array;
+		QByteArray       name;
+	};
+	QList<QUaCustomDataType*> m_customDataTypes;
+	void registerEnumDataType(const UA_NodeId &enumNodeId, const QString &strEnumName);
 #ifdef UA_GENERATED_NAMESPACE_ZERO_FULL
     // optionsets
     UA_NodeId  optionSetValuesNodeId(const UA_NodeId& optionSetNodeId) const;
@@ -554,8 +581,30 @@ private:
 		                                 const UA_ExtensionObject     *userIdentityToken,
 		                                 void                        **sessionContext);
 
-	static void newSession(QUaServer* server, 
-		                   const UA_NodeId* sessionId);
+	static UA_StatusCode loginCallback(const UA_String               *userName,
+		                               const UA_ByteString           *password,
+		                               size_t                         usernamePasswordLoginSize,
+		                               const UA_UsernamePasswordLogin*usernamePasswordLogin,
+		                               void                         **sessionContext,
+		                               void                          *loginContext);
+
+	static void newSession(QUaServer* server,
+		                   const UA_NodeId* sessionId,
+		                   const UA_UInt32 &secureChannelId);
+
+	static void secureChannelNotificationCallback(UA_Server                     *server,
+		                                          UA_ApplicationNotificationType type,
+		                                          const UA_KeyValueMap           payload);
+
+	static void sessionNotificationCallback(UA_Server                     *server,
+		                                    UA_ApplicationNotificationType type,
+		                                    const UA_KeyValueMap           payload);
+
+#ifdef UA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS
+	static void subscriptionNotificationCallback(UA_Server                     *server,
+		                                         UA_ApplicationNotificationType type,
+		                                         const UA_KeyValueMap           payload);
+#endif // UA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS
 
 	static void closeSession(UA_Server        *server, 
 		                     UA_AccessControl *ac, 
@@ -1444,11 +1493,7 @@ struct QUaMethodTraitsBase
         // compose enum name
             QString strEnumName = QStringLiteral("%1::%2").arg(
                         QString::fromLatin1(metaEnum.scope()),
-#if (QT_VERSION >= QT_VERSION_CHECK(5,12,0))
                         QString::fromLatin1(metaEnum.enumName()));
-#else
-                        QString::fromLatin1(metaEnum.name()));
-#endif
         // register if not exists
         if (!uaServer->m_hashEnums.contains(strEnumName))
         {

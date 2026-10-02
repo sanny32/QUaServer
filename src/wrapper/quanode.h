@@ -8,8 +8,9 @@
 #include <QVariant>
 #include <QMetaProperty>
 #include <QQueue>
+#include <QSet>
 
-#include <open62541.h>
+#include "pch_open62541.h"
 
 class QUaServer;
 class QUaProperty;
@@ -352,6 +353,10 @@ private:
 
 	static QUaNode* getNodeContext(const UA_NodeId& nodeId, UA_Server* server);
 	static void*    getVoidContext(const UA_NodeId& nodeId, UA_Server* server);
+	// NOTE : open62541 sets non-QUaNode contexts in some nodes (e.g. diagnostics),
+	//        so a void context is only cast to QUaNode if it is a live instance
+	static QUaNode* fromVoidContext(void* context);
+	static QSet<const void*> m_liveNodes;
 
 	static QUaQualifiedName getBrowseName(const UA_NodeId& nodeId, UA_Server* server);
 
@@ -368,14 +373,14 @@ private:
 		UA_Server*              server, 
 		const UA_NodeId*        originNode,
 		const UA_QualifiedName* fieldName,
-		const UA_VariableNode*  optionalVariableFieldNode,
+		const UA_NodeId*        optionalVariableFieldNodeId,
 		UA_NodeId*              outOptionalVariable
 	);
 	static UA_StatusCode addOptionalObjectField(
 		UA_Server*              server, 
 		const UA_NodeId*        originNode,
 		const UA_QualifiedName* fieldName,
-		const UA_ObjectNode*    optionalObjectFieldNode,
+		const UA_NodeId*        optionalObjectFieldNodeId,
 		UA_NodeId*              outOptionalObject);
 
 	static UA_NodeId getOptionalChildNodeId(

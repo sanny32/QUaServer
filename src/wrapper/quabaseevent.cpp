@@ -232,21 +232,18 @@ QByteArray QUaBaseEvent::generateEventId()
 
 UA_ByteString QUaBaseEvent::generateEventIdInternal()
 {
+	// random 16-byte ByteString (same as open62541 default EventId)
 	UA_ByteString ret = UA_BYTESTRING_NULL;
-	auto st = UA_Event_generateEventId(&ret);
+	auto st = UA_ByteString_allocBuffer(&ret, 16);
 	Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	Q_UNUSED(st);
+	UA_UInt32* ids = reinterpret_cast<UA_UInt32*>(ret.data);
+	for (int i = 0; i < 4; i++)
+	{
+		ids[i] = UA_UInt32_random();
+	}
 	return ret;
 }
-
-static const UA_NodeId objectsFolderId = { 0, UA_NODEIDTYPE_NUMERIC, {UA_NS0ID_OBJECTSFOLDER} };
-#define EMIT_REFS_ROOT_COUNT 4
-static const UA_NodeId emitReferencesRoots[EMIT_REFS_ROOT_COUNT] ={ 
-    {0, UA_NODEIDTYPE_NUMERIC, {UA_NS0ID_ORGANIZES     }},
-    {0, UA_NODEIDTYPE_NUMERIC, {UA_NS0ID_HASCOMPONENT  }},
-    {0, UA_NODEIDTYPE_NUMERIC, {UA_NS0ID_HASEVENTSOURCE}},
-    {0, UA_NODEIDTYPE_NUMERIC, {UA_NS0ID_HASNOTIFIER   }} 
-};
 
 void QUaBaseEvent::triggerInternal()
 {

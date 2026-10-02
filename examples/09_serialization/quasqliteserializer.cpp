@@ -632,9 +632,9 @@ bool QUaSqliteSerializer::insertNewInstance(
 	query.bindValue(0, nodeKey);
 	for (int i = 1; i < attrNames.count(); i++)
 	{
-		auto& value = attrs[attrNames.at(i)];
+		const QVariant value = attrs.value(attrNames.at(i));
 		// NOTE : need to fix QMetaType::UChar serialization
-		auto type = static_cast<QMetaType::Type>(value.type());
+		auto type = static_cast<QMetaType::Type>(value.metaType().id());
 		query.bindValue(i, type == QMetaType::UChar ? value.toUInt() : value);
 	}
 	if (!query.exec())

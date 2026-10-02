@@ -110,6 +110,7 @@ void QUaServer::registerEnum(const QString& strEnumName, const QUaEnumMap& enumM
 	Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	// finally append to map
 	m_hashEnums.insert(strEnumName, reqNodeId);
+	this->registerEnumDataType(reqNodeId, strEnumName);
 }
 
 bool QUaServer::isEnumRegistered(const QString& strEnumName) const
@@ -193,16 +194,38 @@ void QUaServer::removeEnumEntry(const QString& strEnumName, const QUaEnumKey& en
 	this->updateEnum(enumNodeId, mapValues);
 }
 
+void QUaServer::registerEnumDataType(const UA_NodeId& enumNodeId, const QString& strEnumName)
+{
+	auto custType = new QUaCustomDataType;
+	memset(&custType->type , 0, sizeof(UA_DataType));
+	memset(&custType->array, 0, sizeof(UA_DataTypeArray));
+	custType->name = strEnumName.toUtf8();
+	UA_NodeId_copy(&enumNodeId, &custType->type.typeId);
+#ifdef UA_ENABLE_TYPEDESCRIPTION
+	custType->type.typeName    = custType->name.constData();
+#endif // UA_ENABLE_TYPEDESCRIPTION
+	custType->type.memSize     = sizeof(UA_Int32);
+	custType->type.typeKind    = UA_DATATYPEKIND_ENUM;
+	custType->type.pointerFree = true;
+	custType->type.overlayable = UA_BINARY_OVERLAYABLE_INTEGER;
+	custType->type.membersSize = 0;
+	custType->type.members     = nullptr;
+	// prepend to the custom types of the server (owned by QUaServer)
+	UA_ServerConfig* config = UA_Server_getConfig(m_server);
+	custType->array.next       = config->customDataTypes;
+	custType->array.typesSize  = 1;
+	custType->array.types      = &custType->type;
+	custType->array.cleanup    = false;
+	config->customDataTypes    = &custType->array;
+	m_customDataTypes << custType;
+}
+
 void QUaServer::registerEnum(const QMetaEnum& metaEnum, const QUaNodeId& nodeId/* = ""*/)
 {
 	// compose enum name
 	QString strBrowseName = QStringLiteral("%1::%2").arg(
 				QString::fromLatin1(metaEnum.scope()),
-#if (QT_VERSION >= QT_VERSION_CHECK(5,12,0))
 				QString::fromLatin1(metaEnum.enumName()));
-#else
-				QString::fromLatin1(metaEnum.name()));
-#endif
 	// compose values
 	QUaEnumMap mapEnum;
 	for (int i = 0; i < metaEnum.keyCount(); i++)

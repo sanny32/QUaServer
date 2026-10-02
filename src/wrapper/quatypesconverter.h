@@ -68,6 +68,8 @@ namespace QUaTypesConverter {
 	// ua to qt
 	QMetaType::Type uaTypeNodeIdToQType(const UA_NodeId   *nodeId   );
 	QMetaType::Type uaTypeToQType      (const UA_DataType *uaType   );
+	// index of the type in UA_TYPES (UA_TYPES_COUNT if not a builtin type)
+	UA_UInt32       uaTypeIndex        (const UA_DataType *uaType   );
 	QVariant        uaVariantToQVariant(const UA_Variant  &uaVariant, const ArrayType& arrType = ArrayType::QList);
 	// ua to qt : scalar
 	template<typename TARGETTYPE, typename UATYPE> // has specializations

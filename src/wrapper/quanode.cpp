@@ -106,6 +106,7 @@ QUaNode::QUaNode(
 	QUaServer* server
 )
 {
+	m_liveNodes.insert(static_cast<const void*>(this));
 	// [NOTE] : constructor of any QUaNode-derived class is not meant to be called by the user
 	//          the constructor is called automagically by this library, and m_newNodeNodeId and
 	//          m_newNodeMetaObject must be set in QUaServer before calling the constructor, as
@@ -124,7 +125,8 @@ QUaNode::QUaNode(
 	// set c++ instance as context
 	UA_Server_setNodeContext(server->m_server, nodeId, (void*)this);
 	// set node id to c++ instance
-	this->m_nodeId = nodeId;
+	// NOTE : deep copy, the node id passed by open62541 might be a temporary
+	UA_NodeId_copy(&nodeId, &this->m_nodeId);
 	// ignore objects folder
 	UA_NodeId objectsFolderNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER);
 	if (UA_NodeId_equal(&nodeId, &objectsFolderNodeId))
@@ -183,11 +185,7 @@ QUaNode::QUaNode(
 		nodeInstance->setParent(this);
 		nodeInstance->setObjectName(browseName);
 		Q_ASSERT(!this->browseChild(browseName));
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-		uint key = qHash(browseName);
-#else
 		size_t key = qHash(browseName);
-#endif
 		m_browseCache[key] = nodeInstance;
 		QObject::connect(nodeInstance, &QObject::destroyed, this, [this, key]() {
 			m_browseCache.remove(key);
@@ -212,11 +210,7 @@ QUaNode::QUaNode(
 		nodeInstance->setParent(this);
 		nodeInstance->setObjectName(browseName);
 		Q_ASSERT(!this->browseChild(browseName));
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-		uint key = qHash(browseName);
-#else
 		size_t key = qHash(browseName);
-#endif
 		m_browseCache[key] = nodeInstance;
 		QObject::connect(nodeInstance, &QObject::destroyed, this, [this, key]() {
 			m_browseCache.remove(key);
@@ -233,6 +227,7 @@ QUaNode::QUaNode(
 
 QUaNode::~QUaNode()
 {
+	m_liveNodes.remove(static_cast<const void*>(this));
 	// [FIX] : QObject children destructors were called after this one
 	//         and the some sub-types destructors might use parent's m_nodeId
 	//         so we better destroy the children manually before deleting while
@@ -249,6 +244,7 @@ QUaNode::~QUaNode()
 	{
 		// cleanup
 		UA_NodeId_clear(&outNodeId);
+		UA_NodeId_clear(&m_nodeId);
 		return;
 	}
 	Q_ASSERT(UA_NodeId_equal(&m_nodeId, &outNodeId));
@@ -275,6 +271,7 @@ QUaNode::~QUaNode()
 		});	
 	}
 #endif // UA_ENABLE_SUBSCRIPTIONS_EVENTS
+	UA_NodeId_clear(&m_nodeId);
 }
 
 bool QUaNode::operator==(const QUaNode & other) const
@@ -602,11 +599,7 @@ QUaNode* QUaNode::browseChild(
 {
 	// first check cache
 	QUaNode* child = nullptr;
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-	uint key = qHash(browseName);
-#else
 	size_t key = qHash(browseName);
-#endif
 	if (m_browseCache.contains(key))
 	{
 		child = m_browseCache.value(key);
@@ -814,42 +807,56 @@ QList<QUaNode*> QUaNode::findReferences(const QUaReferenceType& ref, const bool&
 	return retRefList;
 }
 
-// NOTE : code borrowed from open62541.c addOptionalObjectField
+/// NOTE : code borrowed from open62541 addOptionalObjectField, uses only public API
 UA_StatusCode QUaNode::addOptionalVariableField(
-	UA_Server* server, 
-	const UA_NodeId* originNode, 
-	const UA_QualifiedName* fieldName, 
-	const UA_VariableNode* optionalVariableFieldNode, 
+	UA_Server* server,
+	const UA_NodeId* originNode,
+	const UA_QualifiedName* fieldName,
+	const UA_NodeId* optionalVariableFieldNodeId,
 	UA_NodeId* outOptionalVariable)
 {
 	UA_VariableAttributes vAttr = UA_VariableAttributes_default;
-	vAttr.valueRank = optionalVariableFieldNode->valueRank;
-	UA_StatusCode retval = UA_LocalizedText_copy(&optionalVariableFieldNode->head.displayName,
-		&vAttr.displayName);
-	CONDITION_ASSERT_RETURN_RETVAL(retval, "Copying LocalizedText failed", );
-
-	retval = UA_NodeId_copy(&optionalVariableFieldNode->dataType, &vAttr.dataType);
-	CONDITION_ASSERT_RETURN_RETVAL(retval, "Copying NodeId failed", );
-
-	// missing to copy dimenstion size
-	vAttr.arrayDimensionsSize = optionalVariableFieldNode->arrayDimensionsSize;
-	if (vAttr.arrayDimensionsSize > 0)
+	UA_StatusCode retval = UA_Server_readValueRank(server, *optionalVariableFieldNodeId, &vAttr.valueRank);
+	if (retval != UA_STATUSCODE_GOOD)
 	{
-		UA_StatusCode retval = UA_Array_copy(optionalVariableFieldNode->arrayDimensions,
-			optionalVariableFieldNode->arrayDimensionsSize,
-			(void**)&vAttr.arrayDimensions,
-			&UA_TYPES[UA_TYPES_INT32]);
-		Q_ASSERT(retval == UA_STATUSCODE_GOOD);
+		UA_LOG_ERROR(UA_Server_getConfig(server)->logging, UA_LOGCATEGORY_USERLAND,
+			"Reading ValueRank failed. StatusCode %s", UA_StatusCode_name(retval));
+		return retval;
 	}
-	else
+	retval = UA_Server_readDisplayName(server, *optionalVariableFieldNodeId, &vAttr.displayName);
+	if (retval != UA_STATUSCODE_GOOD)
 	{
-		vAttr.arrayDimensions = optionalVariableFieldNode->arrayDimensions;
+		UA_LOG_ERROR(UA_Server_getConfig(server)->logging, UA_LOGCATEGORY_USERLAND,
+			"Reading DisplayName failed. StatusCode %s", UA_StatusCode_name(retval));
+		return retval;
 	}
+	retval = UA_Server_readDataType(server, *optionalVariableFieldNodeId, &vAttr.dataType);
+	if (retval != UA_STATUSCODE_GOOD)
+	{
+		UA_LOG_ERROR(UA_Server_getConfig(server)->logging, UA_LOGCATEGORY_USERLAND,
+			"Reading DataType failed. StatusCode %s", UA_StatusCode_name(retval));
+		UA_VariableAttributes_clear(&vAttr);
+		return retval;
+	}
+	// copy array dimensions
+	UA_Variant arrayDimensions;
+	UA_Variant_init(&arrayDimensions);
+	retval = UA_Server_readArrayDimensions(server, *optionalVariableFieldNodeId, &arrayDimensions);
+	if (retval == UA_STATUSCODE_GOOD &&
+		arrayDimensions.type == &UA_TYPES[UA_TYPES_UINT32] &&
+		arrayDimensions.arrayLength > 0)
+	{
+		vAttr.arrayDimensionsSize = arrayDimensions.arrayLength;
+		vAttr.arrayDimensions     = static_cast<UA_UInt32*>(arrayDimensions.data);
+		// NOTE : ownership moved to vAttr
+		UA_Variant_init(&arrayDimensions);
+	}
+	UA_Variant_clear(&arrayDimensions);
 
 	/* Get typedefintion */
-	const UA_Node* type = getNodeType(server, (const UA_NodeHead*)&optionalVariableFieldNode->head);
-	if (!type) {
-		UA_LOG_WARNING(&server->config.logger, UA_LOGCATEGORY_USERLAND,
+	UA_NodeId typeNodeId = QUaNode::typeDefinitionNodeId(*optionalVariableFieldNodeId, server);
+	if (UA_NodeId_isNull(&typeNodeId)) {
+		UA_LOG_WARNING(UA_Server_getConfig(server)->logging, UA_LOGCATEGORY_USERLAND,
 			"Invalid VariableType. StatusCode %s",
 			UA_StatusCode_name(UA_STATUSCODE_BADTYPEDEFINITIONINVALID));
         UA_VariableAttributes_clear(&vAttr);
@@ -859,7 +866,7 @@ UA_StatusCode QUaNode::addOptionalVariableField(
 	/* Set referenceType to parent */
 	UA_NodeId referenceToParent;
 	UA_NodeId propertyTypeNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_PROPERTYTYPE);
-	if (UA_NodeId_equal(&type->head.nodeId, &propertyTypeNodeId))
+	if (UA_NodeId_equal(&typeNodeId, &propertyTypeNodeId))
 		referenceToParent = UA_NODEID_NUMERIC(0, UA_NS0ID_HASPROPERTY);
 	else
 		referenceToParent = UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT);
@@ -867,31 +874,35 @@ UA_StatusCode QUaNode::addOptionalVariableField(
 	/* Set a random unused NodeId with specified Namespace Index*/
 	UA_NodeId optionalVariable = { originNode->namespaceIndex, UA_NODEIDTYPE_NUMERIC, {0} };
 	retval = UA_Server_addVariableNode(server, optionalVariable, *originNode,
-		referenceToParent, *fieldName, type->head.nodeId,
+		referenceToParent, *fieldName, typeNodeId,
 		vAttr, NULL, outOptionalVariable);
 	Q_ASSERT(retval == UA_STATUSCODE_GOOD);
-	UA_NODESTORE_RELEASE(server, type);
+	UA_NodeId_clear(&typeNodeId);
     UA_VariableAttributes_clear(&vAttr);
 	return retval;
 }
 
-// NOTE : code borrowed from open62541.c addOptionalObjectField
+// NOTE : code borrowed from open62541 addOptionalObjectField, uses only public API
 UA_StatusCode QUaNode::addOptionalObjectField(
-	UA_Server* server, 
+	UA_Server* server,
 	const UA_NodeId* originNode,
-	const UA_QualifiedName* fieldName, 
-	const UA_ObjectNode* optionalObjectFieldNode, 
+	const UA_QualifiedName* fieldName,
+	const UA_NodeId* optionalObjectFieldNodeId,
 	UA_NodeId* outOptionalObject)
 {
 	UA_ObjectAttributes oAttr = UA_ObjectAttributes_default;
-	UA_StatusCode retval = UA_LocalizedText_copy(&optionalObjectFieldNode->head.displayName,
-		&oAttr.displayName);
-	CONDITION_ASSERT_RETURN_RETVAL(retval, "Copying LocalizedText failed", );
+	UA_StatusCode retval = UA_Server_readDisplayName(server, *optionalObjectFieldNodeId, &oAttr.displayName);
+	if (retval != UA_STATUSCODE_GOOD)
+	{
+		UA_LOG_ERROR(UA_Server_getConfig(server)->logging, UA_LOGCATEGORY_USERLAND,
+			"Reading DisplayName failed. StatusCode %s", UA_StatusCode_name(retval));
+		return retval;
+	}
 
 	/* Get typedefintion */
-	const UA_Node* type = getNodeType(server, (const UA_NodeHead*)&optionalObjectFieldNode->head);
-	if (!type) {
-		UA_LOG_WARNING(&server->config.logger, UA_LOGCATEGORY_USERLAND,
+	UA_NodeId typeNodeId = QUaNode::typeDefinitionNodeId(*optionalObjectFieldNodeId, server);
+	if (UA_NodeId_isNull(&typeNodeId)) {
+		UA_LOG_WARNING(UA_Server_getConfig(server)->logging, UA_LOGCATEGORY_USERLAND,
 			"Invalid ObjectType. StatusCode %s",
 			UA_StatusCode_name(UA_STATUSCODE_BADTYPEDEFINITIONINVALID));
         UA_ObjectAttributes_clear(&oAttr);
@@ -901,17 +912,17 @@ UA_StatusCode QUaNode::addOptionalObjectField(
 	/* Set referenceType to parent */
 	UA_NodeId referenceToParent;
 	UA_NodeId propertyTypeNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_PROPERTYTYPE);
-	if (UA_NodeId_equal(&type->head.nodeId, &propertyTypeNodeId))
+	if (UA_NodeId_equal(&typeNodeId, &propertyTypeNodeId))
 		referenceToParent = UA_NODEID_NUMERIC(0, UA_NS0ID_HASPROPERTY);
 	else
 		referenceToParent = UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT);
 
 	UA_NodeId optionalObject = { originNode->namespaceIndex, UA_NODEIDTYPE_NUMERIC, {0} };
 	retval = UA_Server_addObjectNode(server, optionalObject, *originNode,
-		referenceToParent, *fieldName, type->head.nodeId,
+		referenceToParent, *fieldName, typeNodeId,
 		oAttr, NULL, outOptionalObject);
 
-	UA_NODESTORE_RELEASE(server, type);
+	UA_NodeId_clear(&typeNodeId);
     UA_ObjectAttributes_clear(&oAttr);
 	return retval;
 }
@@ -978,16 +989,16 @@ QUaNode * QUaNode::instantiateOptionalChild(
 {
 	UA_NodeId outOptionalNode;
 	UA_NodeId parentNodeId = parent->nodeId();
-	// get the internal node
-	const UA_Node* optionalFieldNode = UA_NODESTORE_GET(server, &optionalFieldNodeId);
-	if (optionalFieldNode == NULL)
+	// get the node class of the optional field
+	UA_NodeClass nodeClass = UA_NODECLASS_UNSPECIFIED;
+	auto st = UA_Server_readNodeClass(server, optionalFieldNodeId, &nodeClass);
+	if (st != UA_STATUSCODE_GOOD)
 	{
-		UA_LOG_WARNING(&server->config.logger, UA_LOGCATEGORY_USERLAND,
+		UA_LOG_WARNING(UA_Server_getConfig(server)->logging, UA_LOGCATEGORY_USERLAND,
 			"Couldn't find optional Field Node in ConditionType. StatusCode %s",
 			UA_StatusCode_name(UA_STATUSCODE_BADNOTFOUND));
 		return nullptr;
 	}
-	UA_NodeClass nodeClass = optionalFieldNode->head.nodeClass;
 	switch (nodeClass) {
 	case UA_NODECLASS_VARIABLE:
 	{
@@ -995,17 +1006,16 @@ QUaNode * QUaNode::instantiateOptionalChild(
 			server,
 			&parentNodeId,
 			&childName,
-			(const UA_VariableNode*)optionalFieldNode,
+			&optionalFieldNodeId,
 			&outOptionalNode
 		);
 		if (retval != UA_STATUSCODE_GOOD)
 		{
-			UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_USERLAND,
+			UA_LOG_ERROR(UA_Server_getConfig(server)->logging, UA_LOGCATEGORY_USERLAND,
 				"Adding Condition Optional Variable Field failed. StatusCode %s",
 				UA_StatusCode_name(retval));
 			return nullptr;
 		}
-		UA_NODESTORE_RELEASE(server, optionalFieldNode);
 	}
 	break;
 	case UA_NODECLASS_OBJECT:
@@ -1013,26 +1023,23 @@ QUaNode * QUaNode::instantiateOptionalChild(
 		UA_StatusCode retval = QUaNode::addOptionalObjectField(
 			server,
 			&parentNodeId, &childName,
-			(const UA_ObjectNode*)optionalFieldNode,
+			&optionalFieldNodeId,
 			&outOptionalNode
 		);
 		if (retval != UA_STATUSCODE_GOOD)
 		{
-			UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_USERLAND,
+			UA_LOG_ERROR(UA_Server_getConfig(server)->logging, UA_LOGCATEGORY_USERLAND,
 				"Adding Condition Optional Object Field failed. StatusCode %s",
 				UA_StatusCode_name(retval));
 			return nullptr;
 		}
-		UA_NODESTORE_RELEASE(server, optionalFieldNode);
 	}
 	break;
 	case UA_NODECLASS_METHOD:
 		// NOTE : use QUaNode::addOptionalMethod instead
-		UA_NODESTORE_RELEASE(server, optionalFieldNode);
 		Q_ASSERT(false);
 		return nullptr;
 	default:
-		UA_NODESTORE_RELEASE(server, optionalFieldNode);
 		Q_ASSERT(false);
 		return nullptr;
 	}
@@ -1078,24 +1085,21 @@ QUaNode * QUaNode::instantiateOptionalChild(
 	// need to bind again using the official (void ** nodeContext) of the UA constructor
 	// because we set context on C++ instantiation, but later the UA library overwrites it 
 	// after calling the UA constructor
-	auto st = UA_Server_setNodeContext(
+	st = UA_Server_setNodeContext(
 		server,
 		outOptionalNode,
 		static_cast<void*>(newInstance)
 	);
-	Q_ASSERT(st);
+	Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	Q_UNUSED(st);
-	newInstance->m_nodeId = outOptionalNode;
+	UA_NodeId_clear(&newInstance->m_nodeId);
+	newInstance->m_nodeId = outOptionalNode; // NOTE : ownership transferred
 	// need to set parent and browse name
 	auto browseName = QUaQualifiedName(childName);
 	newInstance->setParent(parent);
 	newInstance->setObjectName(browseName);
 	Q_ASSERT(!parent->browseChild(browseName));
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-	uint key = qHash(browseName);
-#else
 	size_t key = qHash(browseName);
-#endif
 	parent->m_browseCache[key] = newInstance;
 	QObject::connect(newInstance, &QObject::destroyed, parent, [parent, key]() {
 		parent->m_browseCache.remove(key);
@@ -1201,7 +1205,7 @@ QUaNode* QUaNode::instantiateOptionalChild(const QUaQualifiedName&  browseName)
 	UA_NodeId_clear(&typeNodeId);
 	if (UA_NodeId_isNull(&optionalFieldNodeId))
 	{
-		UA_LOG_WARNING(&m_qUaServer->m_server->config.logger, UA_LOGCATEGORY_USERLAND,
+		UA_LOG_WARNING(UA_Server_getConfig(m_qUaServer->m_server)->logging, UA_LOGCATEGORY_USERLAND,
 			"Couldn't find optional Field Node in ConditionType. StatusCode %s",
 			UA_StatusCode_name(UA_STATUSCODE_BADNOTFOUND));
 		UA_NodeId_clear(&optionalFieldNodeId);
@@ -1589,11 +1593,7 @@ void QUaNode::deserializeAttrs(
 			bool ok = listAttrsNotInProps.removeOne(strPropName);
 			Q_ASSERT(ok);
 			// write property
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-			auto &val = attrs[strPropName]; // 6.34[%]
-#else
 			auto val = attrs[strPropName]; // 6.34[%]
-#endif
 			if (val.isValid() && !val.isNull())
 			{
 				ok = metaProperty.write(this, val);
@@ -1864,12 +1864,12 @@ QUaNode::QUaEventFieldMetaData QUaNode::getTypeVars(
 				//	"QUaNode::getTypeVars", 
 				//	"Not Supported!");
 				QByteArray byteType = QByteArrayLiteral("QList<") + QMetaType(qType).name() + '>';
-#if (QT_VERSION < QT_VERSION_CHECK(6,0,0))
-				qType = static_cast<QMetaType::Type>( QMetaType::type(byteType) );
-#else
 				qType = static_cast<QMetaType::Type>( QMetaType::fromName(byteType).id() );
-#endif
-				Q_ASSERT(qType != QMetaType::UnknownType);
+				// fallback for array types not registered in Qt
+				if (qType == QMetaType::UnknownType)
+				{
+					qType = QMetaType::QVariantList;
+				}
 			}
 			// add to return list
 			Q_ASSERT(!retNames.contains(browsePath));
@@ -1916,7 +1916,18 @@ QUaNode * QUaNode::getNodeContext(const UA_NodeId & nodeId, UA_Server * server)
 {
 	void * context = QUaNode::getVoidContext(nodeId, server);
 	// try to cast to C++ node, dynamic_cast check is necessary
-	return qobject_cast<QUaNode*>(static_cast<QObject*>(context));
+	return QUaNode::fromVoidContext(context);
+}
+
+QSet<const void*> QUaNode::m_liveNodes;
+
+QUaNode* QUaNode::fromVoidContext(void* context)
+{
+	if (!context || !m_liveNodes.contains(context))
+	{
+		return nullptr;
+	}
+	return static_cast<QUaNode*>(context);
 }
 
 void * QUaNode::getVoidContext(const UA_NodeId & nodeId, UA_Server * server)
