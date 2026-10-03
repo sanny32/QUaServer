@@ -225,6 +225,21 @@ QObject::connect(varBaseData, &QUaBaseDataVariable::valueChanged, [](const QVari
 
 The `networkChange` argument specifies if the value was changed through the network by an OPC client or programmatically by the server logic.
 
+The `valueChanged` signal arrives after the value is written. To check a client write **before** it is applied, set a write validator. Returning a *Bad* status code rejects the write: the value is left unchanged and the client receives that status code.
+
+```c++
+varBaseData->setWriteValidator([](const QVariant &value, const QUaSession *session) {
+	Q_UNUSED(session); // the writing client session, e.g. to check session->userName()
+	return value.toInt() >= 0 && value.toInt() <= 100 ?
+		QUaStatusCode(QUaStatus::Good) :
+		QUaStatusCode(UA_STATUSCODE_BADOUTOFRANGE);
+});
+```
+
+* Only client writes are validated, `setValue()` and the other server side setters are not.
+* When a client writes only part of an array (an index range), the validator receives the complete resulting array.
+* Call `setWriteValidator()` without arguments to remove the validator.
+
 ## For Object Types
 
 The API provides the following methods to access attributes:

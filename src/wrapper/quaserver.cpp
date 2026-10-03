@@ -1657,6 +1657,8 @@ void QUaServer::setupServer()
 	// set context for server
 	st = UA_Server_setNodeContext(m_server, UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER), (void*)this); Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	Q_UNUSED(st);
+	// lets value sources tell local writes from client writes (see QUaBaseVariable::writeValueSource)
+	UA_Server_setAdminSessionContext(m_server, this);
 	// add default supported references
 	m_hashHierRefTypes.insert({ QStringLiteral("Organizes")          , QStringLiteral("OrganizedBy")        }, UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES          ));
 	m_hashHierRefTypes.insert({ QStringLiteral("HasOrderedComponent"), QStringLiteral("OrderedComponentOf") }, UA_NODEID_NUMERIC(0, UA_NS0ID_HASORDEREDCOMPONENT));

@@ -63,43 +63,44 @@ void QUaBaseVariable::onWrite(UA_Server             *server,
 	// NOTE : sometimes happens that !srv->m_hashSessions.contains(*sessionId)
 	srv->m_currentSession = srv->m_hashSessions.contains(*sessionId) ?
 		srv->m_hashSessions[*sessionId] : nullptr;
+	var->emitWriteSignals(*data);
+}
+
+///
+/// \brief Emits the change signals of a written value, flagged as network change unless setValue() wrote it.
+///
+void QUaBaseVariable::emitWriteSignals(const UA_DataValue& data)
+{
 	// do not process if nobody listening
 	static const QMetaMethod valueSignal = QMetaMethod::fromSignal(&QUaBaseVariable::valueChanged);
-	if (var->isSignalConnected(valueSignal))
+	if (this->isSignalConnected(valueSignal))
 	{
-		// emit value changed
-		emit var->valueChanged(var->value(), !var->m_bInternalWrite);
+		emit this->valueChanged(this->value(), !m_bInternalWrite);
 	}
-	// do not process if nobody listening
 	static const QMetaMethod statusSignal = QMetaMethod::fromSignal(&QUaBaseVariable::statusCodeChanged);
-	if (data->hasStatus && var->isSignalConnected(statusSignal))
+	if (data.hasStatus && this->isSignalConnected(statusSignal))
 	{
-		// emit status changed
-		emit var->statusCodeChanged(QUaStatusCode(data->status), !var->m_bInternalWrite);
+		emit this->statusCodeChanged(QUaStatusCode(data.status), !m_bInternalWrite);
 	}
-	// do not process if nobody listening
 	static const QMetaMethod sourceSignal = QMetaMethod::fromSignal(&QUaBaseVariable::sourceTimestampChanged);
-	if (data->hasSourceTimestamp && var->isSignalConnected(sourceSignal))
+	if (data.hasSourceTimestamp && this->isSignalConnected(sourceSignal))
 	{
-		// emit source timestamp changed
-		emit var->sourceTimestampChanged(
+		emit this->sourceTimestampChanged(
 			QUaTypesConverter::uaVariantToQVariantScalar
-				<QDateTime, UA_DateTime>(&data->sourceTimestamp), 
-			!var->m_bInternalWrite
+				<QDateTime, UA_DateTime>(&data.sourceTimestamp),
+			!m_bInternalWrite
 		);
 	}
-	// do not process if nobody listening
 	static const QMetaMethod serverSignal = QMetaMethod::fromSignal(&QUaBaseVariable::serverTimestampChanged);
-	if (data->hasServerTimestamp && var->isSignalConnected(serverSignal))
+	if (data.hasServerTimestamp && this->isSignalConnected(serverSignal))
 	{
-		// emit server timestamp changed
-		emit var->serverTimestampChanged(
+		emit this->serverTimestampChanged(
 			QUaTypesConverter::uaVariantToQVariantScalar
-				<QDateTime, UA_DateTime>(&data->serverTimestamp),
-			!var->m_bInternalWrite
+				<QDateTime, UA_DateTime>(&data.serverTimestamp),
+			!m_bInternalWrite
 		);
 	}
-	var->m_bInternalWrite = false;
+	m_bInternalWrite = false;
 }
 
 // [STATIC] : Optionally set be the user (m_readCallback). Called before a value is requested by open62541.
@@ -144,21 +145,114 @@ void QUaBaseVariable::onRead(
 	{
 		return;
 	}
-	if (!var->m_readCallback || var->m_readCallbackRunning) return;
+	var->runReadCallback();
+}
+
+///
+/// \brief Stores the value returned by the user read callback, if any.
+///
+void QUaBaseVariable::runReadCallback()
+{
+	if (!m_readCallback || m_readCallbackRunning) return;
 	// setValue (somehow) triggers read callback again; this avoids recursion
-	QVariant newValue = var->m_readCallback();
+	QVariant newValue = m_readCallback();
 	if (!newValue.isNull())
 	{
-		var->m_readCallbackRunning = true;
-		var->setValue(newValue);
-		var->m_readCallbackRunning = false;
+		m_readCallbackRunning = true;
+		this->setValue(newValue);
+		m_readCallbackRunning = false;
 	}
+}
+
+///
+/// \brief [STATIC] Serves reads from m_callbackSourceValue while a write validator is set.
+///
+UA_StatusCode QUaBaseVariable::readValueSource(
+	UA_Server             *server,
+	const UA_NodeId       *sessionId,
+	void                  *sessionContext,
+	const UA_NodeId       *nodeId,
+	void                  *nodeContext,
+	UA_Boolean             includeSourceTimeStamp,
+	const UA_NumericRange *range,
+	UA_DataValue          *value)
+{
+	Q_UNUSED(server);
+	Q_UNUSED(sessionContext);
+	Q_UNUSED(nodeId);
+	Q_UNUSED(includeSourceTimeStamp);
+	auto var = static_cast<QUaBaseVariable*>(nodeContext);
+	Q_CHECK_PTR(var);
+	QUaServer* srv = var->m_qUaServer;
+	srv->m_currentSession = sessionId && srv->m_hashSessions.contains(*sessionId) ?
+		srv->m_hashSessions[*sessionId] : nullptr;
+	var->runReadCallback();
+	return range ?
+		UA_DataValue_copyRange(&var->m_callbackSourceValue, value, *range) :
+		UA_DataValue_copy(&var->m_callbackSourceValue, value);
+}
+
+///
+/// \brief [STATIC] Validates a client write before storing it in m_callbackSourceValue.
+/// \return The validator result when it rejects the write, which open62541 returns to the client.
+///
+UA_StatusCode QUaBaseVariable::writeValueSource(
+	UA_Server             *server,
+	const UA_NodeId       *sessionId,
+	void                  *sessionContext,
+	const UA_NodeId       *nodeId,
+	void                  *nodeContext,
+	const UA_NumericRange *range,
+	const UA_DataValue    *value)
+{
+	Q_UNUSED(server);
+	Q_UNUSED(nodeId);
+	auto var = static_cast<QUaBaseVariable*>(nodeContext);
+	Q_CHECK_PTR(var);
+	QUaServer* srv = var->m_qUaServer;
+	srv->m_currentSession = srv->m_hashSessions.contains(*sessionId) ?
+		srv->m_hashSessions[*sessionId] : nullptr;
+	UA_DataValue newValue;
+	UA_StatusCode st = UA_DataValue_copy(range ? &var->m_callbackSourceValue : value, &newValue);
+	if (st == UA_STATUSCODE_GOOD && range)
+	{
+		// same partial write semantics as the open62541 internal value source
+		st = UA_Variant_setRangeCopy(&newValue.value, value->value.data, value->value.arrayLength, *range);
+		newValue.hasStatus            = value->hasStatus;
+		newValue.status               = value->status;
+		newValue.hasSourceTimestamp   = value->hasSourceTimestamp;
+		newValue.sourceTimestamp      = value->sourceTimestamp;
+		newValue.hasSourcePicoseconds = value->hasSourcePicoseconds;
+		newValue.sourcePicoseconds    = value->sourcePicoseconds;
+	}
+	// the admin session (local API) is marked with the server as context, any other writer is a client
+	if (st == UA_STATUSCODE_GOOD && sessionContext != srv && var->m_writeValidator)
+	{
+		st = var->m_writeValidator(
+			QUaTypesConverter::uaVariantToQVariant(newValue.value),
+			srv->m_currentSession
+		);
+		if (!UA_StatusCode_isBad(st))
+		{
+			st = UA_STATUSCODE_GOOD;
+		}
+	}
+	if (st != UA_STATUSCODE_GOOD)
+	{
+		UA_DataValue_clear(&newValue);
+		return st;
+	}
+	UA_DataValue_clear(&var->m_callbackSourceValue);
+	var->m_callbackSourceValue = newValue;
+	var->emitWriteSignals(var->m_callbackSourceValue);
+	return UA_STATUSCODE_GOOD;
 }
 
 QUaBaseVariable::QUaBaseVariable(
 	QUaServer* server
 ) : QUaNode(server)
 {
+	UA_DataValue_init(&m_callbackSourceValue);
 	// [NOTE] : constructor of any QUaNode-derived class is not meant to be called by the user
 	//          the constructor is called automagically by this library, and m_newNodeNodeId and
 	//          m_newNodeMetaObject must be set in QUaServer before calling the constructor, as
@@ -175,22 +269,69 @@ QUaBaseVariable::QUaBaseVariable(
 #endif // UA_ENABLE_HISTORIZING
 }
 
+QUaBaseVariable::~QUaBaseVariable()
+{
+	UA_DataValue_clear(&m_callbackSourceValue);
+}
+
 void QUaBaseVariable::setReadCallback(const std::function<QVariant()>& readCallback){
-	UA_ValueCallback callback;
-	if (readCallback)
+	m_readCallback = readCallback;
+	m_readCallbackRunning = false;
+	this->applyValueSource();
+}
+
+///
+/// \brief Sets a callback that validates every client write before it is applied; local writes are not validated.
+///        Call with the default argument to remove it. The validator receives the complete resulting value,
+///        also when the client writes only an index range.
+///
+void QUaBaseVariable::setWriteValidator(const QUaWriteValidator& validator)
+{
+	m_writeValidator = validator;
+	this->applyValueSource();
+}
+
+///
+/// \brief Moves the value to a callback value source while a write validator is set, since only its write
+///        callback can reject a write; otherwise keeps it in the node with read and write notifications.
+///
+void QUaBaseVariable::applyValueSource()
+{
+	UA_Server* server = m_qUaServer->m_server;
+	UA_StatusCode st = UA_STATUSCODE_GOOD;
+	if (m_writeValidator)
 	{
-		callback.onRead = &QUaBaseVariable::onRead;
-		m_readCallback = readCallback;
-		m_readCallbackRunning = false;
+		if (m_bValueInCallbackSource)
+		{
+			return;
+		}
+		UA_ReadValueId rv;
+		UA_ReadValueId_init(&rv);
+		rv.nodeId      = m_nodeId;
+		rv.attributeId = UA_ATTRIBUTEID_VALUE;
+		UA_DataValue_clear(&m_callbackSourceValue);
+		m_callbackSourceValue = UA_Server_read(server, &rv, UA_TIMESTAMPSTORETURN_SOURCE);
+		// the Read service flags an unset value as present, which would block later data type changes
+		m_callbackSourceValue.hasValue = !UA_Variant_isEmpty(&m_callbackSourceValue.value);
+		UA_CallbackValueSource source;
+		source.read  = &QUaBaseVariable::readValueSource;
+		source.write = &QUaBaseVariable::writeValueSource;
+		st = UA_Server_setVariableNode_callbackValueSource(server, m_nodeId, source);
+		m_bValueInCallbackSource = true;
 	}
 	else
 	{
-		callback.onRead = nullptr;
-		m_readCallback = readCallback;
+		UA_ValueSourceNotifications notifications;
+		notifications.onRead  = m_readCallback ? &QUaBaseVariable::onRead : nullptr;
+		notifications.onWrite = &QUaBaseVariable::onWrite;
+		// a null value keeps the current internal value
+		st = UA_Server_setVariableNode_internalValueSource(server, m_nodeId,
+			m_bValueInCallbackSource ? &m_callbackSourceValue : nullptr, &notifications);
+		UA_DataValue_clear(&m_callbackSourceValue);
+		m_bValueInCallbackSource = false;
 	}
-	callback.onWrite = &QUaBaseVariable::onWrite;
-	// this replaces the previous callback, if any
-	UA_Server_setVariableNode_valueCallback(m_qUaServer->m_server, m_nodeId, callback);
+	Q_ASSERT(st == UA_STATUSCODE_GOOD);
+	Q_UNUSED(st);
 }
 
 QVariant QUaBaseVariable::value() const

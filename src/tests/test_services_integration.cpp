@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include <QElapsedTimer>
 #include <QSignalSpy>
 #include <QTest>
@@ -6,6 +8,21 @@
 
 #include "testclient.h"
 #include "testserver.h"
+
+namespace {
+
+///
+/// \brief Accepts percentages only.
+///
+QUaStatusCode validatePercentage(const QVariant &value, const QUaSession *session)
+{
+    Q_UNUSED(session);
+    const int percentage = value.toInt();
+    return percentage >= 0 && percentage <= 100 ? QUaStatusCode(QUaStatus::Good)
+                                                : QUaStatusCode(UA_STATUSCODE_BADOUTOFRANGE);
+}
+
+} // namespace
 
 class TestServicesIntegration : public QObject
 {
@@ -25,6 +42,13 @@ private slots:
     void enumVariableAcceptsInt32();
     void byteArrayVariableIsByteString();
     void readCallbackAnswersClientReads();
+    void writeValidatorAcceptsOrRejectsClientWrites_data();
+    void writeValidatorAcceptsOrRejectsClientWrites();
+    void writeValidatorReceivesWritingSession();
+    void writeValidatorIgnoresLocalWrites();
+    void writeValidatorChecksWholeValueOfRangeWrite();
+    void writeValidatorKeepsReadCallbackAndSubscriptions();
+    void removingWriteValidatorKeepsValue();
     void userAccessLevelIsCheckedPerUser();
     void methodReturnsResult();
     void methodRejectsWrongArguments_data();
@@ -228,6 +252,140 @@ void TestServicesIntegration::readCallbackAnswersClientReads()
     QCOMPARE(m_client->readValue(variable->nodeId(), value), UA_STATUSCODE_GOOD);
 
     QCOMPARE(value.toInt(), 77);
+}
+
+void TestServicesIntegration::writeValidatorAcceptsOrRejectsClientWrites_data()
+{
+    QTest::addColumn<int>("written");
+    QTest::addColumn<quint32>("status");
+    QTest::addColumn<int>("stored");
+
+    QTest::newRow("valid value") << 80 << quint32(UA_STATUSCODE_GOOD) << 80;
+    QTest::newRow("invalid value") << 150 << quint32(UA_STATUSCODE_BADOUTOFRANGE) << 50;
+}
+
+void TestServicesIntegration::writeValidatorAcceptsOrRejectsClientWrites()
+{
+    QFETCH(int, written);
+    QFETCH(quint32, status);
+    QFETCH(int, stored);
+    QUaBaseDataVariable *variable = addVariable(QStringLiteral("percentage"));
+    variable->setWriteAccess(true);
+    variable->setValue(50);
+    variable->setWriteValidator(&validatePercentage);
+    QSignalSpy spy(variable, &QUaBaseVariable::valueChanged);
+    QVariant read;
+
+    QCOMPARE(m_client->writeValue(variable->nodeId(), written), status);
+
+    QCOMPARE(variable->value<int>(), stored);
+    QCOMPARE(m_client->readValue(variable->nodeId(), read), UA_STATUSCODE_GOOD);
+    QCOMPARE(read.toInt(), stored);
+    QCOMPARE(spy.count(), status == UA_STATUSCODE_GOOD ? 1 : 0);
+    if (!spy.isEmpty())
+    {
+        QCOMPARE(spy.first().at(1).toBool(), true);
+    }
+}
+
+void TestServicesIntegration::writeValidatorReceivesWritingSession()
+{
+    QUaBaseDataVariable *variable = addVariable(QStringLiteral("owned"));
+    variable->setWriteAccess(true);
+    variable->setValue(1);
+    QString writer;
+    variable->setWriteValidator([&writer](const QVariant &, const QUaSession *session) {
+        writer = session ? session->userName() : QString();
+        return QUaStatusCode(writer == QStringLiteral("admin") ? UA_STATUSCODE_GOOD : UA_STATUSCODE_BADUSERACCESSDENIED);
+    });
+    TestClient admin;
+    QCOMPARE(admin.connectUsername(TestServer::endpointUrl(*m_server), QStringLiteral("admin"), QStringLiteral("admin")),
+             UA_STATUSCODE_GOOD);
+
+    QCOMPARE(m_client->writeValue(variable->nodeId(), 2), UA_STATUSCODE_BADUSERACCESSDENIED);
+    QCOMPARE(admin.writeValue(variable->nodeId(), 3), UA_STATUSCODE_GOOD);
+
+    QCOMPARE(writer, QStringLiteral("admin"));
+    QCOMPARE(variable->value<int>(), 3);
+}
+
+void TestServicesIntegration::writeValidatorIgnoresLocalWrites()
+{
+    QUaBaseDataVariable *variable = addVariable(QStringLiteral("local"));
+    variable->setWriteAccess(true);
+    variable->setValue(50);
+    int validations = 0;
+    variable->setWriteValidator([&validations](const QVariant &value, const QUaSession *session) {
+        ++validations;
+        return validatePercentage(value, session);
+    });
+    QSignalSpy spy(variable, &QUaBaseVariable::valueChanged);
+
+    variable->setValue(500);
+    variable->setStatusCode(QUaStatus::UncertainLastUsableValue);
+
+    QCOMPARE(validations, 0);
+    QCOMPARE(variable->value<int>(), 500);
+    QVERIFY(variable->statusCode() == QUaStatus::UncertainLastUsableValue);
+    QVERIFY(!spy.isEmpty());
+    QCOMPARE(spy.first().at(1).toBool(), false);
+}
+
+///
+/// \brief A partial write is validated as the array it produces, and a rejected one leaves the array intact.
+///
+void TestServicesIntegration::writeValidatorChecksWholeValueOfRangeWrite()
+{
+    QUaBaseDataVariable *variable = addVariable(QStringLiteral("levels"));
+    variable->setWriteAccess(true);
+    variable->setValue(QVariant::fromValue(QList<int>{ 10, 20, 30 }));
+    QVariant seen;
+    variable->setWriteValidator([&seen](const QVariant &value, const QUaSession *) {
+        seen = value;
+        const QVariantList levels = value.toList();
+        const bool valid = std::all_of(levels.cbegin(), levels.cend(), [](const QVariant &level) { return level.toInt() >= 0; });
+        return QUaStatusCode(valid ? UA_STATUSCODE_GOOD : UA_STATUSCODE_BADOUTOFRANGE);
+    });
+
+    QCOMPARE(m_client->writeValueRange(variable->nodeId(), QStringLiteral("1"), QVariant::fromValue(QList<int>{ -5 })),
+             UA_STATUSCODE_BADOUTOFRANGE);
+    QCOMPARE(variable->value().toList(), (QVariantList{ 10, 20, 30 }));
+    QCOMPARE(m_client->writeValueRange(variable->nodeId(), QStringLiteral("1"), QVariant::fromValue(QList<int>{ 25 })),
+             UA_STATUSCODE_GOOD);
+
+    QCOMPARE(seen.toList(), (QVariantList{ 10, 25, 30 }));
+    QCOMPARE(variable->value().toList(), (QVariantList{ 10, 25, 30 }));
+}
+
+void TestServicesIntegration::writeValidatorKeepsReadCallbackAndSubscriptions()
+{
+    QUaBaseDataVariable *variable = addVariable(QStringLiteral("computedValidated"));
+    variable->setWriteAccess(true);
+    variable->setValue(0);
+    variable->setWriteValidator(&validatePercentage);
+    variable->setReadCallback([]() { return QVariant(42); });
+    QVariant value;
+
+    QCOMPARE(m_client->readValue(variable->nodeId(), value), UA_STATUSCODE_GOOD);
+    QCOMPARE(m_client->monitorValue(variable->nodeId()), UA_STATUSCODE_GOOD);
+
+    QCOMPARE(value.toInt(), 42);
+}
+
+void TestServicesIntegration::removingWriteValidatorKeepsValue()
+{
+    QUaBaseDataVariable *variable = addVariable(QStringLiteral("unvalidated"));
+    variable->setWriteAccess(true);
+    variable->setWriteValidator(&validatePercentage);
+    variable->setValue(42);
+    QSignalSpy spy(variable, &QUaBaseVariable::valueChanged);
+
+    variable->setWriteValidator();
+
+    QCOMPARE(variable->value<int>(), 42);
+    QCOMPARE(m_client->writeValue(variable->nodeId(), 150), UA_STATUSCODE_GOOD);
+    QCOMPARE(variable->value<int>(), 150);
+    QTRY_COMPARE(spy.count(), 1);
 }
 
 ///

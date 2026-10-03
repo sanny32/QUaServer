@@ -33,6 +33,12 @@ int main(int argc, char *argv[])
 	QObject::connect(varBaseData, &QUaBaseDataVariable::valueChanged, [](const QVariant &value) {
 		qDebug() << "New value :" << value;
 	});
+	// clients may only write values from 0 to 100
+	varBaseData->setWriteValidator([](const QVariant &value, const QUaSession *) {
+		return value.toInt() >= 0 && value.toInt() <= 100 ?
+			QUaStatusCode(QUaStatus::Good) :
+			QUaStatusCode(UA_STATUSCODE_BADOUTOFRANGE);
+	});
 
 	QUaProperty * varProp = objsFolder->addProperty("my_property", "ns=1;s=my_prop");
 	varProp->setValue("hola");

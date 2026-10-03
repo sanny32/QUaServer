@@ -22,6 +22,12 @@ struct is_qvector_traits : std::false_type {};
 template <typename T>
 struct is_qvector_traits<QVector<T>> : std::true_type {};
 
+///
+/// \brief Decides whether a client may write \a value; a Bad status code rejects the write and is returned to the client.
+///        \a session is the writing client session, or nullptr when it is unknown.
+///
+using QUaWriteValidator = std::function<QUaStatusCode(const QVariant& value, const QUaSession* session)>;
+
 class QUaBaseVariable : public QUaNode
 {
 	Q_OBJECT
@@ -53,6 +59,7 @@ public:
 	explicit QUaBaseVariable(
 		QUaServer* server
 	);
+	~QUaBaseVariable() override;
 
 	// Attributes API
 
@@ -147,6 +154,12 @@ public:
 	// set callback which is called before a read is performed
 	// call with the default argument for no pre-read callback
 	void              setReadCallback(const std::function<QVariant()>& readCallback=std::function<QVariant()>());
+	///
+	/// \brief Sets a callback that validates every client write before it is applied; local writes are not validated.
+	///        Call with the default argument to remove it. The validator receives the complete resulting value,
+	///        also when the client writes only an index range.
+	///
+	void              setWriteValidator(const QUaWriteValidator& validator = QUaWriteValidator());
 
 	// Helpers
 
@@ -201,9 +214,34 @@ private:
 		                const UA_NumericRange *range,
 		                const UA_DataValue    *data);
 
+	static UA_StatusCode readValueSource (UA_Server             *server,
+		                                  const UA_NodeId       *sessionId,
+		                                  void                  *sessionContext,
+		                                  const UA_NodeId       *nodeId,
+		                                  void                  *nodeContext,
+		                                  UA_Boolean             includeSourceTimeStamp,
+		                                  const UA_NumericRange *range,
+		                                  UA_DataValue          *value);
+
+	static UA_StatusCode writeValueSource(UA_Server             *server,
+		                                  const UA_NodeId       *sessionId,
+		                                  void                  *sessionContext,
+		                                  const UA_NodeId       *nodeId,
+		                                  void                  *nodeContext,
+		                                  const UA_NumericRange *range,
+		                                  const UA_DataValue    *value);
+
+	void applyValueSource();
+	void runReadCallback();
+	void emitWriteSignals(const UA_DataValue &data);
+
 	bool m_bInternalWrite = false;
 	std::function<QVariant()> m_readCallback;
 	bool m_readCallbackRunning = false;
+	QUaWriteValidator m_writeValidator;
+	// the value is kept here instead of in the node while a write validator is set
+	bool         m_bValueInCallbackSource = false;
+	UA_DataValue m_callbackSourceValue;
 #ifdef UA_ENABLE_HISTORIZING
 	quint64 m_maxHistoryDataResponseSize;
 #endif // UA_ENABLE_HISTORIZING

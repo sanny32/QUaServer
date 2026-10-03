@@ -32,6 +32,7 @@ private slots:
     void rawHistoryReturnsWrittenValues();
     void requestedPageSizeIsHonoured();
     void variableWithoutHistoryAccessIsRefused();
+    void onlyAcceptedClientWritesAreHistorized();
 #ifdef UA_ENABLE_SUBSCRIPTIONS_EVENTS
     void eventHistoryReturnsTriggeredEvents();
     void serverLimitAppliesWhenClientAsksForAllEvents();
@@ -176,6 +177,26 @@ void TestHistoryIntegration::variableWithoutHistoryAccessIsRefused()
 
     QVERIFY(status != UA_STATUSCODE_GOOD);
     QVERIFY(values.isEmpty());
+}
+
+///
+/// \brief A write rejected by the write validator never reaches the history.
+///
+void TestHistoryIntegration::onlyAcceptedClientWritesAreHistorized()
+{
+    QUaBaseDataVariable *variable = addHistorizedVariable(QStringLiteral("validated"));
+    variable->setWriteAccess(true);
+    variable->setWriteValidator([](const QVariant &value, const QUaSession *) {
+        return QUaStatusCode(value.toInt() >= 0 ? UA_STATUSCODE_GOOD : UA_STATUSCODE_BADOUTOFRANGE);
+    });
+    QVariantList values;
+
+    QCOMPARE(m_client->writeValue(variable->nodeId(), 5), UA_STATUSCODE_GOOD);
+    QCOMPARE(m_client->writeValue(variable->nodeId(), -1), UA_STATUSCODE_BADOUTOFRANGE);
+    QCOMPARE(m_client->writeValue(variable->nodeId(), 7), UA_STATUSCODE_GOOD);
+
+    QCOMPARE(m_client->readHistoryRaw(variable->nodeId(), 0, values), UA_STATUSCODE_GOOD);
+    QCOMPARE(toInts(values), QList<int>({ 5, 7 }));
 }
 
 #ifdef UA_ENABLE_SUBSCRIPTIONS_EVENTS

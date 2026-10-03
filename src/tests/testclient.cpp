@@ -262,6 +262,38 @@ UA_StatusCode TestClient::writeValue(const QUaNodeId &nodeId, const QVariant &va
 }
 
 ///
+/// \brief Writes \a value to the elements \a indexRange (e.g. "1" or "0:2") of the array Value of \a nodeId.
+///
+UA_StatusCode TestClient::writeValueRange(const QUaNodeId &nodeId, const QString &indexRange, const QVariant &value)
+{
+    const UaNodeIdGuard id(nodeId);
+    const QByteArray range = indexRange.toUtf8();
+    UA_WriteValue writeValue;
+    UA_WriteValue_init(&writeValue);
+    writeValue.nodeId = id.get();
+    writeValue.attributeId = UA_ATTRIBUTEID_VALUE;
+    writeValue.indexRange = UA_STRING(const_cast<char *>(range.constData()));
+    writeValue.value.value = QUaTypesConverter::uaVariantFromQVariant(value);
+    writeValue.value.hasValue = true;
+    UA_WriteRequest request;
+    UA_WriteRequest_init(&request);
+    request.nodesToWrite = &writeValue;
+    request.nodesToWriteSize = 1;
+    UA_StatusCode status = UA_STATUSCODE_GOOD;
+    runInWorker([&] {
+        UA_WriteResponse response = UA_Client_Service_write(m_client, request);
+        status = response.responseHeader.serviceResult;
+        if (status == UA_STATUSCODE_GOOD)
+        {
+            status = response.resultsSize == 1 ? response.results[0] : UA_STATUSCODE_BADUNEXPECTEDERROR;
+        }
+        UA_WriteResponse_clear(&response);
+    });
+    UA_Variant_clear(&writeValue.value.value);
+    return status;
+}
+
+///
 /// \brief Calls the method \a methodId of \a objectId with \a inputs and stores its results in \a outputs.
 ///
 UA_StatusCode TestClient::call(const QUaNodeId &objectId,

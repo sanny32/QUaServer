@@ -95,6 +95,11 @@ public:
     UA_StatusCode writeValue(const QUaNodeId &nodeId, const QVariant &value);
 
     ///
+    /// \brief Writes \a value to the elements \a indexRange (e.g. "1" or "0:2") of the array Value of \a nodeId.
+    ///
+    UA_StatusCode writeValueRange(const QUaNodeId &nodeId, const QString &indexRange, const QVariant &value);
+
+    ///
     /// \brief Calls the method \a methodId of \a objectId with \a inputs and stores its results in \a outputs.
     ///
     UA_StatusCode call(const QUaNodeId &objectId,
