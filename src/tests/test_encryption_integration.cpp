@@ -85,46 +85,46 @@ private slots:
 private:
     UA_StatusCode connectAsAlice(const ClientIdentity &identity);
 
-    QByteArray m_certificate;
-    QByteArray m_privateKey;
-    QByteArray m_caCertificate;
-    QByteArray m_caRevocationList;
-    QByteArray m_untrustedCertificate;
-    ClientIdentity m_client;
-    ClientIdentity m_revokedClient;
-    ClientIdentity m_user;
-    ClientIdentity m_untrustedUser;
+    QByteArray _certificate;
+    QByteArray _privateKey;
+    QByteArray _caCertificate;
+    QByteArray _caRevocationList;
+    QByteArray _untrustedCertificate;
+    ClientIdentity _client;
+    ClientIdentity _revokedClient;
+    ClientIdentity _user;
+    ClientIdentity _untrustedUser;
 
     UA_StatusCode connectAsUser(TestClient &client, const ClientIdentity &user);
-    QUaServer *m_server = nullptr;
+    QUaServer *_server = nullptr;
 };
 
 void TestEncryptionIntegration::initTestCase()
 {
-    m_certificate = readCertificateFile(QStringLiteral("server.crt.der"));
-    m_privateKey = readCertificateFile(QStringLiteral("server.key.der"));
-    m_caCertificate = readPkiFile(QStringLiteral("ca.crt.der"));
-    m_caRevocationList = readPkiFile(QStringLiteral("ca.crl.der"));
-    m_untrustedCertificate = readPkiFile(QStringLiteral("untrusted.crt.der"));
-    m_client = { readPkiFile(QStringLiteral("client.crt.der")),
+    _certificate = readCertificateFile(QStringLiteral("server.crt.der"));
+    _privateKey = readCertificateFile(QStringLiteral("server.key.der"));
+    _caCertificate = readPkiFile(QStringLiteral("ca.crt.der"));
+    _caRevocationList = readPkiFile(QStringLiteral("ca.crl.der"));
+    _untrustedCertificate = readPkiFile(QStringLiteral("untrusted.crt.der"));
+    _client = { readPkiFile(QStringLiteral("client.crt.der")),
                  readPkiFile(QStringLiteral("client.key.der")),
                  QStringLiteral("urn:quaserver:test:client") };
-    m_revokedClient = { readPkiFile(QStringLiteral("revoked.crt.der")),
+    _revokedClient = { readPkiFile(QStringLiteral("revoked.crt.der")),
                         readPkiFile(QStringLiteral("revoked.key.der")),
                         QStringLiteral("urn:quaserver:test:revoked") };
-    QVERIFY(!m_certificate.isEmpty());
-    QVERIFY(!m_privateKey.isEmpty());
-    QVERIFY(!m_caCertificate.isEmpty());
-    QVERIFY(!m_caRevocationList.isEmpty());
-    QVERIFY(!m_untrustedCertificate.isEmpty());
-    QVERIFY(!m_client.certificate.isEmpty() && !m_client.privateKey.isEmpty());
-    QVERIFY(!m_revokedClient.certificate.isEmpty() && !m_revokedClient.privateKey.isEmpty());
-    m_user = { readPkiFile(QStringLiteral("user.crt.der")),
+    QVERIFY(!_certificate.isEmpty());
+    QVERIFY(!_privateKey.isEmpty());
+    QVERIFY(!_caCertificate.isEmpty());
+    QVERIFY(!_caRevocationList.isEmpty());
+    QVERIFY(!_untrustedCertificate.isEmpty());
+    QVERIFY(!_client.certificate.isEmpty() && !_client.privateKey.isEmpty());
+    QVERIFY(!_revokedClient.certificate.isEmpty() && !_revokedClient.privateKey.isEmpty());
+    _user = { readPkiFile(QStringLiteral("user.crt.der")),
                readPkiFile(QStringLiteral("user.key.der")),
                QStringLiteral("urn:quaserver:test:user") };
-    m_untrustedUser = { m_untrustedCertificate, readPkiFile(QStringLiteral("untrusted.key.der")), QString() };
-    QVERIFY(!m_user.certificate.isEmpty() && !m_user.privateKey.isEmpty());
-    QVERIFY(!m_untrustedUser.privateKey.isEmpty());
+    _untrustedUser = { _untrustedCertificate, readPkiFile(QStringLiteral("untrusted.key.der")), QString() };
+    QVERIFY(!_user.certificate.isEmpty() && !_user.privateKey.isEmpty());
+    QVERIFY(!_untrustedUser.privateKey.isEmpty());
 }
 
 ///
@@ -132,18 +132,18 @@ void TestEncryptionIntegration::initTestCase()
 ///
 UA_StatusCode TestEncryptionIntegration::connectAsUser(TestClient &client, const ClientIdentity &user)
 {
-    const UA_StatusCode status = client.setEncryption(m_client.certificate, m_client.privateKey, m_client.applicationUri);
+    const UA_StatusCode status = client.setEncryption(_client.certificate, _client.privateKey, _client.applicationUri);
     if (status != UA_STATUSCODE_GOOD)
     {
         return status;
     }
-    return client.connectCertificate(TestServer::endpointUrl(*m_server), user.certificate, user.privateKey);
+    return client.connectCertificate(TestServer::endpointUrl(*_server), user.certificate, user.privateKey);
 }
 
 UA_StatusCode TestEncryptionIntegration::connectAsAlice(const ClientIdentity &identity)
 {
     TestClient client;
-    return client.connectEncrypted(TestServer::endpointUrl(*m_server),
+    return client.connectEncrypted(TestServer::endpointUrl(*_server),
                                    identity.certificate,
                                    identity.privateKey,
                                    identity.applicationUri,
@@ -156,25 +156,25 @@ UA_StatusCode TestEncryptionIntegration::connectAsAlice(const ClientIdentity &id
 ///
 void TestEncryptionIntegration::init()
 {
-    m_server = new QUaServer;
-    m_server->setApplicationUri(kApplicationUri);
+    _server = new QUaServer;
+    _server->setApplicationUri(kApplicationUri);
 }
 
 void TestEncryptionIntegration::cleanup()
 {
-    delete m_server;
-    m_server = nullptr;
+    delete _server;
+    _server = nullptr;
 }
 
 void TestEncryptionIntegration::certificateWithKeyOffersEncryptedEndpoints()
 {
-    m_server->setCertificate(m_certificate);
-    m_server->setPrivateKey(m_privateKey);
-    QVERIFY(TestServer::start(*m_server));
+    _server->setCertificate(_certificate);
+    _server->setPrivateKey(_privateKey);
+    QVERIFY(TestServer::start(*_server));
     TestClient client;
 
     const QStringList encrypted =
-        client.endpointSecurityPolicyUris(TestServer::endpointUrl(*m_server), UA_MESSAGESECURITYMODE_SIGNANDENCRYPT);
+        client.endpointSecurityPolicyUris(TestServer::endpointUrl(*_server), UA_MESSAGESECURITYMODE_SIGNANDENCRYPT);
 
     QVERIFY(encrypted.contains(kBasic256Sha256Policy));
     QVERIFY(!encrypted.contains(kNonePolicy));
@@ -185,10 +185,10 @@ void TestEncryptionIntegration::certificateWithKeyOffersEncryptedEndpoints()
 ///
 void TestEncryptionIntegration::certificateWithoutKeyOffersOnlyNonePolicy()
 {
-    m_server->setCertificate(m_certificate);
-    QVERIFY(TestServer::start(*m_server));
+    _server->setCertificate(_certificate);
+    QVERIFY(TestServer::start(*_server));
     TestClient client;
-    const QString url = TestServer::endpointUrl(*m_server);
+    const QString url = TestServer::endpointUrl(*_server);
 
     QCOMPARE(client.endpointSecurityPolicyUris(url, UA_MESSAGESECURITYMODE_NONE), QStringList{ kNonePolicy });
     QVERIFY(client.endpointSecurityPolicyUris(url, UA_MESSAGESECURITYMODE_SIGN).isEmpty());
@@ -208,16 +208,16 @@ void TestEncryptionIntegration::encryptedSessionChecksPassword()
 {
     QFETCH(QString, password);
     QFETCH(bool, accepted);
-    m_server->setCertificate(m_certificate);
-    m_server->setPrivateKey(m_privateKey);
-    m_server->setAnonymousLoginAllowed(false);
-    m_server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
-    QVERIFY(TestServer::start(*m_server));
+    _server->setCertificate(_certificate);
+    _server->setPrivateKey(_privateKey);
+    _server->setAnonymousLoginAllowed(false);
+    _server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
+    QVERIFY(TestServer::start(*_server));
     TestClient client;
 
-    const UA_StatusCode status = client.connectEncrypted(TestServer::endpointUrl(*m_server),
-                                                         m_certificate,
-                                                         m_privateKey,
+    const UA_StatusCode status = client.connectEncrypted(TestServer::endpointUrl(*_server),
+                                                         _certificate,
+                                                         _privateKey,
                                                          kApplicationUri,
                                                          QStringLiteral("alice"),
                                                          password);
@@ -225,8 +225,8 @@ void TestEncryptionIntegration::encryptedSessionChecksPassword()
     QCOMPARE(status == UA_STATUSCODE_GOOD, accepted);
     if (accepted)
     {
-        QTRY_COMPARE(m_server->sessions().count(), 1);
-        QCOMPARE(m_server->sessions().first()->userName(), QStringLiteral("alice"));
+        QTRY_COMPARE(_server->sessions().count(), 1);
+        QCOMPARE(_server->sessions().first()->userName(), QStringLiteral("alice"));
     }
 }
 
@@ -235,17 +235,17 @@ void TestEncryptionIntegration::encryptedSessionChecksPassword()
 ///
 void TestEncryptionIntegration::passwordOverUnencryptedChannelIsRejected()
 {
-    m_server->setCertificate(m_certificate);
-    m_server->setPrivateKey(m_privateKey);
-    m_server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
-    QVERIFY(TestServer::start(*m_server));
+    _server->setCertificate(_certificate);
+    _server->setPrivateKey(_privateKey);
+    _server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
+    QVERIFY(TestServer::start(*_server));
     TestClient client;
 
     const UA_StatusCode status =
-        client.connectUsername(TestServer::endpointUrl(*m_server), QStringLiteral("alice"), QStringLiteral("secret"));
+        client.connectUsername(TestServer::endpointUrl(*_server), QStringLiteral("alice"), QStringLiteral("secret"));
 
     QVERIFY(status != UA_STATUSCODE_GOOD);
-    QCOMPARE(m_server->sessions().count(), 0);
+    QCOMPARE(_server->sessions().count(), 0);
 }
 
 ///
@@ -260,17 +260,17 @@ void TestEncryptionIntegration::clientTrust_data()
     QTest::addColumn<bool>("accepted");
 
     QTest::newRow("empty trust list accepts any client")
-        << m_client << Certificates() << Certificates() << true;
+        << _client << Certificates() << Certificates() << true;
     QTest::newRow("trusted client with its issuer")
-        << m_client << Certificates{ m_client.certificate } << Certificates{ m_caCertificate } << true;
+        << _client << Certificates{ _client.certificate } << Certificates{ _caCertificate } << true;
     QTest::newRow("trusted client without its issuer")
-        << m_client << Certificates{ m_client.certificate } << Certificates() << false;
+        << _client << Certificates{ _client.certificate } << Certificates() << false;
     QTest::newRow("client of a trusted CA")
-        << m_client << Certificates{ m_caCertificate } << Certificates() << true;
+        << _client << Certificates{ _caCertificate } << Certificates() << true;
     QTest::newRow("revoked client of a trusted CA")
-        << m_revokedClient << Certificates{ m_caCertificate } << Certificates() << false;
+        << _revokedClient << Certificates{ _caCertificate } << Certificates() << false;
     QTest::newRow("unrelated certificate only")
-        << m_client << Certificates{ m_untrustedCertificate } << Certificates() << false;
+        << _client << Certificates{ _untrustedCertificate } << Certificates() << false;
 }
 
 void TestEncryptionIntegration::clientTrust()
@@ -279,42 +279,42 @@ void TestEncryptionIntegration::clientTrust()
     QFETCH(QList<QByteArray>, trusted);
     QFETCH(QList<QByteArray>, issuers);
     QFETCH(bool, accepted);
-    m_server->setCertificate(m_certificate);
-    m_server->setPrivateKey(m_privateKey);
-    m_server->setTrustedCertificates(trusted);
-    m_server->setIssuerCertificates(issuers);
-    m_server->setRevocationLists({ m_caRevocationList });
-    m_server->setAnonymousLoginAllowed(false);
-    m_server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
-    QVERIFY(TestServer::start(*m_server));
+    _server->setCertificate(_certificate);
+    _server->setPrivateKey(_privateKey);
+    _server->setTrustedCertificates(trusted);
+    _server->setIssuerCertificates(issuers);
+    _server->setRevocationLists({ _caRevocationList });
+    _server->setAnonymousLoginAllowed(false);
+    _server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
+    QVERIFY(TestServer::start(*_server));
 
     const UA_StatusCode status = connectAsAlice(client);
 
     QCOMPARE(status == UA_STATUSCODE_GOOD, accepted);
     if (!accepted)
     {
-        QCOMPARE(m_server->sessions().count(), 0);
+        QCOMPARE(_server->sessions().count(), 0);
     }
 }
 
 void TestEncryptionIntegration::securityPoliciesAndModesFilterEndpoints()
 {
-    m_server->setCertificate(m_certificate);
-    m_server->setPrivateKey(m_privateKey);
-    m_server->setSecurityPolicies(QUaSecurityPolicy::Basic256Sha256);
-    m_server->setSecurityModes(QUaMessageSecurityMode::SignAndEncrypt);
-    m_server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
-    QVERIFY(TestServer::start(*m_server));
+    _server->setCertificate(_certificate);
+    _server->setPrivateKey(_privateKey);
+    _server->setSecurityPolicies(QUaSecurityPolicy::Basic256Sha256);
+    _server->setSecurityModes(QUaMessageSecurityMode::SignAndEncrypt);
+    _server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
+    QVERIFY(TestServer::start(*_server));
     TestClient client;
     // the open62541 client only discovers through an endpoint it can use, and None is not published
-    QCOMPARE(client.setEncryption(m_client.certificate, m_client.privateKey, m_client.applicationUri), UA_STATUSCODE_GOOD);
-    const QString url = TestServer::endpointUrl(*m_server);
+    QCOMPARE(client.setEncryption(_client.certificate, _client.privateKey, _client.applicationUri), UA_STATUSCODE_GOOD);
+    const QString url = TestServer::endpointUrl(*_server);
 
     QVERIFY(client.endpointSecurityPolicyUris(url, UA_MESSAGESECURITYMODE_NONE).isEmpty());
     QVERIFY(client.endpointSecurityPolicyUris(url, UA_MESSAGESECURITYMODE_SIGN).isEmpty());
     QCOMPARE(client.endpointSecurityPolicyUris(url, UA_MESSAGESECURITYMODE_SIGNANDENCRYPT),
              QStringList{ kBasic256Sha256Policy });
-    QCOMPARE(connectAsAlice(m_client), UA_STATUSCODE_GOOD);
+    QCOMPARE(connectAsAlice(_client), UA_STATUSCODE_GOOD);
 }
 
 ///
@@ -322,11 +322,11 @@ void TestEncryptionIntegration::securityPoliciesAndModesFilterEndpoints()
 ///
 void TestEncryptionIntegration::noMatchingEndpointFailsToStart()
 {
-    m_server->setCertificate(m_certificate);
-    m_server->setSecurityModes(QUaMessageSecurityMode::Sign | QUaMessageSecurityMode::SignAndEncrypt);
+    _server->setCertificate(_certificate);
+    _server->setSecurityModes(QUaMessageSecurityMode::Sign | QUaMessageSecurityMode::SignAndEncrypt);
 
-    QVERIFY(!TestServer::start(*m_server));
-    QVERIFY(!m_server->isRunning());
+    QVERIFY(!TestServer::start(*_server));
+    QVERIFY(!_server->isRunning());
 }
 
 ///
@@ -343,16 +343,16 @@ void TestEncryptionIntegration::userCertificateTokenNeedsCallback_data()
 void TestEncryptionIntegration::userCertificateTokenNeedsCallback()
 {
     QFETCH(bool, withCallback);
-    m_server->setCertificate(m_certificate);
-    m_server->setPrivateKey(m_privateKey);
+    _server->setCertificate(_certificate);
+    _server->setPrivateKey(_privateKey);
     if (withCallback)
     {
-        m_server->setUserCertificateCallback([](const QByteArray &) { return QStringLiteral("anyone"); });
+        _server->setUserCertificateCallback([](const QByteArray &) { return QStringLiteral("anyone"); });
     }
-    QVERIFY(TestServer::start(*m_server));
+    QVERIFY(TestServer::start(*_server));
     TestClient client;
 
-    const QList<UA_UserTokenType> tokenTypes = client.endpointUserTokenTypes(TestServer::endpointUrl(*m_server));
+    const QList<UA_UserTokenType> tokenTypes = client.endpointUserTokenTypes(TestServer::endpointUrl(*_server));
 
     QCOMPARE(tokenTypes.contains(UA_USERTOKENTYPE_CERTIFICATE), withCallback);
 }
@@ -368,28 +368,28 @@ void TestEncryptionIntegration::userCertificateMapsToUserName_data()
 void TestEncryptionIntegration::userCertificateMapsToUserName()
 {
     QFETCH(QString, mappedName);
-    m_server->setCertificate(m_certificate);
-    m_server->setPrivateKey(m_privateKey);
-    m_server->setAnonymousLoginAllowed(false);
+    _server->setCertificate(_certificate);
+    _server->setPrivateKey(_privateKey);
+    _server->setAnonymousLoginAllowed(false);
     QByteArray seen;
-    m_server->setUserCertificateCallback([&seen, mappedName](const QByteArray &certificate) {
+    _server->setUserCertificateCallback([&seen, mappedName](const QByteArray &certificate) {
         seen = certificate;
         return mappedName;
     });
-    QVERIFY(TestServer::start(*m_server));
+    QVERIFY(TestServer::start(*_server));
     TestClient client;
 
-    const UA_StatusCode status = connectAsUser(client, m_user);
+    const UA_StatusCode status = connectAsUser(client, _user);
 
-    QCOMPARE(seen, m_user.certificate);
+    QCOMPARE(seen, _user.certificate);
     QCOMPARE(status == UA_STATUSCODE_GOOD, !mappedName.isEmpty());
     if (mappedName.isEmpty())
     {
-        QCOMPARE(m_server->sessions().count(), 0);
+        QCOMPARE(_server->sessions().count(), 0);
         return;
     }
-    QTRY_COMPARE(m_server->sessions().count(), 1);
-    QCOMPARE(m_server->sessions().first()->userName(), mappedName);
+    QTRY_COMPARE(_server->sessions().count(), 1);
+    QCOMPARE(_server->sessions().first()->userName(), mappedName);
 }
 
 ///
@@ -397,10 +397,10 @@ void TestEncryptionIntegration::userCertificateMapsToUserName()
 ///
 void TestEncryptionIntegration::certificateUserPassesAccessChecks()
 {
-    m_server->setCertificate(m_certificate);
-    m_server->setPrivateKey(m_privateKey);
-    m_server->setUserCertificateCallback([](const QByteArray &) { return QStringLiteral("operator"); });
-    QUaBaseDataVariable *variable = m_server->objectsFolder()->addBaseDataVariable(QStringLiteral("setpoint"));
+    _server->setCertificate(_certificate);
+    _server->setPrivateKey(_privateKey);
+    _server->setUserCertificateCallback([](const QByteArray &) { return QStringLiteral("operator"); });
+    QUaBaseDataVariable *variable = _server->objectsFolder()->addBaseDataVariable(QStringLiteral("setpoint"));
     variable->setWriteAccess(true);
     variable->setValue(1);
     variable->setUserAccessLevelCallback([](const QString &userName) {
@@ -409,14 +409,14 @@ void TestEncryptionIntegration::certificateUserPassesAccessChecks()
         access.bits.bWrite = userName == QStringLiteral("operator");
         return access;
     });
-    QVERIFY(TestServer::start(*m_server));
+    QVERIFY(TestServer::start(*_server));
     TestClient client;
-    QCOMPARE(connectAsUser(client, m_user), UA_STATUSCODE_GOOD);
+    QCOMPARE(connectAsUser(client, _user), UA_STATUSCODE_GOOD);
 
     QCOMPARE(client.writeValue(variable->nodeId(), 2), UA_STATUSCODE_GOOD);
 
     QCOMPARE(variable->value<int>(), 2);
-    QVERIFY(!m_server->userNames().contains(QStringLiteral("operator")));
+    QVERIFY(!_server->userNames().contains(QStringLiteral("operator")));
 }
 
 ///
@@ -427,25 +427,25 @@ void TestEncryptionIntegration::userCertificateMustBeTrusted_data()
     QTest::addColumn<ClientIdentity>("user");
     QTest::addColumn<bool>("accepted");
 
-    QTest::newRow("user certificate signed by the trusted CA") << m_user << true;
-    QTest::newRow("unrelated user certificate") << m_untrustedUser << false;
+    QTest::newRow("user certificate signed by the trusted CA") << _user << true;
+    QTest::newRow("unrelated user certificate") << _untrustedUser << false;
 }
 
 void TestEncryptionIntegration::userCertificateMustBeTrusted()
 {
     QFETCH(ClientIdentity, user);
     QFETCH(bool, accepted);
-    m_server->setCertificate(m_certificate);
-    m_server->setPrivateKey(m_privateKey);
-    m_server->setTrustedCertificates({ m_caCertificate });
-    m_server->setRevocationLists({ m_caRevocationList });
-    m_server->setAnonymousLoginAllowed(false);
+    _server->setCertificate(_certificate);
+    _server->setPrivateKey(_privateKey);
+    _server->setTrustedCertificates({ _caCertificate });
+    _server->setRevocationLists({ _caRevocationList });
+    _server->setAnonymousLoginAllowed(false);
     int calls = 0;
-    m_server->setUserCertificateCallback([&calls](const QByteArray &) {
+    _server->setUserCertificateCallback([&calls](const QByteArray &) {
         ++calls;
         return QStringLiteral("anyone");
     });
-    QVERIFY(TestServer::start(*m_server));
+    QVERIFY(TestServer::start(*_server));
     TestClient client;
 
     const UA_StatusCode status = connectAsUser(client, user);

@@ -61,8 +61,8 @@ void QUaExclusiveLimitAlarm::setInputNode(QUaBaseVariable* inputNode)
 		return;
 	}
 	// subscribe to value changes
-	m_connections <<
-	QObject::connect(m_inputNode, &QUaBaseVariable::valueChanged, this,
+	_connections <<
+	QObject::connect(_inputNode, &QUaBaseVariable::valueChanged, this,
 	[this](const QVariant& value) {
 		Q_ASSERT(value.canConvert<double>());
 		this->processInputNodeValue(value.value<double>());
@@ -118,7 +118,7 @@ void QUaExclusiveLimitAlarm::setExclusiveLimitState(const QUaExclusiveLimitState
 		{
 			strMessage += tr(" Requires Acknowledge.");
 		}
-		else if (m_confirmRequired && !this->confirmed())
+		else if (_confirmRequired && !this->confirmed())
 		{
 			strMessage += tr(" Requires Confirm.");
 		}
@@ -181,11 +181,11 @@ void QUaExclusiveLimitAlarm::processInputNodeValue(const double& value)
 
 void QUaExclusiveLimitAlarm::forceActiveStateRecalculation()
 {
-	if (!m_inputNode)
+	if (!_inputNode)
 	{
 		return;
 	}
-	emit m_inputNode->valueChanged(m_inputNode->value(), false);
+	emit _inputNode->valueChanged(_inputNode->value(), false);
 }
 
 void QUaExclusiveLimitAlarm::setHighHighLimitRequired(const bool& highHighLimitRequired)

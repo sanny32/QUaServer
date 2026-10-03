@@ -55,7 +55,7 @@ UA_StatusCode QUaServer::addOptionSetValues(UA_Server* server, UA_NodeId* parent
 void QUaServer::registerOptionSet(const QString& strOptionSetName, const QUaOptionSetMap& optionSetMap, const QUaNodeId& nodeId)
 {
 	// check if already exists
-	if (m_hashOptionSets.contains(strOptionSetName))
+	if (_hashOptionSets.contains(strOptionSetName))
 	{
 		return;
 	}
@@ -85,7 +85,7 @@ void QUaServer::registerOptionSet(const QString& strOptionSetName, const QUaOpti
 		// [IMPORTANT] : _ALLOC version is necessary
 		reqNodeId = UA_NODEID_STRING_ALLOC(1, charOptionSetName);
 	}
-	auto st = UA_Server_addDataTypeNode(m_server,
+	auto st = UA_Server_addDataTypeNode(_server,
 		reqNodeId,
 		UA_NODEID_NUMERIC(0, UA_NS0ID_OPTIONSET),
 		UA_NODEID_NUMERIC(0, UA_NS0ID_HASSUBTYPE),
@@ -119,15 +119,15 @@ void QUaServer::registerOptionSet(const QString& strOptionSetName, const QUaOpti
 		}
 	}
 	Q_ASSERT(vectOptionSetValues.count() == maxBit);
-	st = QUaServer::addOptionSetValues(m_server, &reqNodeId, maxBit, vectOptionSetValues.data());
+	st = QUaServer::addOptionSetValues(_server, &reqNodeId, maxBit, vectOptionSetValues.data());
 	Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	// finally append to map
-	m_hashOptionSets.insert(strOptionSetName, reqNodeId);
+	_hashOptionSets.insert(strOptionSetName, reqNodeId);
 }
 
 bool QUaServer::isOptionSetRegistered(const QString& strOptionSetName) const
 {
-	return m_hashOptionSets.contains(strOptionSetName);
+	return _hashOptionSets.contains(strOptionSetName);
 }
 
 QUaOptionSetMap QUaServer::optionSetMap(const QString& strOptionSetName) const

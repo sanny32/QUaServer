@@ -28,7 +28,7 @@ private slots:
     void stopDisconnectsClients();
 
 private:
-    QUaServer *m_server = nullptr;
+    QUaServer *_server = nullptr;
 };
 
 ///
@@ -36,7 +36,7 @@ private:
 ///
 void TestSessionsIntegration::init()
 {
-    m_server = new QUaServer;
+    _server = new QUaServer;
 }
 
 ///
@@ -44,8 +44,8 @@ void TestSessionsIntegration::init()
 ///
 void TestSessionsIntegration::cleanup()
 {
-    delete m_server;
-    m_server = nullptr;
+    delete _server;
+    _server = nullptr;
 }
 
 ///
@@ -53,15 +53,15 @@ void TestSessionsIntegration::cleanup()
 ///
 void TestSessionsIntegration::startAndStopToggleRunning()
 {
-    QSignalSpy spy(m_server, &QUaServer::isRunningChanged);
+    QSignalSpy spy(_server, &QUaServer::isRunningChanged);
 
-    QVERIFY(TestServer::start(*m_server));
-    QVERIFY(m_server->isRunning());
-    QVERIFY(m_server->start());
+    QVERIFY(TestServer::start(*_server));
+    QVERIFY(_server->isRunning());
+    QVERIFY(_server->start());
 
-    m_server->stop();
-    QVERIFY(!m_server->isRunning());
-    m_server->stop();
+    _server->stop();
+    QVERIFY(!_server->isRunning());
+    _server->stop();
 
     QCOMPARE(spy.count(), 2);
     QCOMPARE(spy.at(0).first().toBool(), true);
@@ -73,7 +73,7 @@ void TestSessionsIntegration::startAndStopToggleRunning()
 ///
 void TestSessionsIntegration::runningServerKeepsEventLoopResponsive()
 {
-    QVERIFY(TestServer::start(*m_server));
+    QVERIFY(TestServer::start(*_server));
     QElapsedTimer total;
     qint64 longestStep = 0;
 
@@ -94,12 +94,12 @@ void TestSessionsIntegration::runningServerKeepsEventLoopResponsive()
 ///
 void TestSessionsIntegration::serverCanBeRestarted()
 {
-    QVERIFY(TestServer::start(*m_server));
-    m_server->stop();
-    QVERIFY(m_server->start());
+    QVERIFY(TestServer::start(*_server));
+    _server->stop();
+    QVERIFY(_server->start());
 
     TestClient client;
-    QCOMPARE(client.connect(TestServer::endpointUrl(*m_server)), UA_STATUSCODE_GOOD);
+    QCOMPARE(client.connect(TestServer::endpointUrl(*_server)), UA_STATUSCODE_GOOD);
 }
 
 ///
@@ -107,16 +107,16 @@ void TestSessionsIntegration::serverCanBeRestarted()
 ///
 void TestSessionsIntegration::anonymousClientConnectsAndDisconnects()
 {
-    QSignalSpy connectedSpy(m_server, &QUaServer::clientConnected);
-    QSignalSpy disconnectedSpy(m_server, &QUaServer::clientDisconnected);
-    QVERIFY(TestServer::start(*m_server));
+    QSignalSpy connectedSpy(_server, &QUaServer::clientConnected);
+    QSignalSpy disconnectedSpy(_server, &QUaServer::clientDisconnected);
+    QVERIFY(TestServer::start(*_server));
     TestClient client;
 
-    QCOMPARE(client.connect(TestServer::endpointUrl(*m_server)), UA_STATUSCODE_GOOD);
+    QCOMPARE(client.connect(TestServer::endpointUrl(*_server)), UA_STATUSCODE_GOOD);
 
     QTRY_COMPARE(connectedSpy.count(), 1);
-    QCOMPARE(m_server->sessions().count(), 1);
-    const QUaSession *session = m_server->sessions().first();
+    QCOMPARE(_server->sessions().count(), 1);
+    const QUaSession *session = _server->sessions().first();
     QVERIFY(!session->sessionId().isEmpty());
     QVERIFY(!session->address().isEmpty());
     QVERIFY(session->port() != 0);
@@ -124,7 +124,7 @@ void TestSessionsIntegration::anonymousClientConnectsAndDisconnects()
     QCOMPARE(client.disconnect(), UA_STATUSCODE_GOOD);
 
     QTRY_COMPARE(disconnectedSpy.count(), 1);
-    QVERIFY(m_server->sessions().isEmpty());
+    QVERIFY(_server->sessions().isEmpty());
 }
 
 ///
@@ -132,14 +132,14 @@ void TestSessionsIntegration::anonymousClientConnectsAndDisconnects()
 ///
 void TestSessionsIntegration::anonymousLoginCanBeDisabled()
 {
-    m_server->setAnonymousLoginAllowed(false);
-    m_server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
-    QVERIFY(TestServer::start(*m_server));
+    _server->setAnonymousLoginAllowed(false);
+    _server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
+    QVERIFY(TestServer::start(*_server));
     TestClient anonymous;
     TestClient authenticated;
 
-    QVERIFY(anonymous.connect(TestServer::endpointUrl(*m_server)) != UA_STATUSCODE_GOOD);
-    QCOMPARE(authenticated.connectUsername(TestServer::endpointUrl(*m_server),
+    QVERIFY(anonymous.connect(TestServer::endpointUrl(*_server)) != UA_STATUSCODE_GOOD);
+    QCOMPARE(authenticated.connectUsername(TestServer::endpointUrl(*_server),
                                            QStringLiteral("alice"), QStringLiteral("secret")),
              UA_STATUSCODE_GOOD);
 }
@@ -149,10 +149,10 @@ void TestSessionsIntegration::anonymousLoginCanBeDisabled()
 ///
 void TestSessionsIntegration::endpointsOfferUserNameToken()
 {
-    QVERIFY(TestServer::start(*m_server));
+    QVERIFY(TestServer::start(*_server));
     TestClient client;
 
-    const QList<UA_UserTokenType> tokenTypes = client.endpointUserTokenTypes(TestServer::endpointUrl(*m_server));
+    const QList<UA_UserTokenType> tokenTypes = client.endpointUserTokenTypes(TestServer::endpointUrl(*_server));
 
     QVERIFY(tokenTypes.contains(UA_USERTOKENTYPE_ANONYMOUS));
     QVERIFY(tokenTypes.contains(UA_USERTOKENTYPE_USERNAME));
@@ -177,17 +177,17 @@ void TestSessionsIntegration::userLoginChecksPassword()
     QFETCH(QString, userName);
     QFETCH(QString, password);
     QFETCH(bool, accepted);
-    m_server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
-    QVERIFY(TestServer::start(*m_server));
+    _server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
+    QVERIFY(TestServer::start(*_server));
     TestClient client;
 
-    const UA_StatusCode status = client.connectUsername(TestServer::endpointUrl(*m_server), userName, password);
+    const UA_StatusCode status = client.connectUsername(TestServer::endpointUrl(*_server), userName, password);
 
     QCOMPARE(status == UA_STATUSCODE_GOOD, accepted);
     if (accepted)
     {
-        QTRY_COMPARE(m_server->sessions().count(), 1);
-        QCOMPARE(m_server->sessions().first()->userName(), userName);
+        QTRY_COMPARE(_server->sessions().count(), 1);
+        QCOMPARE(_server->sessions().first()->userName(), userName);
     }
 }
 
@@ -196,17 +196,17 @@ void TestSessionsIntegration::userLoginChecksPassword()
 ///
 void TestSessionsIntegration::validationCallbackReplacesPasswordCheck()
 {
-    m_server->addUser(QStringLiteral("alice"), QStringLiteral("stored-key"));
-    m_server->setUserValidationCallback([](const QString &userName, const QString &password) {
+    _server->addUser(QStringLiteral("alice"), QStringLiteral("stored-key"));
+    _server->setUserValidationCallback([](const QString &userName, const QString &password) {
         return userName == QStringLiteral("alice") && password == QStringLiteral("token-123");
     });
-    QVERIFY(TestServer::start(*m_server));
+    QVERIFY(TestServer::start(*_server));
     TestClient storedKey;
     TestClient token;
 
-    QVERIFY(storedKey.connectUsername(TestServer::endpointUrl(*m_server),
+    QVERIFY(storedKey.connectUsername(TestServer::endpointUrl(*_server),
                                       QStringLiteral("alice"), QStringLiteral("stored-key")) != UA_STATUSCODE_GOOD);
-    QCOMPARE(token.connectUsername(TestServer::endpointUrl(*m_server),
+    QCOMPARE(token.connectUsername(TestServer::endpointUrl(*_server),
                                    QStringLiteral("alice"), QStringLiteral("token-123")),
              UA_STATUSCODE_GOOD);
 }
@@ -216,14 +216,14 @@ void TestSessionsIntegration::validationCallbackReplacesPasswordCheck()
 ///
 void TestSessionsIntegration::closingSessionWithSubscriptionKeepsServerAlive()
 {
-    QUaBaseDataVariable *variable = m_server->objectsFolder()->addBaseDataVariable(
+    QUaBaseDataVariable *variable = _server->objectsFolder()->addBaseDataVariable(
         QStringLiteral("watched"), QUaNodeId(1, QStringLiteral("watched")));
     variable->setValue(1);
-    QSignalSpy disconnectedSpy(m_server, &QUaServer::clientDisconnected);
-    QVERIFY(TestServer::start(*m_server));
+    QSignalSpy disconnectedSpy(_server, &QUaServer::clientDisconnected);
+    QVERIFY(TestServer::start(*_server));
     {
         TestClient client;
-        QCOMPARE(client.connect(TestServer::endpointUrl(*m_server)), UA_STATUSCODE_GOOD);
+        QCOMPARE(client.connect(TestServer::endpointUrl(*_server)), UA_STATUSCODE_GOOD);
         QCOMPARE(client.monitorValue(variable->nodeId()), UA_STATUSCODE_GOOD);
         QCOMPARE(client.disconnect(), UA_STATUSCODE_GOOD);
     }
@@ -231,7 +231,7 @@ void TestSessionsIntegration::closingSessionWithSubscriptionKeepsServerAlive()
 
     TestClient next;
     QVariant value;
-    QCOMPARE(next.connect(TestServer::endpointUrl(*m_server)), UA_STATUSCODE_GOOD);
+    QCOMPARE(next.connect(TestServer::endpointUrl(*_server)), UA_STATUSCODE_GOOD);
     QCOMPARE(next.readValue(variable->nodeId(), value), UA_STATUSCODE_GOOD);
     QCOMPARE(value.toInt(), 1);
 }
@@ -241,16 +241,16 @@ void TestSessionsIntegration::closingSessionWithSubscriptionKeepsServerAlive()
 ///
 void TestSessionsIntegration::stopDisconnectsClients()
 {
-    QSignalSpy disconnectedSpy(m_server, &QUaServer::clientDisconnected);
-    QVERIFY(TestServer::start(*m_server));
+    QSignalSpy disconnectedSpy(_server, &QUaServer::clientDisconnected);
+    QVERIFY(TestServer::start(*_server));
     TestClient client;
-    QCOMPARE(client.connect(TestServer::endpointUrl(*m_server)), UA_STATUSCODE_GOOD);
-    QTRY_COMPARE(m_server->sessions().count(), 1);
+    QCOMPARE(client.connect(TestServer::endpointUrl(*_server)), UA_STATUSCODE_GOOD);
+    QTRY_COMPARE(_server->sessions().count(), 1);
 
-    m_server->stop();
+    _server->stop();
 
     QCOMPARE(disconnectedSpy.count(), 1);
-    QVERIFY(m_server->sessions().isEmpty());
+    QVERIFY(_server->sessions().isEmpty());
 }
 
 QTEST_GUILESS_MAIN(TestSessionsIntegration)

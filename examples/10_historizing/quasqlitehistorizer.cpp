@@ -8,7 +8,7 @@
 #include <QSqlRecord>
 
 // map supported types
-QHash<int, QString> QUaSqliteHistorizer::m_hashTypes = {
+QHash<int, QString> QUaSqliteHistorizer::_hashTypes = {
 	{QMetaType::Bool           , "INTEGER"},
 	{QMetaType::Char           , "INTEGER"},
 	{QMetaType::SChar          , "INTEGER"},
@@ -49,22 +49,22 @@ QHash<int, QString> QUaSqliteHistorizer::m_hashTypes = {
 
 QUaSqliteHistorizer::QUaSqliteHistorizer()
 {
-	m_timeoutTransaction = 1000;
-	QObject::connect(&m_timerTransaction, &QTimer::timeout, &m_timerTransaction,
+	_timeoutTransaction = 1000;
+	QObject::connect(&_timerTransaction, &QTimer::timeout, &_timerTransaction,
 	[this]() {
 		// stop timer until next write request
-		m_timerTransaction.stop();
+		_timerTransaction.stop();
 		// commit transaction
 		QSqlDatabase db;
-		if (!this->getOpenedDatabase(db, m_deferedLogOut))
+		if (!this->getOpenedDatabase(db, _deferedLogOut))
 		{
 			return;
 		}
 		if (!db.commit())
 		{
-			m_deferedLogOut << QUaLog({
+			_deferedLogOut << QUaLog({
 				QObject::tr("Failed to commit transaction in %1 database. Sql : %2.")
-					.arg(m_strSqliteDbName)
+					.arg(_strSqliteDbName)
 					.arg(db.lastError().text()),
 				QUaLogLevel::Error,
 				QUaLogCategory::History
@@ -75,16 +75,16 @@ QUaSqliteHistorizer::QUaSqliteHistorizer()
 
 QUaSqliteHistorizer::~QUaSqliteHistorizer()
 {
-	if (!QSqlDatabase::contains(m_strSqliteDbName))
+	if (!QSqlDatabase::contains(_strSqliteDbName))
 	{
 		return;
 	}
-	QSqlDatabase::database(m_strSqliteDbName).close();
+	QSqlDatabase::database(_strSqliteDbName).close();
 }
 
 QString QUaSqliteHistorizer::sqliteDbName() const
 {
-	return m_strSqliteDbName;
+	return _strSqliteDbName;
 }
 
 bool QUaSqliteHistorizer::setSqliteDbName(
@@ -92,7 +92,7 @@ bool QUaSqliteHistorizer::setSqliteDbName(
 	QQueue<QUaLog>& logOut)
 {
 	// set internally
-	m_strSqliteDbName = strSqliteDbName;
+	_strSqliteDbName = strSqliteDbName;
 	// create and test open database handle
 	QSqlDatabase db;
 	if (!this->getOpenedDatabase(db, logOut))
@@ -107,12 +107,12 @@ bool QUaSqliteHistorizer::setSqliteDbName(
 
 int QUaSqliteHistorizer::transactionTimeout() const
 {
-	return m_timeoutTransaction;
+	return _timeoutTransaction;
 }
 
 void QUaSqliteHistorizer::setTransactionTimeout(const int& timeoutMs)
 {
-	m_timeoutTransaction = (std::max)(0, timeoutMs);
+	_timeoutTransaction = (std::max)(0, timeoutMs);
 }
 
 bool QUaSqliteHistorizer::writeHistoryData(
@@ -122,10 +122,10 @@ bool QUaSqliteHistorizer::writeHistoryData(
 )
 {
 	// check if there are any queued logs that need to be reported
-	if (!m_deferedLogOut.isEmpty())
+	if (!_deferedLogOut.isEmpty())
 	{
-		logOut << m_deferedLogOut;
-		m_deferedLogOut.clear();
+		logOut << _deferedLogOut;
+		_deferedLogOut.clear();
 	}
 	// get database handle
 	QSqlDatabase db;
@@ -220,13 +220,13 @@ QDateTime QUaSqliteHistorizer::firstTimestamp(
 	}
 	Q_ASSERT(db.isValid() && db.isOpen());
 	// get prepared statement cache
-	QSqlQuery& query = m_dataPrepStmts[nodeId].firstTimestamp;
+	QSqlQuery& query = _dataPrepStmts[nodeId].firstTimestamp;
 	if (!query.exec())
 	{
 		logOut << QUaLog({
 			QObject::tr("Error querying [%1] table for first timestamp in %2 database. Sql : %3.")
 				.arg(nodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -238,7 +238,7 @@ QDateTime QUaSqliteHistorizer::firstTimestamp(
 		logOut << QUaLog({
 			QObject::tr("Empty result querying [%1] table for first timestamp in %2 database. Sql : %3.")
 				.arg(nodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -283,13 +283,13 @@ QDateTime QUaSqliteHistorizer::lastTimestamp(
 	}
 	Q_ASSERT(db.isValid() && db.isOpen());
 	// get prepared statement cache
-	QSqlQuery& query = m_dataPrepStmts[nodeId].lastTimestamp;
+	QSqlQuery& query = _dataPrepStmts[nodeId].lastTimestamp;
 	if (!query.exec())
 	{
 		logOut << QUaLog({
 			QObject::tr("Error querying [%1] table for last timestamp in %2 database. Sql : %3.")
 				.arg(nodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -301,7 +301,7 @@ QDateTime QUaSqliteHistorizer::lastTimestamp(
 		logOut << QUaLog({
 			QObject::tr("Empty result querying [%1] table for last timestamp in %2 database. Sql : %3.")
 				.arg(nodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -346,14 +346,14 @@ bool QUaSqliteHistorizer::hasTimestamp(
 		return false;
 	}
 	Q_ASSERT(db.isValid() && db.isOpen());
-	QSqlQuery& query = m_dataPrepStmts[nodeId].hasTimestamp;
+	QSqlQuery& query = _dataPrepStmts[nodeId].hasTimestamp;
 	query.bindValue(0, timestamp.toMSecsSinceEpoch());
 	if (!query.exec())
 	{
 		logOut << QUaLog({
 			QObject::tr("Error querying [%1] table for exact timestamp in %2 database. Sql : %3.")
 				.arg(nodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -366,7 +366,7 @@ bool QUaSqliteHistorizer::hasTimestamp(
 		logOut << QUaLog({
 			QObject::tr("Empty result querying [%1] table for exact timestamp in %2 database. Sql : %3.")
 				.arg(nodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Warning,
 			QUaLogCategory::History
@@ -411,7 +411,7 @@ QDateTime QUaSqliteHistorizer::findTimestamp(
 	}
 	Q_ASSERT(db.isValid() && db.isOpen());
 	// get correct query
-	auto& stmts = m_dataPrepStmts[nodeId];
+	auto& stmts = _dataPrepStmts[nodeId];
 	QSqlQuery& query = match == QUaHistoryBackend::TimeMatch::ClosestFromAbove ?
 		stmts.findTimestampAbove :
 		stmts.findTimestampBelow;
@@ -422,7 +422,7 @@ QDateTime QUaSqliteHistorizer::findTimestamp(
 		logOut << QUaLog({
 			QObject::tr("Error querying [%1] table around timestamp in %2 database. Sql : %3.")
 				.arg(nodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -489,7 +489,7 @@ quint64 QUaSqliteHistorizer::numDataPointsInRange(
 		return 0;
 	}
 	Q_ASSERT(db.isValid() && db.isOpen());
-	auto& stmts = m_dataPrepStmts[nodeId];
+	auto& stmts = _dataPrepStmts[nodeId];
 	QSqlQuery& query = timeEnd.isValid() ?
 		stmts.numDataPointsInRangeEndValid :
 		stmts.numDataPointsInRangeEndInvalid;
@@ -503,7 +503,7 @@ quint64 QUaSqliteHistorizer::numDataPointsInRange(
 		logOut << QUaLog({
 			QObject::tr("Error querying [%1] table for number of points in range in %2 database. Sql : %3.")
 				.arg(nodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -515,7 +515,7 @@ quint64 QUaSqliteHistorizer::numDataPointsInRange(
 		logOut << QUaLog({
 			QObject::tr("Empty result querying [%1] table for number of points in range in %2 database. Sql : %3.")
 				.arg(nodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Warning,
 			QUaLogCategory::History
@@ -560,7 +560,7 @@ QVector<QUaHistoryDataPoint> QUaSqliteHistorizer::readHistoryData(
 		return points;
 	}
 	Q_ASSERT(db.isValid() && db.isOpen());
-	QSqlQuery& query = m_dataPrepStmts[nodeId].readHistoryData;
+	QSqlQuery& query = _dataPrepStmts[nodeId].readHistoryData;
 	query.bindValue(0, timeStart.toMSecsSinceEpoch());
 	query.bindValue(1, numPointsToRead);
 	query.bindValue(2, numPointsOffset);
@@ -569,7 +569,7 @@ QVector<QUaHistoryDataPoint> QUaSqliteHistorizer::readHistoryData(
 		logOut << QUaLog({
 			QObject::tr("Error querying [%1] table for data points in %2 database. Sql : %3.")
 				.arg(nodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -615,10 +615,10 @@ bool QUaSqliteHistorizer::writeHistoryEventsOfType(
 )
 {
 	// check if there are any queued logs that need to be reported
-	if (!m_deferedLogOut.isEmpty())
+	if (!_deferedLogOut.isEmpty())
 	{
-		logOut << m_deferedLogOut;
-		m_deferedLogOut.clear();
+		logOut << _deferedLogOut;
+		_deferedLogOut.clear();
 	}
 	// get database handle
 	QSqlDatabase db;
@@ -739,7 +739,7 @@ QVector<QUaNodeId> QUaSqliteHistorizer::eventTypesOfEmitter(
 		logOut << QUaLog({
 			QObject::tr("Could not fetch any event types for emitter [%1] in database %2.")
 				.arg(emitterNodeId)
-				.arg(m_strSqliteDbName),
+				.arg(_strSqliteDbName),
 			QUaLogLevel::Warning,
 			QUaLogCategory::History
 			});
@@ -761,7 +761,7 @@ QVector<QUaNodeId> QUaSqliteHistorizer::eventTypesOfEmitter(
 		logOut << QUaLog({
 			QObject::tr("Could not fetch any event types for emitter [%1] in database %2. Sql : %3.")
 				.arg(emitterNodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -807,7 +807,7 @@ QDateTime QUaSqliteHistorizer::findTimestampEventOfType(
 		logOut << QUaLog({
 			QObject::tr("Error querying around timestamp. "
 				"Event history database %1 does not contain table for event type [%2]")
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(eventTypeNodeId),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -824,7 +824,7 @@ QDateTime QUaSqliteHistorizer::findTimestampEventOfType(
 		logOut << QUaLog({
 			QObject::tr("Error querying around timestamp. "
 				"Event history database %1 does not contain table for emitter [%2]")
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(emitterNodeId),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -839,7 +839,7 @@ QDateTime QUaSqliteHistorizer::findTimestampEventOfType(
 		logOut << QUaLog({
 			QObject::tr("Error querying around timestamp. "
 				"Event history database %1 does not table name for event type [%2] in %3 table.")
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(eventTypeNodeId)
 				.arg(QUaSqliteHistorizer::eventTypesTable),
 			QUaLogLevel::Error,
@@ -911,7 +911,7 @@ QDateTime QUaSqliteHistorizer::findTimestampEventOfType(
 		logOut << QUaLog({
 			QObject::tr("Error querying [%1] event emitter table around timestamp in %2 database. Sql : %3.")
 				.arg(emitterNodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -924,7 +924,7 @@ QDateTime QUaSqliteHistorizer::findTimestampEventOfType(
 		logOut << QUaLog({
 			QObject::tr("Query [%1] event emitter table around timestamp returned empty in %2 database.")
 				.arg(emitterNodeId)
-				.arg(m_strSqliteDbName),
+				.arg(_strSqliteDbName),
 			QUaLogLevel::Warning,
 			QUaLogCategory::History
 			});
@@ -968,7 +968,7 @@ quint64 QUaSqliteHistorizer::numEventsOfTypeInRange(
 		logOut << QUaLog({
 			QObject::tr("Error querying number of events in time range. "
 				"Event history database %1 does not contain table for event type [%2]")
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(eventTypeNodeId),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -985,7 +985,7 @@ quint64 QUaSqliteHistorizer::numEventsOfTypeInRange(
 		logOut << QUaLog({
 			QObject::tr("Error querying number of events in time range. "
 				"Event history database %1 does not contain table for emitter [%2]")
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(emitterNodeId),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -1000,7 +1000,7 @@ quint64 QUaSqliteHistorizer::numEventsOfTypeInRange(
 		logOut << QUaLog({
 			QObject::tr("Error querying number of events in time range. "
 				"Event history database %1 does not table name for event type [%2] in %3 table.")
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(eventTypeNodeId)
 				.arg(QUaSqliteHistorizer::eventTypesTable),
 			QUaLogLevel::Error,
@@ -1039,7 +1039,7 @@ quint64 QUaSqliteHistorizer::numEventsOfTypeInRange(
 		logOut << QUaLog({
 			QObject::tr("Error querying [%1] table for number of events in range in %2 database. Sql : %3.")
 				.arg(emitterNodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -1051,7 +1051,7 @@ quint64 QUaSqliteHistorizer::numEventsOfTypeInRange(
 		logOut << QUaLog({
 			QObject::tr("Empty result querying [%1] table for events of events in range in %2 database. Sql : %3.")
 				.arg(emitterNodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Warning,
 			QUaLogCategory::History
@@ -1098,7 +1098,7 @@ QVector<QUaHistoryEventPoint> QUaSqliteHistorizer::readHistoryEventsOfType(
 			QObject::tr("Error querying [%1] table for event points. "
 				"Event history database %2 does not contain table for event type [%1]")
 				.arg(eventTypeNodeId)
-				.arg(m_strSqliteDbName),
+				.arg(_strSqliteDbName),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
 			});
@@ -1115,7 +1115,7 @@ QVector<QUaHistoryEventPoint> QUaSqliteHistorizer::readHistoryEventsOfType(
 			QObject::tr("Error querying [%1] table for event points. "
 				"Event history database %2 does not contain table for emitter [%1]")
 				.arg(emitterNodeId)
-				.arg(m_strSqliteDbName),
+				.arg(_strSqliteDbName),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
 			});
@@ -1130,7 +1130,7 @@ QVector<QUaHistoryEventPoint> QUaSqliteHistorizer::readHistoryEventsOfType(
 			QObject::tr("Error querying [%1] table for event points. "
 				"Event history database %2 does not table name for event type [%1] in %3 table.")
 				.arg(eventTypeNodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(QUaSqliteHistorizer::eventTypesTable),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -1155,7 +1155,7 @@ QVector<QUaHistoryEventPoint> QUaSqliteHistorizer::readHistoryEventsOfType(
 		logOut << QUaLog({
 			QObject::tr("Error querying [%1] table for column names in %2 database. Sql : %3.")
 				.arg(eventTypeNodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -1223,7 +1223,7 @@ QVector<QUaHistoryEventPoint> QUaSqliteHistorizer::readHistoryEventsOfType(
 		logOut << QUaLog({
 			QObject::tr("Error querying [%1] table for event points in %2 database. Sql : %3.")
 				.arg(eventTypeNodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -1277,15 +1277,15 @@ bool QUaSqliteHistorizer::getOpenedDatabase(
 ) const
 {
 	// add if not added
-	if (QSqlDatabase::contains(m_strSqliteDbName))
+	if (QSqlDatabase::contains(_strSqliteDbName))
 	{
-		db = QSqlDatabase::database(m_strSqliteDbName, true);
+		db = QSqlDatabase::database(_strSqliteDbName, true);
 	}
 	else
 	{
-		db = QSqlDatabase::addDatabase("QSQLITE", m_strSqliteDbName);
+		db = QSqlDatabase::addDatabase("QSQLITE", _strSqliteDbName);
 		// the database name is not the connection name
-		db.setDatabaseName(m_strSqliteDbName);
+		db.setDatabaseName(_strSqliteDbName);
 		db.open();
 	}
 	// check if opened correctly
@@ -1293,7 +1293,7 @@ bool QUaSqliteHistorizer::getOpenedDatabase(
 	{
 		logOut << QUaLog({
 			QObject::tr("Error opening %1. Sql : %2")
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(db.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -1328,7 +1328,7 @@ bool QUaSqliteHistorizer::tableExists(
 		logOut << QUaLog({
 			QObject::tr("Error querying if table [%1] exists in %2 database. Sql : %3.")
 				.arg(tableName)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -1347,7 +1347,7 @@ bool QUaSqliteHistorizer::tableDataByNodeIdExists(
 	QQueue<QUaLog>& logOut)
 {
 	// save time by using cache instead of SQL
-	if (m_dataPrepStmts.count(nodeId) > 0)
+	if (_dataPrepStmts.count(nodeId) > 0)
 	{
 		tableExists = true;
 		return true;
@@ -1393,7 +1393,7 @@ bool QUaSqliteHistorizer::createDataNodeTable(
 		logOut << QUaLog({
 			QObject::tr("Could not create %1 table in %2 database. Sql : %3.")
 				.arg(nodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -1407,7 +1407,7 @@ bool QUaSqliteHistorizer::createDataNodeTable(
 		logOut << QUaLog({
 			QObject::tr("Could not create %1_Time index on %1 table in %2 database. Sql : %3.")
 				.arg(nodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -1426,8 +1426,8 @@ bool QUaSqliteHistorizer::insertDataPoint(
 	QQueue<QUaLog>& logOut)
 {
 	Q_ASSERT(db.isValid() && db.isOpen());
-	Q_ASSERT(m_dataPrepStmts.count(nodeId) > 0);
-	QSqlQuery& query = m_dataPrepStmts[nodeId].writeHistoryData;
+	Q_ASSERT(_dataPrepStmts.count(nodeId) > 0);
+	QSqlQuery& query = _dataPrepStmts[nodeId].writeHistoryData;
 	query.bindValue(0, dataPoint.timestamp.toMSecsSinceEpoch());
 	query.bindValue(1, dataPoint.value);
 	query.bindValue(2, dataPoint.status);
@@ -1436,7 +1436,7 @@ bool QUaSqliteHistorizer::insertDataPoint(
 		logOut << QUaLog({
 			QObject::tr("Could not insert new row in %1 table in %2 database. Sql : %3.")
 				.arg(nodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -1462,7 +1462,7 @@ bool QUaSqliteHistorizer::dataPrepareAllStmts(
 	{
 		return false;
 	}
-	m_dataPrepStmts[nodeId].writeHistoryData = std::exchange(query, QSqlQuery(db));
+	_dataPrepStmts[nodeId].writeHistoryData = std::exchange(query, QSqlQuery(db));
 	// prepared statement for first timestamp
 	strStmt = QString(
 		"SELECT "
@@ -1478,7 +1478,7 @@ bool QUaSqliteHistorizer::dataPrepareAllStmts(
 	{
 		return false;
 	}
-	m_dataPrepStmts[nodeId].firstTimestamp = std::exchange(query, QSqlQuery(db));
+	_dataPrepStmts[nodeId].firstTimestamp = std::exchange(query, QSqlQuery(db));
 	// prepared statement for last timestamp
 	strStmt = QString(
 		"SELECT "
@@ -1494,7 +1494,7 @@ bool QUaSqliteHistorizer::dataPrepareAllStmts(
 	{
 		return false;
 	}
-	m_dataPrepStmts[nodeId].lastTimestamp = std::exchange(query, QSqlQuery(db));
+	_dataPrepStmts[nodeId].lastTimestamp = std::exchange(query, QSqlQuery(db));
 	// prepared statement for has timestamp
 	strStmt = QString(
 		"SELECT "
@@ -1508,7 +1508,7 @@ bool QUaSqliteHistorizer::dataPrepareAllStmts(
 	{
 		return false;
 	}
-	m_dataPrepStmts[nodeId].hasTimestamp = std::exchange(query, QSqlQuery(db));
+	_dataPrepStmts[nodeId].hasTimestamp = std::exchange(query, QSqlQuery(db));
 	// prepared statement for find timestamp from above
 	strStmt = QString(
 		"SELECT "
@@ -1526,7 +1526,7 @@ bool QUaSqliteHistorizer::dataPrepareAllStmts(
 	{
 		return false;
 	}
-	m_dataPrepStmts[nodeId].findTimestampAbove = std::exchange(query, QSqlQuery(db));
+	_dataPrepStmts[nodeId].findTimestampAbove = std::exchange(query, QSqlQuery(db));
 	// prepared statement for find timestamp from below
 	strStmt = QString(
 		"SELECT "
@@ -1544,7 +1544,7 @@ bool QUaSqliteHistorizer::dataPrepareAllStmts(
 	{
 		return false;
 	}
-	m_dataPrepStmts[nodeId].findTimestampBelow = std::exchange(query, QSqlQuery(db));
+	_dataPrepStmts[nodeId].findTimestampBelow = std::exchange(query, QSqlQuery(db));
 	// prepared statement for num points in range when end time is valid
 	strStmt = QString(
 		"SELECT "
@@ -1562,7 +1562,7 @@ bool QUaSqliteHistorizer::dataPrepareAllStmts(
 	{
 		return false;
 	}
-	m_dataPrepStmts[nodeId].numDataPointsInRangeEndValid = std::exchange(query, QSqlQuery(db));
+	_dataPrepStmts[nodeId].numDataPointsInRangeEndValid = std::exchange(query, QSqlQuery(db));
 	// prepared statement for num points in range when end time is invalid
 	strStmt = QString(
 		"SELECT "
@@ -1578,7 +1578,7 @@ bool QUaSqliteHistorizer::dataPrepareAllStmts(
 	{
 		return false;
 	}
-	m_dataPrepStmts[nodeId].numDataPointsInRangeEndInvalid = std::exchange(query, QSqlQuery(db));
+	_dataPrepStmts[nodeId].numDataPointsInRangeEndInvalid = std::exchange(query, QSqlQuery(db));
 	// prepared statement for reading data points
 	strStmt = QString(
 		"SELECT "
@@ -1598,7 +1598,7 @@ bool QUaSqliteHistorizer::dataPrepareAllStmts(
 	{
 		return false;
 	}
-	m_dataPrepStmts[nodeId].readHistoryData = std::move(query);
+	_dataPrepStmts[nodeId].readHistoryData = std::move(query);
 	// success
 	return true;
 }
@@ -1613,7 +1613,7 @@ bool QUaSqliteHistorizer::prepareStmt(
 		logOut << QUaLog({
 			QObject::tr("Error preparing statement %1 for %2 database. Sql : %3.")
 				.arg(strStmt)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -1628,12 +1628,12 @@ bool QUaSqliteHistorizer::handleTransactions(
 	QQueue<QUaLog>& logOut)
 {
 	// return success if transactions disabled
-	if (m_timeoutTransaction == 0)
+	if (_timeoutTransaction == 0)
 	{
 		return true;
 	}
 	// return success if transaction currently opened
-	if (m_timerTransaction.isActive())
+	if (_timerTransaction.isActive())
 	{
 		return true;
 	}
@@ -1642,7 +1642,7 @@ bool QUaSqliteHistorizer::handleTransactions(
 	{
 		logOut << QUaLog({
 			QObject::tr("Failed to begin transaction in %1 database. Sql : %2.")
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(db.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -1650,7 +1650,7 @@ bool QUaSqliteHistorizer::handleTransactions(
 		return false;
 	}
 	// start timer to stop transaction after specified period (see constructor)
-	m_timerTransaction.start(m_timeoutTransaction);
+	_timerTransaction.start(_timeoutTransaction);
 	return true;
 }
 
@@ -1662,12 +1662,12 @@ QMetaType::Type QUaSqliteHistorizer::QVariantToQtType(const QVariant& value)
 const QString QUaSqliteHistorizer::QtTypeToSqlType(const QMetaType::Type& qtType)
 {
 
-	if (!QUaSqliteHistorizer::m_hashTypes.contains(qtType))
+	if (!QUaSqliteHistorizer::_hashTypes.contains(qtType))
 	{
 		qWarning() << "[UNKNOWN TYPE]" << QMetaType(qtType).name();
 		Q_ASSERT_X(false, "QUaSqliteHistorizer::QtTypeToSqlType", "Unknown type.");
 	}
-	return QUaSqliteHistorizer::m_hashTypes.value(qtType, "BLOB");
+	return QUaSqliteHistorizer::_hashTypes.value(qtType, "BLOB");
 }
 
 #ifdef UA_ENABLE_SUBSCRIPTIONS_EVENTS
@@ -1680,7 +1680,7 @@ bool QUaSqliteHistorizer::tableEventTypeByNodeIdExists(
 	QQueue<QUaLog>& logOut)
 {
 	// save time by using cache instead of SQL
-	if (m_eventTypePrepStmts.contains(eventTypeNodeId))
+	if (_eventTypePrepStmts.contains(eventTypeNodeId))
 	{
 		tableExists = true;
 		return true;
@@ -1740,7 +1740,7 @@ bool QUaSqliteHistorizer::createEventTypeTable(
 		logOut << QUaLog({
 			QObject::tr("Could not create %1 event type table in %2 database. Sql : %3.")
 				.arg(eventTypeNodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -1798,7 +1798,7 @@ bool QUaSqliteHistorizer::eventTypePrepareStmt(
 	{
 		return false;
 	}
-	m_eventTypePrepStmts[eventTypeNodeId] = std::move(query);
+	_eventTypePrepStmts[eventTypeNodeId] = std::move(query);
 	return true;
 }
 
@@ -1810,7 +1810,7 @@ bool QUaSqliteHistorizer::tableEventTypeNameExists(
 	QQueue<QUaLog>& logOut)
 {
 	// save time by using cache instead of SQL
-	if (m_eventTypeNamePrepStmt.count(QUaSqliteHistorizer::eventTypesTable) > 0)
+	if (_eventTypeNamePrepStmt.count(QUaSqliteHistorizer::eventTypesTable) > 0)
 	{
 		tableExists = true;
 		return true;
@@ -1850,7 +1850,7 @@ bool QUaSqliteHistorizer::createEventTypeNameTable(
 		logOut << QUaLog({
 			QObject::tr("Could not create %1 table in %2 database. Sql : %3.")
 				.arg(QUaSqliteHistorizer::eventTypesTable)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -1865,7 +1865,7 @@ bool QUaSqliteHistorizer::createEventTypeNameTable(
 		logOut << QUaLog({
 			QObject::tr("Could not create %1_TableName index on %1 table in %2 database. Sql : %3.")
 				.arg(QUaSqliteHistorizer::eventTypesTable)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -1892,7 +1892,7 @@ bool QUaSqliteHistorizer::eventTypeNamePrepareStmt(
 	{
 		return false;
 	}
-	m_eventTypeNamePrepStmt[QUaSqliteHistorizer::eventTypesTable].insertEventTypeName = std::exchange(query, QSqlQuery(db));
+	_eventTypeNamePrepStmt[QUaSqliteHistorizer::eventTypesTable].insertEventTypeName = std::exchange(query, QSqlQuery(db));
 	// prepared statement select exsiting
 	strStmt = QString(
 		"SELECT "
@@ -1906,7 +1906,7 @@ bool QUaSqliteHistorizer::eventTypeNamePrepareStmt(
 	{
 		return false;
 	}
-	m_eventTypeNamePrepStmt[QUaSqliteHistorizer::eventTypesTable].selectEventTypeName = std::move(query);
+	_eventTypeNamePrepStmt[QUaSqliteHistorizer::eventTypesTable].selectEventTypeName = std::move(query);
 	return true;
 }
 
@@ -1917,7 +1917,7 @@ bool QUaSqliteHistorizer::tableEmitterByNodeIdExists(
 	QQueue<QUaLog>& logOut)
 {
 	// save time by using cache instead of SQL
-	if (m_emitterPrepStmts.contains(emitterNodeId))
+	if (_emitterPrepStmts.contains(emitterNodeId))
 	{
 		tableExists = true;
 		return true;
@@ -1960,7 +1960,7 @@ bool QUaSqliteHistorizer::createEmitterTable(
 		logOut << QUaLog({
 			QObject::tr("Could not create %1 table in %2 database. Sql : %3.")
 				.arg(emitterNodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -1975,7 +1975,7 @@ bool QUaSqliteHistorizer::createEmitterTable(
 		logOut << QUaLog({
 			QObject::tr("Could not create %1_Time_EventType on %1 table in %2 database. Sql : %3.")
 				.arg(emitterNodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -2003,7 +2003,7 @@ bool QUaSqliteHistorizer::emitterPrepareStmt(
 	{
 		return false;
 	}
-	m_emitterPrepStmts[emitterNodeId] = std::move(query);
+	_emitterPrepStmts[emitterNodeId] = std::move(query);
 	return true;
 }
 
@@ -2015,8 +2015,8 @@ bool QUaSqliteHistorizer::insertEventPoint(
 	QQueue<QUaLog>& logOut)
 {
 	Q_ASSERT(db.isValid() && db.isOpen());
-	Q_ASSERT(m_eventTypePrepStmts.contains(eventTypeNodeId));
-	QSqlQuery& query = m_eventTypePrepStmts[eventTypeNodeId];
+	Q_ASSERT(_eventTypePrepStmts.contains(eventTypeNodeId));
+	QSqlQuery& query = _eventTypePrepStmts[eventTypeNodeId];
 	// iterate column placeholders (e.g. Time, Value, Status)
 	// and bind values
 	QHashIterator<QUaBrowsePath, QVariant> i(eventPoint.fields);
@@ -2043,7 +2043,7 @@ bool QUaSqliteHistorizer::insertEventPoint(
 		logOut << QUaLog({
 			QObject::tr("Could not insert new row in %1 table in %2 database. Sql : %3.")
 				.arg(eventTypeNodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -2062,9 +2062,9 @@ bool QUaSqliteHistorizer::selectOrInsertEventTypeName(
 	QQueue<QUaLog>& logOut)
 {
 	Q_ASSERT(db.isValid() && db.isOpen());
-	Q_ASSERT(m_eventTypeNamePrepStmt.count(QUaSqliteHistorizer::eventTypesTable) > 0);
+	Q_ASSERT(_eventTypeNamePrepStmt.count(QUaSqliteHistorizer::eventTypesTable) > 0);
 	// first try to find with select
-	QSqlQuery& querySelect = m_eventTypeNamePrepStmt[QUaSqliteHistorizer::eventTypesTable].selectEventTypeName;
+	QSqlQuery& querySelect = _eventTypeNamePrepStmt[QUaSqliteHistorizer::eventTypesTable].selectEventTypeName;
 	//  bind values
 	querySelect.bindValue(0, eventTypeNodeId.toXmlString());
 	// execute
@@ -2073,7 +2073,7 @@ bool QUaSqliteHistorizer::selectOrInsertEventTypeName(
 		logOut << QUaLog({
 			QObject::tr("Could not select row in %1 table in %2 database. Sql : %3.")
 				.arg(QUaSqliteHistorizer::eventTypesTable)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(querySelect.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -2087,7 +2087,7 @@ bool QUaSqliteHistorizer::selectOrInsertEventTypeName(
 		return true;
 	}
 	// insert
-	QSqlQuery& queryInsert = m_eventTypeNamePrepStmt[QUaSqliteHistorizer::eventTypesTable].insertEventTypeName;
+	QSqlQuery& queryInsert = _eventTypeNamePrepStmt[QUaSqliteHistorizer::eventTypesTable].insertEventTypeName;
 	//  bind values
 	queryInsert.bindValue(0, eventTypeNodeId.toXmlString());
 	// execute
@@ -2096,7 +2096,7 @@ bool QUaSqliteHistorizer::selectOrInsertEventTypeName(
 		logOut << QUaLog({
 			QObject::tr("Could not insert new row in %1 table in %2 database. Sql : %3.")
 				.arg(QUaSqliteHistorizer::eventTypesTable)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(queryInsert.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History
@@ -2117,8 +2117,8 @@ bool QUaSqliteHistorizer::insertEventReferenceInEmitterTable(
 	QQueue<QUaLog>& logOut)
 {
 	Q_ASSERT(db.isValid() && db.isOpen());
-	Q_ASSERT(m_emitterPrepStmts.contains(emitterNodeId));
-	QSqlQuery& query = m_emitterPrepStmts[emitterNodeId];
+	Q_ASSERT(_emitterPrepStmts.contains(emitterNodeId));
+	QSqlQuery& query = _emitterPrepStmts[emitterNodeId];
 	//  bind values
 	query.bindValue(":Time"     , timestamp.toMSecsSinceEpoch());
 	query.bindValue(":EventType", outEventTypeKey);
@@ -2129,7 +2129,7 @@ bool QUaSqliteHistorizer::insertEventReferenceInEmitterTable(
 		logOut << QUaLog({
 			QObject::tr("Could not insert new row in %1 table in %2 database. Sql : %3.")
 				.arg(emitterNodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::History

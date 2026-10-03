@@ -33,9 +33,9 @@ UA_StatusCode QUaBaseObject::methodCallback(UA_Server        * server,
 	{
 		return (UA_StatusCode)UA_STATUSCODE_BADUNEXPECTEDERROR;
 	}
-	Q_ASSERT(obj->m_hashMethods.contains(*methodId));
+	Q_ASSERT(obj->_hashMethods.contains(*methodId));
 	// get method from node callbacks map and call it
-	return obj->m_hashMethods[*methodId](input, output);
+	return obj->_hashMethods[*methodId](input, output);
 }
 
 QUaBaseObject::QUaBaseObject(
@@ -48,7 +48,7 @@ QUaBaseObject::QUaBaseObject(
 quint8 QUaBaseObject::eventNotifier() const
 {
 	UA_Byte outByte;
-	auto st = UA_Server_readEventNotifier(m_qUaServer->m_server, m_nodeId, &outByte);
+	auto st = UA_Server_readEventNotifier(_qUaServer->_server, _nodeId, &outByte);
 	Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	Q_UNUSED(st);
 	return outByte;
@@ -61,7 +61,7 @@ void QUaBaseObject::setEventNotifier(const quint8 & eventNotifier)
 	{
 		return;
 	}
-	auto st = UA_Server_writeEventNotifier(m_qUaServer->m_server, m_nodeId, eventNotifier);
+	auto st = UA_Server_writeEventNotifier(_qUaServer->_server, _nodeId, eventNotifier);
 	Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	Q_UNUSED(st);
 	emit this->eventNotifierChanged(eventNotifier);
@@ -127,7 +127,7 @@ bool QUaBaseObject::eventHistoryEnabled() const
 
 void QUaBaseObject::setMethodReturnStatusCode(const UA_StatusCode& statusCode)
 {
-	m_qUaServer->m_methodRetStatusCode = statusCode;
+	_qUaServer->_methodRetStatusCode = statusCode;
 }
 
 UA_NodeId QUaBaseObject::addMethodNodeInternal(
@@ -152,9 +152,9 @@ UA_NodeId QUaBaseObject::addMethodNodeInternal(
     UA_NodeId methNodeId;
 	UA_QualifiedName browseName = methodName;
     auto st = UA_Server_addMethodNode(
-		m_qUaServer->m_server,
+		_qUaServer->_server,
         user_nodeId,
-        m_nodeId,
+        _nodeId,
         UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT),
 		browseName,
         methAttr,

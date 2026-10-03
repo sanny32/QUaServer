@@ -125,17 +125,17 @@ protected:
 	QUaProperty* getBaseLowLowLimit();
 
 private:
-	bool m_highHighLimitRequired;
-	bool m_highLimitRequired;
-	bool m_lowLimitRequired;
-	bool m_lowLowLimitRequired;
+	bool _highHighLimitRequired;
+	bool _highLimitRequired;
+	bool _lowLimitRequired;
+	bool _lowLowLimitRequired;
 
-	bool m_adaptiveAlarmingSupported;
+	bool _adaptiveAlarmingSupported;
 
-	bool m_baseHighHighLimitRequired;
-	bool m_baseHighLimitRequired;
-	bool m_baseLowLimitRequired;
-	bool m_baseLowLowLimitRequired;
+	bool _baseHighHighLimitRequired;
+	bool _baseHighLimitRequired;
+	bool _baseLowLimitRequired;
+	bool _baseLowLowLimitRequired;
 };
 
 #endif // UA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS

@@ -56,7 +56,7 @@ UA_StatusCode QUaServer::addEnumValues(UA_Server * server, UA_NodeId * parent, c
 void QUaServer::registerEnum(const QString& strEnumName, const QUaEnumMap& enumMap, const QUaNodeId& nodeId)
 {
 	// check if already exists
-	if (m_hashEnums.contains(strEnumName))
+	if (_hashEnums.contains(strEnumName))
 	{
 		return;
 	}
@@ -86,7 +86,7 @@ void QUaServer::registerEnum(const QString& strEnumName, const QUaEnumMap& enumM
 		// [IMPORTANT] : _ALLOC version is necessary
 		reqNodeId = UA_NODEID_STRING_ALLOC(1, charEnumName);
 	}
-	auto st = UA_Server_addDataTypeNode(m_server,
+	auto st = UA_Server_addDataTypeNode(_server,
 		reqNodeId,
 		UA_NODEID_NUMERIC(0, UA_NS0ID_ENUMERATION),
 		UA_NODEID_NUMERIC(0, UA_NS0ID_HASSUBTYPE),
@@ -107,16 +107,16 @@ void QUaServer::registerEnum(const QString& strEnumName, const QUaEnumMap& enumM
 			i.value().description
 			});
 	}
-	st = QUaServer::addEnumValues(m_server, &reqNodeId, vectEnumValues.count(), vectEnumValues.data());
+	st = QUaServer::addEnumValues(_server, &reqNodeId, vectEnumValues.count(), vectEnumValues.data());
 	Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	// finally append to map
-	m_hashEnums.insert(strEnumName, reqNodeId);
+	_hashEnums.insert(strEnumName, reqNodeId);
 	this->registerEnumDataType(reqNodeId, strEnumName);
 }
 
 bool QUaServer::isEnumRegistered(const QString& strEnumName) const
 {
-	return m_hashEnums.contains(strEnumName);
+	return _hashEnums.contains(strEnumName);
 }
 
 // NOTE : expensive, creates a copy
@@ -124,12 +124,12 @@ QUaEnumMap QUaServer::enumMap(const QString& strEnumName) const
 {
 	auto retMap = QUaEnumMap();
 	// if it does not exist, return empty
-	if (!m_hashEnums.contains(strEnumName))
+	if (!_hashEnums.contains(strEnumName))
 	{
 		return retMap;
 	}
 	// read enum map
-	auto enumNodeId = m_hashEnums[strEnumName];
+	auto enumNodeId = _hashEnums[strEnumName];
 	// get enum values as ua variant
 	auto enumValues = this->enumValues(enumNodeId);
 	// get start of array
@@ -148,13 +148,13 @@ QUaEnumMap QUaServer::enumMap(const QString& strEnumName) const
 void QUaServer::setEnumMap(const QString& strEnumName, const QUaEnumMap& enumMap)
 {
 	// if it does not exist, create it with one entry
-	if (!m_hashEnums.contains(strEnumName))
+	if (!_hashEnums.contains(strEnumName))
 	{
 		this->registerEnum(strEnumName, enumMap);
 		return;
 	}
 	// else update enum
-	auto & enumNodeId = m_hashEnums[strEnumName];
+	auto & enumNodeId = _hashEnums[strEnumName];
 	this->updateEnum(enumNodeId, enumMap);
 }
 
@@ -163,13 +163,13 @@ void QUaServer::setEnumMap(const QString& strEnumName, const QUaEnumMap& enumMap
 void QUaServer::updateEnumEntry(const QString& strEnumName, const QUaEnumKey& enumValue, const QUaEnumEntry& enumEntry)
 {
 	// if it does not exist, create it with one entry
-	if (!m_hashEnums.contains(strEnumName))
+	if (!_hashEnums.contains(strEnumName))
 	{
 		this->registerEnum(strEnumName, { {enumValue, enumEntry} });
 		return;
 	}
 	// else update enum
-	auto & enumNodeId = m_hashEnums[strEnumName];
+	auto & enumNodeId = _hashEnums[strEnumName];
 	// get old map
 	auto mapValues = this->enumMap(strEnumName);
 	// update old map
@@ -182,12 +182,12 @@ void QUaServer::updateEnumEntry(const QString& strEnumName, const QUaEnumKey& en
 void QUaServer::removeEnumEntry(const QString& strEnumName, const QUaEnumKey& enumValue)
 {
 	// if it does not exist, do nothing
-	if (!m_hashEnums.contains(strEnumName))
+	if (!_hashEnums.contains(strEnumName))
 	{
 		return;
 	}
 	// else update enum
-	auto & enumNodeId = m_hashEnums[strEnumName];
+	auto & enumNodeId = _hashEnums[strEnumName];
 	// get old map
 	auto mapValues = this->enumMap(strEnumName);
 	// update old map
@@ -212,13 +212,13 @@ void QUaServer::registerEnumDataType(const UA_NodeId& enumNodeId, const QString&
 	custType->type.membersSize = 0;
 	custType->type.members     = nullptr;
 	// prepend to the custom types of the server (owned by QUaServer)
-	UA_ServerConfig* config = UA_Server_getConfig(m_server);
+	UA_ServerConfig* config = UA_Server_getConfig(_server);
 	custType->array.next       = config->customDataTypes;
 	custType->array.typesSize  = 1;
 	custType->array.types      = &custType->type;
 	custType->array.cleanup    = false;
 	config->customDataTypes    = &custType->array;
-	m_customDataTypes << custType;
+	_customDataTypes << custType;
 }
 
 void QUaServer::registerEnum(const QMetaEnum& metaEnum, const QUaNodeId& nodeId/* = ""*/)
@@ -247,7 +247,7 @@ UA_NodeId QUaServer::enumValuesNodeId(const UA_NodeId& enumNodeId) const
 	bDesc->includeSubtypes = true;
 	bDesc->resultMask = UA_BROWSERESULTMASK_REFERENCETYPEID;
 	// browse
-	UA_BrowseResult bRes = UA_Server_browse(m_server, 0, bDesc);
+	UA_BrowseResult bRes = UA_Server_browse(_server, 0, bDesc);
 	Q_ASSERT(bRes.statusCode == UA_STATUSCODE_GOOD);
 	Q_ASSERT(bRes.referencesSize == 1);
 	UA_ReferenceDescription rDesc = bRes.references[0];
@@ -266,7 +266,7 @@ UA_Variant QUaServer::enumValues(const UA_NodeId& enumNodeId) const
 	UA_NodeId valuesNodeId = this->enumValuesNodeId(enumNodeId);
 	// read value
 	UA_Variant outValue;
-	auto st = UA_Server_readValue(m_server, valuesNodeId, &outValue);
+	auto st = UA_Server_readValue(_server, valuesNodeId, &outValue);
 	Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	Q_UNUSED(st);
 	Q_ASSERT(!UA_Variant_isScalar(&outValue));
@@ -301,7 +301,7 @@ void QUaServer::updateEnum(const UA_NodeId& enumNodeId, const QUaEnumMap& mapEnu
 	UA_Variant_init(&enumValues);
 	UA_Variant_setArray(&enumValues, valueEnum, (UA_Int32)mapEnum.count(), &UA_TYPES[UA_TYPES_ENUMVALUETYPE]);
 	// set new ua enum value
-	auto st = UA_Server_writeValue(m_server, enumValuesNodeId, enumValues);
+	auto st = UA_Server_writeValue(_server, enumValuesNodeId, enumValues);
 	Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	Q_UNUSED(st);
 	// cleanup

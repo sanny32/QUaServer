@@ -198,13 +198,13 @@ protected:
 	virtual void resetInternals();
 
 private:
-	QUaNode * m_sourceNode;
-	QMetaObject::Connection m_sourceDestroyed;
-	QMetaObject::Connection m_retainedDestroyed;
-	quint32 m_branchQueueSize;
-	QQueue<QUaConditionBranch*> m_branches;
+	QUaNode * _sourceNode;
+	QMetaObject::Connection _sourceDestroyed;
+	QMetaObject::Connection _retainedDestroyed;
+	quint32 _branchQueueSize;
+	QQueue<QUaConditionBranch*> _branches;
 #ifdef UA_ENABLE_HISTORIZING
-	bool m_historizingBranches;
+	bool _historizingBranches;
 #endif // UA_ENABLE_HISTORIZING
 
 	static UA_StatusCode ConditionRefresh(
@@ -295,8 +295,8 @@ public:
     );
 
 protected:
-    QUaCondition* m_parent;
-    QHash<uint, QVariant> m_values;
+    QUaCondition* _parent;
+    QHash<uint, QVariant> _values;
 
     void addChildren(QUaNode* node, const QUaBrowsePath& browsePath = QUaBrowsePath());
 
@@ -327,16 +327,16 @@ protected:
 template<typename T>
 inline T* QUaCondition::createBranch(const QUaNodeId& branchId/* = ""*/)
 {
-	if (m_branchQueueSize == 0)
+	if (_branchQueueSize == 0)
 	{
 		return nullptr;
 	}
-	while (m_branches.count() >= static_cast<int>(m_branchQueueSize))
+	while (_branches.count() >= static_cast<int>(_branchQueueSize))
 	{
-		m_branches.dequeue()->deleteLater();
+		_branches.dequeue()->deleteLater();
 	}
 	auto branch = new T(this, branchId);
-	m_branches << branch;
+	_branches << branch;
 	return branch;
 }
 
@@ -344,7 +344,7 @@ template<typename T>
 inline QList<T*> QUaCondition::branches() const
 {
 	QList<T*> retBranches;
-	for (auto branch : m_branches)
+	for (auto branch : _branches)
 	{
 		auto specialized = qobject_cast<T*>(branch);
 		if (!specialized)

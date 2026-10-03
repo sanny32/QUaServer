@@ -8,21 +8,21 @@ QUaGeneralModelChangeEvent::QUaGeneralModelChangeEvent(
 	QUaServer *server
 ) : QUaBaseModelChangeEvent(server)
 {
-	m_changes = nullptr;
+	_changes = nullptr;
 #ifdef UA_ENABLE_HISTORIZING
-	m_historizing = false;
+	_historizing = false;
 #endif // UA_ENABLE_HISTORIZING
 }
 
 QUaChangesList QUaGeneralModelChangeEvent::changes() const
 {
-	if (!m_changes)
+	if (!_changes)
 	{
-		auto m_thiz = const_cast<QUaGeneralModelChangeEvent*>(this);
-		m_thiz->m_changes = m_thiz->getChanges();
+		auto _thiz = const_cast<QUaGeneralModelChangeEvent*>(this);
+		_thiz->_changes = _thiz->getChanges();
 	}
 	QUaChangesList retList;
-	QVariant varList = m_changes->value();
+	QVariant varList = _changes->value();
 	if (!varList.isValid() || !varList.canConvert<QVariantList>())
 	{
 		return retList;
@@ -37,11 +37,11 @@ QUaChangesList QUaGeneralModelChangeEvent::changes() const
 
 void QUaGeneralModelChangeEvent::setChanges(const QUaChangesList & listVerbs)
 {
-	if (!m_changes)
+	if (!_changes)
 	{
-		m_changes = this->getChanges();
+		_changes = this->getChanges();
 	}
-	m_changes->setValue(listVerbs);
+	_changes->setValue(listVerbs);
 }
 
 QUaProperty * QUaGeneralModelChangeEvent::getChanges()

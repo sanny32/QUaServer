@@ -15,10 +15,10 @@ QUaCondition::QUaCondition(
 	QUaServer *server
 ) : QUaBaseEvent(server)
 {
-	m_sourceNode = nullptr;
-	m_branchQueueSize = 0;
+	_sourceNode = nullptr;
+	_branchQueueSize = 0;
 #ifdef UA_ENABLE_HISTORIZING
-	m_historizingBranches = false;
+	_historizingBranches = false;
 #endif // UA_ENABLE_HISTORIZING
 	// force some non-qt datatypes
 	//this->getConditionClassId()->setDataType(QMetaType_NodeId);	// NodeId
@@ -45,17 +45,17 @@ QUaCondition::QUaCondition(
 QUaCondition::~QUaCondition()
 {
 	// remove destroy connections
-	QObject::disconnect(m_sourceDestroyed);
-	// NOTE : do not disconnect m_retainedDestroyed, else it will not be called
+	QObject::disconnect(_sourceDestroyed);
+	// NOTE : do not disconnect _retainedDestroyed, else it will not be called
 	
 	// delete branches
-	std::for_each(m_branches.begin(), m_branches.end(),
+	std::for_each(_branches.begin(), _branches.end(),
 	[](QUaConditionBranch* branch) {
 		delete branch;
 	});
-	m_branches.clear();
+	_branches.clear();
 	// do not trigger if server is being destroyed
-	if (m_qUaServer->m_beingDestroyed)
+	if (_qUaServer->_beingDestroyed)
 	{
 		return;
 	}
@@ -78,45 +78,45 @@ void QUaCondition::setDisplayName(const QUaLocalizedText& displayName)
 
 void QUaCondition::setSourceNode(const QUaNodeId& sourceNodeId)
 {
-	// call base implementation (updates cache m_sourceNodeId)
+	// call base implementation (updates cache _sourceNodeId)
 	QUaBaseEvent::setSourceNode(sourceNodeId);
 	// update retained conditions for old source node
 	bool isRetained = this->retain();
-	if (m_sourceNode)
+	if (_sourceNode)
 	{
-		m_sourceNode->removeReference({ "HasCondition" , "IsConditionOf" }, this, true);
+		_sourceNode->removeReference({ "HasCondition" , "IsConditionOf" }, this, true);
 		// remove destroy connections
-		QObject::disconnect(m_sourceDestroyed);
-		QObject::disconnect(m_retainedDestroyed);
+		QObject::disconnect(_sourceDestroyed);
+		QObject::disconnect(_retainedDestroyed);
 		// remove from hash
 		if (isRetained)
 		{	
-			Q_ASSERT(m_qUaServer->m_retainedConditions[m_sourceNode].contains(this));
-			m_qUaServer->m_retainedConditions[m_sourceNode].remove(this);
+			Q_ASSERT(_qUaServer->_retainedConditions[_sourceNode].contains(this));
+			_qUaServer->_retainedConditions[_sourceNode].remove(this);
 		}
 	}
 	// update source
-	if (UA_NodeId_isNull(&m_sourceNodeId))
+	if (UA_NodeId_isNull(&_sourceNodeId))
 	{
 		return;
 	}
-	m_sourceNode = QUaNode::getNodeContext(m_sourceNodeId, m_qUaServer->m_server);
-	if (m_sourceNode)
+	_sourceNode = QUaNode::getNodeContext(_sourceNodeId, _qUaServer->_server);
+	if (_sourceNode)
 	{
 		// NOTE : references are RAM hungry and is not worth having them for branches
-		m_sourceNode->addReference({ "HasCondition" , "IsConditionOf" }, this, true);
+		_sourceNode->addReference({ "HasCondition" , "IsConditionOf" }, this, true);
 		// add destroy connection
-		m_sourceDestroyed = QObject::connect(m_sourceNode, &QObject::destroyed, this,
+		_sourceDestroyed = QObject::connect(_sourceNode, &QObject::destroyed, this,
 		[this]() {
-			if (m_qUaServer->m_retainedConditions.contains(m_sourceNode))
+			if (_qUaServer->_retainedConditions.contains(_sourceNode))
 			{
-				m_qUaServer->m_retainedConditions.remove(m_sourceNode);
+				_qUaServer->_retainedConditions.remove(_sourceNode);
 			}
-			m_sourceNode = nullptr;
+			_sourceNode = nullptr;
 			// if this node has been removed from library we cannot write to it
 			// but C++ instance still exists for a little longer
 			QUaNodeId nodeId = this->nodeId();
-			if (!m_qUaServer->isNodeIdUsed(nodeId))
+			if (!_qUaServer->isNodeIdUsed(nodeId))
 			{
 				return;
 			}
@@ -127,18 +127,18 @@ void QUaCondition::setSourceNode(const QUaNodeId& sourceNodeId)
 		if (isRetained)
 		{
 			// update retained conditions hash for new source node
-			Q_ASSERT(!m_qUaServer->m_retainedConditions[m_sourceNode].contains(this));
-			m_qUaServer->m_retainedConditions[m_sourceNode].insert(this);
+			Q_ASSERT(!_qUaServer->_retainedConditions[_sourceNode].contains(this));
+			_qUaServer->_retainedConditions[_sourceNode].insert(this);
 			// add destroy connection
-			auto svr = m_qUaServer;
-			auto src = m_sourceNode;
-			m_retainedDestroyed = QObject::connect(this, &QObject::destroyed,
+			auto svr = _qUaServer;
+			auto src = _sourceNode;
+			_retainedDestroyed = QObject::connect(this, &QObject::destroyed,
 			[this, svr, src]() {
-				if (!svr->m_retainedConditions.contains(src))
+				if (!svr->_retainedConditions.contains(src))
 				{
 					return;
 				}
-				svr->m_retainedConditions[src].remove(this);
+				svr->_retainedConditions[src].remove(this);
 			});
 		}
 	}
@@ -227,33 +227,33 @@ void QUaCondition::setRetain(const bool& retain)
 	// emit change
 	emit this->retainChanged();
 	// update source
-	if (!m_sourceNode)
+	if (!_sourceNode)
 	{
 		return;
 	}
 	// update retained conditions for source node
 	if (retain)
 	{
-		Q_ASSERT(!m_qUaServer->m_retainedConditions[m_sourceNode].contains(this));
-		m_qUaServer->m_retainedConditions[m_sourceNode].insert(this);
+		Q_ASSERT(!_qUaServer->_retainedConditions[_sourceNode].contains(this));
+		_qUaServer->_retainedConditions[_sourceNode].insert(this);
 		// add destroy connection
-		auto svr = m_qUaServer;
-		auto src = m_sourceNode;
-		m_retainedDestroyed = QObject::connect(this, &QObject::destroyed,
+		auto svr = _qUaServer;
+		auto src = _sourceNode;
+		_retainedDestroyed = QObject::connect(this, &QObject::destroyed,
 		[this, svr, src]() {
-			if (!svr->m_retainedConditions.contains(src))
+			if (!svr->_retainedConditions.contains(src))
 			{
 				return;
 			}
-			svr->m_retainedConditions[src].remove(this);
+			svr->_retainedConditions[src].remove(this);
 		});
 	}
 	else
 	{
-		Q_ASSERT(m_qUaServer->m_retainedConditions[m_sourceNode].contains(this));
-		m_qUaServer->m_retainedConditions[m_sourceNode].remove(this);
+		Q_ASSERT(_qUaServer->_retainedConditions[_sourceNode].contains(this));
+		_qUaServer->_retainedConditions[_sourceNode].remove(this);
 		// remove destroy connection
-		QObject::disconnect(m_retainedDestroyed);
+		QObject::disconnect(_retainedDestroyed);
 	}
 }
 
@@ -489,49 +489,49 @@ void QUaCondition::AddComment(QByteArray EventId, QUaLocalizedText Comment)
 
 quint32 QUaCondition::branchQueueSize() const
 {
-	return m_branchQueueSize;
+	return _branchQueueSize;
 }
 
 void QUaCondition::setBranchQueueSize(const quint32& branchQueueSize)
 {
-	m_branchQueueSize = branchQueueSize;
+	_branchQueueSize = branchQueueSize;
 }
 
 #ifdef UA_ENABLE_HISTORIZING
 bool QUaCondition::historizingBranches() const
 {
-	return m_historizingBranches;
+	return _historizingBranches;
 }
 
 void QUaCondition::setHistorizingBranches(const bool& historizingBranches)
 {
-	m_historizingBranches = historizingBranches;
+	_historizingBranches = historizingBranches;
 }
 #endif // UA_ENABLE_HISTORIZING
 
 QList<QUaConditionBranch*> QUaCondition::branches() const
 {
-	return m_branches;
+	return _branches;
 }
 
 bool QUaCondition::hasBranches() const
 {
-	return m_branches.count() > 0;
+	return _branches.count() > 0;
 }
 
 QUaConditionBranch* QUaCondition::branchByEventId(const QByteArray& eventId) const
 {
-	auto res = std::find_if(m_branches.begin(), m_branches.end(),
+	auto res = std::find_if(_branches.begin(), _branches.end(),
 	[&eventId](QUaConditionBranch* branch) {
 		return branch->eventId() == eventId;
 	});
-	return res == m_branches.end() ? nullptr : *res;
+	return res == _branches.end() ? nullptr : *res;
 }
 
 void QUaCondition::removeBranchByEventId(QUaConditionBranch* branch)
 {
-	m_branches.removeOne(branch);
-	if (m_branches.count() > 0)
+	_branches.removeOne(branch);
+	if (_branches.count() > 0)
 	{
 		return;
 	}
@@ -663,18 +663,18 @@ UA_StatusCode QUaCondition::ConditionRefresh(
 	QUaServer* srv = QUaServer::getServerNodeContext(server);
 	Q_ASSERT(srv);
 	auto time = QDateTime::currentDateTimeUtc();
-	srv->m_refreshStartEvent->setEventId(QUaBaseEvent::generateEventId());
-	srv->m_refreshStartEvent->setTime(time);
-	srv->m_refreshStartEvent->setReceiveTime(time);
-	srv->m_refreshEndEvent->setEventId(QUaBaseEvent::generateEventId());
-	srv->m_refreshEndEvent->setTime(time);
-	srv->m_refreshEndEvent->setReceiveTime(time);
+	srv->_refreshStartEvent->setEventId(QUaBaseEvent::generateEventId());
+	srv->_refreshStartEvent->setTime(time);
+	srv->_refreshStartEvent->setReceiveTime(time);
+	srv->_refreshEndEvent->setEventId(QUaBaseEvent::generateEventId());
+	srv->_refreshEndEvent->setTime(time);
+	srv->_refreshEndEvent->setReceiveTime(time);
 		/* Check if valid subscriptionId */
 	if (inputSize < 1 || !quaIsIntegerId(&input[0]))
 		return UA_STATUSCODE_BADINVALIDARGUMENT;
 	UA_UInt32 subscriptionId = *((UA_UInt32*)input[0].data);
 	// NOTE : only subscriptions with event monitored items are tracked
-	auto subscriptions = srv->m_hashEventMonitoredItems.value(*sessionId);
+	auto subscriptions = srv->_hashEventMonitoredItems.value(*sessionId);
 	if (!subscriptions.contains(subscriptionId))
 		return UA_STATUSCODE_GOOD;
 	/* process each monitoredItem in the subscription */
@@ -710,12 +710,12 @@ UA_StatusCode QUaCondition::ConditionRefresh2(
 	QUaServer* srv = QUaServer::getServerNodeContext(server);
 	Q_ASSERT(srv);
 	auto time = QDateTime::currentDateTimeUtc();
-	srv->m_refreshStartEvent->setEventId(QUaBaseEvent::generateEventId());
-	srv->m_refreshStartEvent->setTime(time);
-	srv->m_refreshStartEvent->setReceiveTime(time);
-	srv->m_refreshEndEvent->setEventId(QUaBaseEvent::generateEventId());
-	srv->m_refreshEndEvent->setTime(time);
-	srv->m_refreshEndEvent->setReceiveTime(time);
+	srv->_refreshStartEvent->setEventId(QUaBaseEvent::generateEventId());
+	srv->_refreshStartEvent->setTime(time);
+	srv->_refreshStartEvent->setReceiveTime(time);
+	srv->_refreshEndEvent->setEventId(QUaBaseEvent::generateEventId());
+	srv->_refreshEndEvent->setTime(time);
+	srv->_refreshEndEvent->setReceiveTime(time);
 	/* Check if valid subscriptionId */
 	if (inputSize < 2 ||
 		!quaIsIntegerId(&input[0]) ||
@@ -723,7 +723,7 @@ UA_StatusCode QUaCondition::ConditionRefresh2(
 		return UA_STATUSCODE_BADINVALIDARGUMENT;
 	UA_UInt32 subscriptionId  = *((UA_UInt32*)input[0].data);
 	UA_UInt32 monitoredItemId = *((UA_UInt32*)input[1].data);
-	auto subscriptions = srv->m_hashEventMonitoredItems.value(*sessionId);
+	auto subscriptions = srv->_hashEventMonitoredItems.value(*sessionId);
 	if (!subscriptions.contains(subscriptionId))
 		return UA_STATUSCODE_BADSUBSCRIPTIONIDINVALID;
 	/* Process monitored item */
@@ -742,7 +742,7 @@ void QUaCondition::processMonitoredItem(
 	QUaServer* srv
 )
 {
-	QUaNode* node = QUaNode::getNodeContext(monitoredNodeId, srv->m_server);
+	QUaNode* node = QUaNode::getNodeContext(monitoredNodeId, srv->_server);
 	// NOTE : clients can still have in their subscriptions node ids that have been deleted
     static UA_NodeId server = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER);
     if (!node && !UA_NodeId_equal(&monitoredNodeId, &server))
@@ -754,12 +754,12 @@ void QUaCondition::processMonitoredItem(
 	if (node)
 	{
 		// only retained conditions for given monitored item's node
-		conditions = srv->m_retainedConditions[node];
+		conditions = srv->_retainedConditions[node];
 	}
 	else
 	{
 		// all retained conditions if monitored item is server object
-		std::for_each(srv->m_retainedConditions.begin(), srv->m_retainedConditions.end(),
+		std::for_each(srv->_retainedConditions.begin(), srv->_retainedConditions.end(),
 		[&conditions](const QSet<QUaCondition*>& conds) {
 			conditions.unite(conds);
 		});
@@ -769,12 +769,12 @@ void QUaCondition::processMonitoredItem(
     QString sourceNodeId = node ? QString(node->nodeId()) : QUaTypesConverter::nodeIdToQString(UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER));
     QString sourceDisplayName = node ? QString(node->displayName()) : tr("Server");
 	/* 1. trigger RefreshStartEvent */
-	srv->m_refreshStartEvent->setSourceNode(sourceNodeId);
-	srv->m_refreshStartEvent->setSourceName(sourceDisplayName);
-	srv->m_refreshStartEvent->setMessage(tr("Start refresh for source %1 [%2].").arg(sourceDisplayName).arg(sourceNodeId));
+	srv->_refreshStartEvent->setSourceNode(sourceNodeId);
+	srv->_refreshStartEvent->setSourceName(sourceDisplayName);
+	srv->_refreshStartEvent->setMessage(tr("Start refresh for source %1 [%2].").arg(sourceDisplayName).arg(sourceNodeId));
 	retval = QUaServer_Anex::UA_Event_addEventToMonitoredItem(
-		srv->m_server,
-		&srv->m_refreshStartEvent->m_nodeId,
+		srv->_server,
+		&srv->_refreshStartEvent->_nodeId,
 		sessionId,
 		subscriptionId,
 		monitoredItemId,
@@ -790,8 +790,8 @@ void QUaCondition::processMonitoredItem(
 			continue;
 		}
 		retval = QUaServer_Anex::UA_Event_addEventToMonitoredItem(
-			srv->m_server,
-			&condition->m_nodeId,
+			srv->_server,
+			&condition->_nodeId,
 			sessionId,
 			subscriptionId,
 			monitoredItemId,
@@ -802,8 +802,8 @@ void QUaCondition::processMonitoredItem(
 		for (auto &branch : condition->branches())
 		{
 			retval = QUaServer_Anex::UA_Event_addEventToMonitoredItem(
-				srv->m_server,
-				&condition->m_nodeId,
+				srv->_server,
+				&condition->_nodeId,
 				sessionId,
 				subscriptionId,
 				monitoredItemId,
@@ -816,12 +816,12 @@ void QUaCondition::processMonitoredItem(
 		}
 	}
 	/* 3. trigger RefreshEndEvent*/
-	srv->m_refreshEndEvent->setSourceNode(sourceNodeId);
-	srv->m_refreshEndEvent->setSourceName(sourceDisplayName);
-	srv->m_refreshEndEvent->setMessage(tr("End refresh for source %1 [%2].").arg(sourceDisplayName).arg(sourceNodeId));
+	srv->_refreshEndEvent->setSourceNode(sourceNodeId);
+	srv->_refreshEndEvent->setSourceName(sourceDisplayName);
+	srv->_refreshEndEvent->setMessage(tr("End refresh for source %1 [%2].").arg(sourceDisplayName).arg(sourceNodeId));
 	retval = QUaServer_Anex::UA_Event_addEventToMonitoredItem(
-		srv->m_server,
-		&srv->m_refreshEndEvent->m_nodeId,
+		srv->_server,
+		&srv->_refreshEndEvent->_nodeId,
 		sessionId,
 		subscriptionId,
 		monitoredItemId,
@@ -853,7 +853,7 @@ QUaConditionBranch::QUaConditionBranch(QUaCondition* parent, const QUaNodeId& br
 {
 	Q_ASSERT(parent);
 	// copy necessary trigger variables
-	m_parent = parent;
+	_parent = parent;
 	// copy tree : start with root
 	this->addChildren(parent);
 	// set branch id
@@ -873,8 +873,8 @@ QUaConditionBranch::~QUaConditionBranch()
 
 void QUaConditionBranch::deleteLater()
 {
-	m_parent->m_qUaServer->
-	m_changeEventSignaler.execLater([this]() {
+	_parent->_qUaServer->
+	_changeEventSignaler.execLater([this]() {
 		delete this;
 	});
 }
@@ -883,15 +883,15 @@ QVariant QUaConditionBranch::value(const QUaBrowsePath& browsePath) const
 {
 	uint key = qHash(browsePath);
 	// NOTE : possible 
-	//Q_ASSERT(m_values.contains(key));
-	return m_values.value(key, QVariant());
+	//Q_ASSERT(_values.contains(key));
+	return _values.value(key, QVariant());
 }
 
 void QUaConditionBranch::setValue(const QUaBrowsePath& browsePath, const QVariant& value)
 {
 	uint key = qHash(browsePath);
-	Q_ASSERT(m_values.contains(key));
-	m_values[key] = value;
+	Q_ASSERT(_values.contains(key));
+	_values[key] = value;
 }
 
 void QUaConditionBranch::trigger()
@@ -900,9 +900,9 @@ void QUaConditionBranch::trigger()
 	this->setEventId(QUaBaseEvent::generateEventId());
 	// trigger base condition with special callback
 	auto st = QUaServer_Anex::UA_Server_triggerEvent_Modified(
-		m_parent->server()->m_server,
-		m_parent->m_nodeId,
-		m_parent->m_sourceNodeId,
+		_parent->server()->_server,
+		_parent->_nodeId,
+		_parent->_sourceNodeId,
 		[this](const QUaBrowsePath& browsePath) -> QVariant
 		{
 			return this->value(browsePath);
@@ -976,8 +976,8 @@ void QUaConditionBranch::addChildren(QUaNode* node, const QUaBrowsePath& browseP
 		auto newBrowsePath = browsePath + QUaBrowsePath() << browseName;
 		//qDebug() << QUaQualifiedName::reduceName(newBrowsePath);
 		uint key = qHash(newBrowsePath);
-		Q_ASSERT(!m_values.contains(key));
-		m_values[key] = prop->value();
+		Q_ASSERT(!_values.contains(key));
+		_values[key] = prop->value();
 		// no children
 	}
 	// variables
@@ -991,8 +991,8 @@ void QUaConditionBranch::addChildren(QUaNode* node, const QUaBrowsePath& browseP
 		auto newBrowsePath = browsePath + QUaBrowsePath() << browseName;
 		//qDebug() << QUaQualifiedName::reduceName(newBrowsePath);
 		uint key = qHash(newBrowsePath);
-		Q_ASSERT(!m_values.contains(key));
-		m_values[key] = var->value();
+		Q_ASSERT(!_values.contains(key));
+		_values[key] = var->value();
 		this->addChildren(var, newBrowsePath);
 	}
 }

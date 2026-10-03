@@ -9,7 +9,7 @@ QUaRefreshRequiredEvent::QUaRefreshRequiredEvent(
 ) : QUaSystemEvent(server)
 {
 #ifdef UA_ENABLE_HISTORIZING
-	m_historizing = false;
+	_historizing = false;
 #endif // UA_ENABLE_HISTORIZING
 }
 

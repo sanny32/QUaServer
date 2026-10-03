@@ -95,7 +95,7 @@ private:
 		UA_Variant       *output
 	);
 
-	QHash< UA_NodeId, std::function<UA_StatusCode(const UA_Variant*, UA_Variant*)>> m_hashMethods;
+	QHash< UA_NodeId, std::function<UA_StatusCode(const UA_Variant*, UA_Variant*)>> _hashMethods;
 };
 
 #endif // QUABASEOBJECT_H

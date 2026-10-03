@@ -195,9 +195,9 @@ public:
 #endif // UA_ENABLE_HISTORIZING
 
 private:
-    UA_Client *m_client;
-    UA_UInt32 m_subscriptionId;
-    QList<QVariantList> m_events;
+    UA_Client *_client;
+    UA_UInt32 _subscriptionId;
+    QList<QVariantList> _events;
 
     UA_StatusCode ensureSubscription();
     UA_StatusCode getEndpoints(const QString &url, size_t &endpointsSize, UA_EndpointDescription *&endpoints);

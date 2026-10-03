@@ -167,23 +167,23 @@ public:
 #endif // UA_ENABLE_SUBSCRIPTIONS_EVENTS
 
 private:
-	QString m_strDatabasePath;
-	QString m_strBaseName;
-	QString m_strSuffix;
-	QTimer  m_timerTransaction;
-	int     m_timeoutTransaction;
-	double  m_fileSizeLimMb;
-	double  m_totalSizeLimMb;
-	int     m_multiRowInsertSize;
-	QQueue<QUaLog> m_deferedLogOut;
-	QFileSystemWatcher m_watcher;
-	QMetaObject::Connection m_fileWatchConn;
-	QElapsedTimer m_watchingTimer;
-	QElapsedTimer m_checkingTimer;
-	int     m_timeoutAutoCloseDatabases;
-	QTimer  m_timerAutoCloseDatabases;
-	bool    m_deferTotalSizeCheck;
-	QHash<uint, QDateTime> m_findTimestampCache;
+	QString _strDatabasePath;
+	QString _strBaseName;
+	QString _strSuffix;
+	QTimer  _timerTransaction;
+	int     _timeoutTransaction;
+	double  _fileSizeLimMb;
+	double  _totalSizeLimMb;
+	int     _multiRowInsertSize;
+	QQueue<QUaLog> _deferedLogOut;
+	QFileSystemWatcher _watcher;
+	QMetaObject::Connection _fileWatchConn;
+	QElapsedTimer _watchingTimer;
+	QElapsedTimer _checkingTimer;
+	int     _timeoutAutoCloseDatabases;
+	QTimer  _timerAutoCloseDatabases;
+	bool    _deferTotalSizeCheck;
+	QHash<uint, QDateTime> _findTimestampCache;
 	//
 	struct DataPoint
 	{
@@ -227,9 +227,9 @@ private:
 		QHash<QUaNodeId, QSqlQuery> emitterPrepStmts;
 #endif // UA_ENABLE_SUBSCRIPTIONS_EVENTS
 	};
-	QMap<QDateTime, DatabaseInfo> m_dbFiles;
+	QMap<QDateTime, DatabaseInfo> _dbFiles;
 	// return SQL type in string form, for given Qt type (only QUaServer supported types)
-	static QHash<int, QString> m_hashTypes;
+	static QHash<int, QString> _hashTypes;
 	static QMetaType::Type QVariantToQtType(const QVariant& value);
 	static const QString QtTypeToSqlType(const QMetaType::Type& qtType);
 

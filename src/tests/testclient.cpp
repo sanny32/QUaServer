@@ -19,14 +19,14 @@ namespace {
 class UaNodeIdGuard
 {
 public:
-    explicit UaNodeIdGuard(const QUaNodeId &nodeId) : m_nodeId(nodeId.toUaNodeId()) {}
-    ~UaNodeIdGuard() { UA_NodeId_clear(&m_nodeId); }
+    explicit UaNodeIdGuard(const QUaNodeId &nodeId) : _nodeId(nodeId.toUaNodeId()) {}
+    ~UaNodeIdGuard() { UA_NodeId_clear(&_nodeId); }
     UaNodeIdGuard(const UaNodeIdGuard &) = delete;
     UaNodeIdGuard &operator=(const UaNodeIdGuard &) = delete;
-    const UA_NodeId &get() const { return m_nodeId; }
+    const UA_NodeId &get() const { return _nodeId; }
 
 private:
-    UA_NodeId m_nodeId;
+    UA_NodeId _nodeId;
 };
 
 #ifdef UA_ENABLE_HISTORIZING
@@ -56,8 +56,8 @@ QPair<UA_DateTime, UA_DateTime> historyTimeRange()
 /// \brief Creates a client that logs only warnings and errors.
 ///
 TestClient::TestClient()
-    : m_client(nullptr)
-    , m_subscriptionId(0)
+    : _client(nullptr)
+    , _subscriptionId(0)
 {
     UA_ClientConfig config;
     memset(&config, 0, sizeof(UA_ClientConfig));
@@ -66,13 +66,13 @@ TestClient::TestClient()
     config.timeout = 5000;
     // the test server has no certificate, so user names travel over SecurityPolicy None
     config.allowNonePolicyPassword = true;
-    m_client = UA_Client_newWithConfig(&config);
+    _client = UA_Client_newWithConfig(&config);
 }
 
 TestClient::~TestClient()
 {
     disconnect();
-    UA_Client_delete(m_client);
+    UA_Client_delete(_client);
 }
 
 ///
@@ -82,7 +82,7 @@ UA_StatusCode TestClient::connect(const QString &url)
 {
     const QByteArray endpoint = url.toUtf8();
     UA_StatusCode status = UA_STATUSCODE_GOOD;
-    runInWorker([&] { status = UA_Client_connect(m_client, endpoint.constData()); });
+    runInWorker([&] { status = UA_Client_connect(_client, endpoint.constData()); });
     return status;
 }
 
@@ -96,7 +96,7 @@ UA_StatusCode TestClient::connectUsername(const QString &url, const QString &use
     const QByteArray pass = password.toUtf8();
     UA_StatusCode status = UA_STATUSCODE_GOOD;
     runInWorker([&] {
-        status = UA_Client_connectUsername(m_client, endpoint.constData(), user.constData(), pass.constData());
+        status = UA_Client_connectUsername(_client, endpoint.constData(), user.constData(), pass.constData());
     });
     return status;
 }
@@ -106,9 +106,9 @@ UA_StatusCode TestClient::connectUsername(const QString &url, const QString &use
 ///
 UA_StatusCode TestClient::disconnect()
 {
-    m_subscriptionId = 0;
+    _subscriptionId = 0;
     UA_StatusCode status = UA_STATUSCODE_GOOD;
-    runInWorker([&] { status = UA_Client_disconnect(m_client); });
+    runInWorker([&] { status = UA_Client_disconnect(_client); });
     return status;
 }
 
@@ -191,7 +191,7 @@ UA_StatusCode TestClient::setEncryption(const QByteArray &certificate,
                                         const QByteArray &privateKey,
                                         const QString &applicationUri)
 {
-    UA_ClientConfig *config = UA_Client_getConfig(m_client);
+    UA_ClientConfig *config = UA_Client_getConfig(_client);
     UA_ByteString uaCertificate;
     uaCertificate.length = static_cast<size_t>(certificate.size());
     uaCertificate.data = reinterpret_cast<UA_Byte *>(const_cast<char *>(certificate.constData()));
@@ -226,7 +226,7 @@ UA_StatusCode TestClient::connectCertificate(const QString &url,
     UA_ByteString uaPrivateKey;
     uaPrivateKey.length = static_cast<size_t>(userPrivateKey.size());
     uaPrivateKey.data = reinterpret_cast<UA_Byte *>(const_cast<char *>(userPrivateKey.constData()));
-    const UA_StatusCode status = UA_ClientConfig_setAuthenticationCert(UA_Client_getConfig(m_client), uaCertificate, uaPrivateKey);
+    const UA_StatusCode status = UA_ClientConfig_setAuthenticationCert(UA_Client_getConfig(_client), uaCertificate, uaPrivateKey);
     if (status != UA_STATUSCODE_GOOD)
     {
         return status;
@@ -244,7 +244,7 @@ UA_StatusCode TestClient::readValue(const QUaNodeId &nodeId, QVariant &value)
     UA_Variant uaValue;
     UA_Variant_init(&uaValue);
     UA_StatusCode status = UA_STATUSCODE_GOOD;
-    runInWorker([&] { status = UA_Client_readValueAttribute(m_client, id.get(), &uaValue); });
+    runInWorker([&] { status = UA_Client_readValueAttribute(_client, id.get(), &uaValue); });
     if (status == UA_STATUSCODE_GOOD)
     {
         value = QUaTypesConverter::uaVariantToQVariant(uaValue);
@@ -262,7 +262,7 @@ UA_StatusCode TestClient::readValueDataType(const QUaNodeId &nodeId, QUaNodeId &
     UA_NodeId uaDataTypeId;
     UA_NodeId_init(&uaDataTypeId);
     UA_StatusCode status = UA_STATUSCODE_GOOD;
-    runInWorker([&] { status = UA_Client_readDataTypeAttribute(m_client, id.get(), &uaDataTypeId); });
+    runInWorker([&] { status = UA_Client_readDataTypeAttribute(_client, id.get(), &uaDataTypeId); });
     if (status == UA_STATUSCODE_GOOD)
     {
         dataTypeId = uaDataTypeId;
@@ -279,7 +279,7 @@ UA_StatusCode TestClient::writeValue(const QUaNodeId &nodeId, const QVariant &va
     const UaNodeIdGuard id(nodeId);
     UA_Variant uaValue = QUaTypesConverter::uaVariantFromQVariant(value);
     UA_StatusCode status = UA_STATUSCODE_GOOD;
-    runInWorker([&] { status = UA_Client_writeValueAttribute(m_client, id.get(), &uaValue); });
+    runInWorker([&] { status = UA_Client_writeValueAttribute(_client, id.get(), &uaValue); });
     UA_Variant_clear(&uaValue);
     return status;
 }
@@ -304,7 +304,7 @@ UA_StatusCode TestClient::writeValueRange(const QUaNodeId &nodeId, const QString
     request.nodesToWriteSize = 1;
     UA_StatusCode status = UA_STATUSCODE_GOOD;
     runInWorker([&] {
-        UA_WriteResponse response = UA_Client_Service_write(m_client, request);
+        UA_WriteResponse response = UA_Client_Service_write(_client, request);
         status = response.responseHeader.serviceResult;
         if (status == UA_STATUSCODE_GOOD)
         {
@@ -329,7 +329,7 @@ UA_StatusCode TestClient::addObject(const QUaNodeId &parentId, const QString &br
     attributes.displayName = UA_LOCALIZEDTEXT(const_cast<char *>(""), const_cast<char *>(name.constData()));
     UA_StatusCode status = UA_STATUSCODE_GOOD;
     runInWorker([&] {
-        status = UA_Client_addObjectNode(m_client, requested.get(), parent.get(),
+        status = UA_Client_addObjectNode(_client, requested.get(), parent.get(),
                                          UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
                                          UA_QUALIFIEDNAME(1, const_cast<char *>(name.constData())),
                                          UA_NODEID_NUMERIC(0, UA_NS0ID_BASEOBJECTTYPE), attributes, nullptr);
@@ -344,7 +344,7 @@ UA_StatusCode TestClient::deleteNode(const QUaNodeId &nodeId)
 {
     const UaNodeIdGuard id(nodeId);
     UA_StatusCode status = UA_STATUSCODE_GOOD;
-    runInWorker([&] { status = UA_Client_deleteNode(m_client, id.get(), true); });
+    runInWorker([&] { status = UA_Client_deleteNode(_client, id.get(), true); });
     return status;
 }
 
@@ -360,7 +360,7 @@ UA_StatusCode TestClient::addReference(const QUaNodeId &sourceId, const QUaNodeI
     expandedTarget.nodeId = target.get();
     UA_StatusCode status = UA_STATUSCODE_GOOD;
     runInWorker([&] {
-        status = UA_Client_addReference(m_client, source.get(), referenceType.get(), true,
+        status = UA_Client_addReference(_client, source.get(), referenceType.get(), true,
                                         UA_STRING_NULL, expandedTarget, UA_NODECLASS_OBJECT);
     });
     return status;
@@ -378,7 +378,7 @@ UA_StatusCode TestClient::deleteReference(const QUaNodeId &sourceId, const QUaNo
     expandedTarget.nodeId = target.get();
     UA_StatusCode status = UA_STATUSCODE_GOOD;
     runInWorker([&] {
-        status = UA_Client_deleteReference(m_client, source.get(), referenceType.get(), true, expandedTarget, true);
+        status = UA_Client_deleteReference(_client, source.get(), referenceType.get(), true, expandedTarget, true);
     });
     return status;
 }
@@ -402,7 +402,7 @@ UA_StatusCode TestClient::call(const QUaNodeId &objectId,
     UA_Variant *uaOutputs = nullptr;
     UA_StatusCode status = UA_STATUSCODE_GOOD;
     runInWorker([&] {
-        status = UA_Client_call(m_client, object.get(), method.get(),
+        status = UA_Client_call(_client, object.get(), method.get(),
                                 uaInputs.size(), uaInputs.data(), &outputSize, &uaOutputs);
     });
     for (UA_Variant &input : uaInputs)
@@ -445,7 +445,7 @@ UA_StatusCode TestClient::monitorValue(const QUaNodeId &nodeId,
     item.requestedParameters.samplingInterval = requestedSamplingInterval;
     UA_MonitoredItemCreateResult result;
     runInWorker([&] {
-        result = UA_Client_MonitoredItems_createDataChange(m_client, m_subscriptionId, UA_TIMESTAMPSTORETURN_BOTH,
+        result = UA_Client_MonitoredItems_createDataChange(_client, _subscriptionId, UA_TIMESTAMPSTORETURN_BOTH,
                                                            item, nullptr, nullptr, nullptr);
     });
     status = result.statusCode;
@@ -475,7 +475,7 @@ UA_StatusCode TestClient::readValues(const QList<QUaNodeId> &nodeIds)
     request.nodesToReadSize = static_cast<size_t>(items.size());
     UA_StatusCode status = UA_STATUSCODE_GOOD;
     runInWorker([&] {
-        UA_ReadResponse response = UA_Client_Service_read(m_client, request);
+        UA_ReadResponse response = UA_Client_Service_read(_client, request);
         status = response.responseHeader.serviceResult;
         UA_ReadResponse_clear(&response);
     });
@@ -509,7 +509,7 @@ UA_StatusCode TestClient::subscribeEvents(const QUaNodeId &emitterId, const QLis
     UA_ExtensionObject_setValue(&item.requestedParameters.filter, &filter, &UA_TYPES[UA_TYPES_EVENTFILTER]);
     UA_MonitoredItemCreateResult result;
     runInWorker([&] {
-        result = UA_Client_MonitoredItems_createEvent(m_client, m_subscriptionId, UA_TIMESTAMPSTORETURN_BOTH,
+        result = UA_Client_MonitoredItems_createEvent(_client, _subscriptionId, UA_TIMESTAMPSTORETURN_BOTH,
                                                       item, this, &TestClient::eventNotification, nullptr);
     });
     status = result.statusCode;
@@ -523,7 +523,7 @@ UA_StatusCode TestClient::subscribeEvents(const QUaNodeId &emitterId, const QLis
 ///
 UA_UInt32 TestClient::subscriptionId() const
 {
-    return m_subscriptionId;
+    return _subscriptionId;
 }
 
 ///
@@ -532,15 +532,15 @@ UA_UInt32 TestClient::subscriptionId() const
 ///
 QList<QVariantList> TestClient::waitForEvents(int count, int timeoutMs)
 {
-    m_events.clear();
+    _events.clear();
     runInWorker([&] {
         const QDeadlineTimer deadline(timeoutMs);
-        while (m_events.size() < count && !deadline.hasExpired())
+        while (_events.size() < count && !deadline.hasExpired())
         {
-            UA_Client_run_iterate(m_client, 20);
+            UA_Client_run_iterate(_client, 20);
         }
     });
-    return m_events;
+    return _events;
 }
 
 #ifdef UA_ENABLE_HISTORIZING
@@ -556,7 +556,7 @@ UA_StatusCode TestClient::readHistoryRaw(const QUaNodeId &nodeId, quint32 numVal
     values.clear();
     UA_StatusCode status = UA_STATUSCODE_GOOD;
     runInWorker([&] {
-        status = UA_Client_HistoryRead_raw(m_client, &id.get(), &TestClient::historyRawPage,
+        status = UA_Client_HistoryRead_raw(_client, &id.get(), &TestClient::historyRawPage,
                                            range.first, range.second, UA_STRING_NULL, false,
                                            numValuesPerNode, UA_TIMESTAMPSTORETURN_BOTH, &context);
     });
@@ -579,7 +579,7 @@ UA_StatusCode TestClient::readHistoryEvents(const QUaNodeId &nodeId,
     events.clear();
     UA_StatusCode status = UA_STATUSCODE_GOOD;
     runInWorker([&] {
-        status = UA_Client_HistoryRead_events(m_client, &id.get(), &TestClient::historyEventsPage,
+        status = UA_Client_HistoryRead_events(_client, &id.get(), &TestClient::historyEventsPage,
                                               range.first, range.second, UA_STRING_NULL, filter,
                                               numValuesPerNode, UA_TIMESTAMPSTORETURN_BOTH, &context);
     });
@@ -593,7 +593,7 @@ UA_StatusCode TestClient::readHistoryEvents(const QUaNodeId &nodeId,
 ///
 UA_StatusCode TestClient::ensureSubscription()
 {
-    if (m_subscriptionId != 0)
+    if (_subscriptionId != 0)
     {
         return UA_STATUSCODE_GOOD;
     }
@@ -611,15 +611,15 @@ UA_StatusCode TestClient::createSubscription(double requestedPublishingInterval,
     request.requestedPublishingInterval = requestedPublishingInterval;
     UA_CreateSubscriptionResponse response;
     runInWorker([&] {
-        response = UA_Client_Subscriptions_create(m_client, request, nullptr, nullptr, nullptr);
+        response = UA_Client_Subscriptions_create(_client, request, nullptr, nullptr, nullptr);
     });
     const UA_StatusCode status = response.responseHeader.serviceResult;
     if (status == UA_STATUSCODE_GOOD)
     {
         revisedPublishingInterval = response.revisedPublishingInterval;
-        if (m_subscriptionId == 0)
+        if (_subscriptionId == 0)
         {
-            m_subscriptionId = response.subscriptionId;
+            _subscriptionId = response.subscriptionId;
         }
     }
     UA_CreateSubscriptionResponse_clear(&response);
@@ -634,7 +634,7 @@ UA_StatusCode TestClient::getEndpoints(const QString &url, size_t &endpointsSize
     const QByteArray endpoint = url.toUtf8();
     UA_StatusCode status = UA_STATUSCODE_GOOD;
     runInWorker([&] {
-        status = UA_Client_getEndpoints(m_client, endpoint.constData(), &endpointsSize, &endpoints);
+        status = UA_Client_getEndpoints(_client, endpoint.constData(), &endpointsSize, &endpoints);
     });
     return status;
 }
@@ -715,7 +715,7 @@ void TestClient::eventNotification(UA_Client *client,
     {
         fields << QUaTypesConverter::uaVariantToQVariant(eventFields.map[i].value);
     }
-    static_cast<TestClient *>(monContext)->m_events << fields;
+    static_cast<TestClient *>(monContext)->_events << fields;
 }
 
 #ifdef UA_ENABLE_HISTORIZING

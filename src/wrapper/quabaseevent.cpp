@@ -8,11 +8,11 @@ QUaBaseEvent::QUaBaseEvent(
 	QUaServer *server
 ) : QUaBaseObject(server)
 {
-	m_sourceNodeId = UA_NODEID_NULL;
+	_sourceNodeId = UA_NODEID_NULL;
 #ifdef UA_ENABLE_HISTORIZING
     // historize by default, though there might be some types for which
     // we dont want default historization like change event or condition sync
-    m_historizing = true;
+    _historizing = true;
 #endif // UA_ENABLE_HISTORIZING
 	// set event type definition
 	this->setEventType(this->typeDefinitionNodeId());
@@ -26,7 +26,7 @@ QUaBaseEvent::QUaBaseEvent(
 
 QUaBaseEvent::~QUaBaseEvent()
 {
-	UA_NodeId_clear(&m_sourceNodeId);
+	UA_NodeId_clear(&_sourceNodeId);
 }
 
 QByteArray QUaBaseEvent::eventId() const
@@ -57,10 +57,10 @@ QUaNodeId QUaBaseEvent::sourceNode() const
 void QUaBaseEvent::setSourceNode(const QUaNodeId& sourceNodeId)
 {
 	// set cache
-	UA_NodeId_clear(&m_sourceNodeId);
-	m_sourceNodeId = sourceNodeId;
+	UA_NodeId_clear(&_sourceNodeId);
+	_sourceNodeId = sourceNodeId;
     // get node
-    QUaNode* node = m_qUaServer->nodeById(sourceNodeId);
+    QUaNode* node = _qUaServer->nodeById(sourceNodeId);
     QUaBaseObject* obj = qobject_cast<QUaBaseObject*>(node);
     if (node && !obj)
     {
@@ -75,10 +75,10 @@ void QUaBaseEvent::setSourceNode(const QUaNodeId& sourceNodeId)
         //// TODO : implement event hierarchy according to Part 3 - 7.x
         //// for now all source nodes are directly event sources of server object directly
         //auto st = UA_Server_addReference(
-        //    m_qUaServer->m_server,
+        //    _qUaServer->_server,
         //    UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER),
         //    UA_NODEID_NUMERIC(0, UA_NS0ID_HASEVENTSOURCE /*UA_NS0ID_HASNOTIFIER*/),
-        //    { obj->m_nodeId, UA_STRING_NULL, 0 },
+        //    { obj->_nodeId, UA_STRING_NULL, 0 },
         //    true
         //);
         //Q_ASSERT(st == UA_STATUSCODE_GOOD || st == UA_STATUSCODE_BADDUPLICATEREFERENCENOTALLOWED);
@@ -168,12 +168,12 @@ void QUaBaseEvent::trigger()
 #ifdef UA_ENABLE_HISTORIZING
 bool QUaBaseEvent::historizing() const
 {
-	return m_historizing;
+	return _historizing;
 }
 
 void QUaBaseEvent::setHistorizing(const bool& historizing)
 {
-    m_historizing = historizing;
+    _historizing = historizing;
 }
 #endif // UA_ENABLE_HISTORIZING
 
@@ -253,9 +253,9 @@ void QUaBaseEvent::triggerInternal()
     }
     // NOTE : call modified version
     auto st = QUaServer_Anex::UA_Server_triggerEvent_Modified(
-        m_qUaServer->m_server,
-        m_nodeId,
-        m_sourceNodeId,
+        _qUaServer->_server,
+        _nodeId,
+        _sourceNodeId,
         nullptr
     );
     Q_ASSERT(st == UA_STATUSCODE_GOOD);

@@ -16,7 +16,7 @@ If array of types supported:
 - Add a #define in quacustomdatatypes.h for the Qt type id qMetaTypeId<QList<T>>QMetaType_List_QualifiedName
 - Register QString converters in QUaTypesConverter::registerCustomTypes using QMetaType::registerConverter
 */
-QHash<QString, QMetaType::Type> QUaDataType::m_custTypesByName = {
+QHash<QString, QMetaType::Type> QUaDataType::_custTypesByName = {
 	{QStringLiteral("Bool")                      , QMetaType::Bool                  },
 	{QStringLiteral("Char")                      , QMetaType::Char                  },
 	{QStringLiteral("SChar")                     , QMetaType::SChar                 },
@@ -52,7 +52,7 @@ QHash<QString, QMetaType::Type> QUaDataType::m_custTypesByName = {
 #endif // UA_ENABLE_SUBSCRIPTIONS_EVENTS
 };
 
-QHash<UA_NodeId, QMetaType::Type> QUaDataType::m_custTypesByNodeId = {
+QHash<UA_NodeId, QMetaType::Type> QUaDataType::_custTypesByNodeId = {
 	{UA_NODEID_NUMERIC(0, UA_NS0ID_BOOLEAN)                     , QMetaType::Bool                  },
 	{UA_NODEID_NUMERIC(0, UA_NS0ID_SBYTE)                       , QMetaType::Char                  },
 	//{UA_NODEID_NUMERIC(0, UA_NS0ID_SBYTE)                       , QMetaType::SChar                 },
@@ -87,7 +87,7 @@ QHash<UA_NodeId, QMetaType::Type> QUaDataType::m_custTypesByNodeId = {
 #endif // UA_ENABLE_SUBSCRIPTIONS_EVENTS
 };
 
-QHash<int, QMetaType::Type> QUaDataType::m_custTypesByTypeIndex = {
+QHash<int, QMetaType::Type> QUaDataType::_custTypesByTypeIndex = {
 	{UA_TYPES_BOOLEAN                     , QMetaType::Bool                  },
 	{UA_TYPES_SBYTE                       , QMetaType::Char                  },
 	//{UA_TYPES_SBYTE                       , QMetaType::SChar                 },
@@ -121,7 +121,7 @@ QHash<int, QMetaType::Type> QUaDataType::m_custTypesByTypeIndex = {
 #endif // UA_ENABLE_SUBSCRIPTIONS_EVENTS
 };
 
-QHash<QMetaType::Type, QUaDataType::TypeData> QUaDataType::m_custTypesByType = {
+QHash<QMetaType::Type, QUaDataType::TypeData> QUaDataType::_custTypesByType = {
 	{ QMetaType::Bool                   , {QStringLiteral("Bool")                       , UA_NODEID_NUMERIC(0, UA_NS0ID_BOOLEAN)                     , &UA_TYPES[UA_TYPES_BOOLEAN                     ]} },
 	{ QMetaType::Char                   , {QStringLiteral("Char")                       , UA_NODEID_NUMERIC(0, UA_NS0ID_SBYTE)                       , &UA_TYPES[UA_TYPES_SBYTE                       ]} },
 	{ QMetaType::SChar                  , {QStringLiteral("SChar")                      , UA_NODEID_NUMERIC(0, UA_NS0ID_SBYTE)                       , &UA_TYPES[UA_TYPES_SBYTE                       ]} },
@@ -159,12 +159,12 @@ QHash<QMetaType::Type, QUaDataType::TypeData> QUaDataType::m_custTypesByType = {
 };
 
 QUaDataType::QUaDataType()
-	: m_type(QMetaType::UnknownType)
+	: _type(QMetaType::UnknownType)
 {
 }
 
 QUaDataType::QUaDataType(const QMetaType::Type& metaType)
-	: m_type(metaType)
+	: _type(metaType)
 {
 }
 
@@ -175,80 +175,80 @@ QUaDataType::QUaDataType(const QString& strType)
 
 QUaDataType::operator QMetaType::Type() const
 {
-	return m_type;
+	return _type;
 }
 
 QUaDataType::operator QString() const
 {
-	return QUaDataType::stringByQType(m_type);
+	return QUaDataType::stringByQType(_type);
 }
 
 bool QUaDataType::operator==(const QMetaType::Type& metaType)
 {
-	return m_type == metaType;
+	return _type == metaType;
 }
 
 void QUaDataType::operator=(const QString& strType)
 {
-	Q_ASSERT_X(QUaDataType::m_custTypesByName.contains(strType), "QUaDataType", "Unknown type");
-	if (!QUaDataType::m_custTypesByName.contains(strType))
+	Q_ASSERT_X(QUaDataType::_custTypesByName.contains(strType), "QUaDataType", "Unknown type");
+	if (!QUaDataType::_custTypesByName.contains(strType))
 	{
-		m_type = QMetaType::UnknownType;
+		_type = QMetaType::UnknownType;
 		return;
 	}
-	m_type = QUaDataType::m_custTypesByName[strType];
+	_type = QUaDataType::_custTypesByName[strType];
 }
 
 bool QUaDataType::isSupportedQType(const QMetaType::Type& type)
 {
-	return m_custTypesByType.contains(type);
+	return _custTypesByType.contains(type);
 }
 
 QMetaType::Type QUaDataType::qTypeByNodeId(const UA_NodeId& nodeId)
 {
 	// unmapped types are expected, e.g. session diagnostics variables created by open62541 >= 1.4
-	return m_custTypesByNodeId.value(nodeId, QMetaType::UnknownType);
+	return _custTypesByNodeId.value(nodeId, QMetaType::UnknownType);
 }
 
 QMetaType::Type QUaDataType::qTypeByTypeIndex(const int& typeIndex)
 {
-	Q_ASSERT(m_custTypesByTypeIndex.contains(typeIndex));
-	return m_custTypesByTypeIndex.value(typeIndex, QMetaType::UnknownType);
+	Q_ASSERT(_custTypesByTypeIndex.contains(typeIndex));
+	return _custTypesByTypeIndex.value(typeIndex, QMetaType::UnknownType);
 }
 
 UA_NodeId QUaDataType::nodeIdByQType(const QMetaType::Type& type)
 {
-	Q_ASSERT(m_custTypesByType.contains(type));
-	if (!m_custTypesByType.contains(type))
+	Q_ASSERT(_custTypesByType.contains(type));
+	if (!_custTypesByType.contains(type))
 	{
 		return UA_NODEID_NULL;
 	}
-	return m_custTypesByType[type].nodeId;
+	return _custTypesByType[type].nodeId;
 }
 
 const UA_DataType* QUaDataType::dataTypeByQType(const QMetaType::Type& type)
 {
-	Q_ASSERT(m_custTypesByType.contains(type));
-	if (!m_custTypesByType.contains(type))
+	Q_ASSERT(_custTypesByType.contains(type));
+	if (!_custTypesByType.contains(type))
 	{
 		return nullptr;
 	}
-	return m_custTypesByType[type].dataType;
+	return _custTypesByType[type].dataType;
 }
 
 QString QUaDataType::stringByQType(const QMetaType::Type& type)
 {
-	Q_ASSERT(m_custTypesByType.contains(type));
-	if (!m_custTypesByType.contains(type))
+	Q_ASSERT(_custTypesByType.contains(type));
+	if (!_custTypesByType.contains(type))
 	{
 		return QStringLiteral("UnknownType");
 	}
-	return m_custTypesByType[type].name;
+	return _custTypesByType[type].name;
 }
 
-QMetaEnum QUaStatusCode::m_metaEnum = QMetaEnum::fromType<QUa::Status>();
+QMetaEnum QUaStatusCode::_metaEnum = QMetaEnum::fromType<QUa::Status>();
 
-QHash<QUaStatus, QString> QUaStatusCode::m_descriptions =
+QHash<QUaStatus, QString> QUaStatusCode::_descriptions =
 []() -> QHash<QUaStatus, QString> {
 	QHash<QUaStatus, QString> retHash;
 	retHash[QUaStatus::Good                                   ] = QObject::tr("The operation was successful and the associated results may be used"                                       );
@@ -272,7 +272,7 @@ QHash<QUaStatus, QString> QUaStatusCode::m_descriptions =
 }();
 QString QUaStatusCode::longDescription(const QUaStatusCode& statusCode)
 {
-	return QUaStatusCode::m_descriptions.value(
+	return QUaStatusCode::_descriptions.value(
 		statusCode, 
 		QObject::tr("Unknown description value %1")
 			.arg(static_cast<quint32>(statusCode))
@@ -281,17 +281,17 @@ QString QUaStatusCode::longDescription(const QUaStatusCode& statusCode)
 
 QUaStatusCode::QUaStatusCode()
 {
-	m_status = QUaStatus::Good;
+	_status = QUaStatus::Good;
 }
 
 QUaStatusCode::QUaStatusCode(const QUaStatus& uaStatus)
 {
-	m_status = uaStatus;
+	_status = uaStatus;
 }
 
 QUaStatusCode::QUaStatusCode(const UA_StatusCode& intStatus)
 {
-	m_status = static_cast<QUaStatus>(intStatus);
+	_status = static_cast<QUaStatus>(intStatus);
 }
 
 QUaStatusCode::QUaStatusCode(const QString& strStatus)
@@ -302,33 +302,33 @@ QUaStatusCode::QUaStatusCode(const QString& strStatus)
 QUaStatusCode::QUaStatusCode(const QByteArray& byteStatus)
 {
 	bool ok = false;
-	int val = m_metaEnum.keyToValue(byteStatus.constData(), &ok);
-	m_status = static_cast<QUaStatus>(val);
+	int val = _metaEnum.keyToValue(byteStatus.constData(), &ok);
+	_status = static_cast<QUaStatus>(val);
 }
 
 QUaStatusCode::operator QUaStatus() const
 {
-	return static_cast<QUaStatus>(m_status);
+	return static_cast<QUaStatus>(_status);
 }
 
 QUaStatusCode::operator UA_StatusCode() const
 {
-	return static_cast<UA_StatusCode>(m_status);
+	return static_cast<UA_StatusCode>(_status);
 }
 
 QUaStatusCode::operator QString() const
 {
-	const char* code = m_metaEnum.valueToKey(static_cast<int>(m_status));
+	const char* code = _metaEnum.valueToKey(static_cast<int>(_status));
 	if (!code)
 	{
-		code = UA_StatusCode_name(static_cast<UA_StatusCode>(m_status));
+		code = UA_StatusCode_name(static_cast<UA_StatusCode>(_status));
 	}
 	return QString::fromUtf8(code);
 }
 
 bool QUaStatusCode::operator==(const QUaStatus& uaStatus) const
 {
-    return m_status == uaStatus;
+    return _status == uaStatus;
 }
 
 void QUaStatusCode::operator=(const QString& strStatus)
@@ -336,13 +336,13 @@ void QUaStatusCode::operator=(const QString& strStatus)
 	*this = QUaStatusCode(strStatus.toUtf8());
 }
 
-QUaQualifiedName::QUaQualifiedName() : m_namespace(0)
+QUaQualifiedName::QUaQualifiedName() : _namespace(0)
 {
 }
 
 QUaQualifiedName::QUaQualifiedName(const quint16& namespaceIndex, const QString& name) :
-	m_namespace(namespaceIndex),
-	m_name(name)
+	_namespace(namespaceIndex),
+	_name(name)
 {
 }
 
@@ -367,42 +367,42 @@ QUaQualifiedName::QUaQualifiedName(const char* strXmlQualName)
 QUaQualifiedName::operator UA_QualifiedName() const
 {
 	UA_QualifiedName browseName;
-	browseName.namespaceIndex = m_namespace;
-	browseName.name = QUaTypesConverter::uaStringFromQString(m_name); // NOTE : allocs
+	browseName.namespaceIndex = _namespace;
+	browseName.name = QUaTypesConverter::uaStringFromQString(_name); // NOTE : allocs
 	return browseName;
 }
 
 QUaQualifiedName::operator QString() const
 {
-	return QStringLiteral("ns=%1;s=%2").arg(m_namespace).arg(m_name);
+	return QStringLiteral("ns=%1;s=%2").arg(_namespace).arg(_name);
 }
 
 void QUaQualifiedName::operator=(const UA_QualifiedName& uaQualName)
 {
-	m_namespace = uaQualName.namespaceIndex;
-	m_name = QUaTypesConverter::uaStringToQString(uaQualName.name);
+	_namespace = uaQualName.namespaceIndex;
+	_name = QUaTypesConverter::uaStringToQString(uaQualName.name);
 }
 
 void QUaQualifiedName::operator=(const QString& strXmlQualName)
 {
-	m_namespace = 0;
+	_namespace = 0;
 	auto components = QStringView(strXmlQualName).split(QLatin1Char(';'));
 	// check if valid xml format
 	if (components.size() != 2)
 	{
 		// if no valid xml format, assume ns = 0 and given string is name
-		m_name = strXmlQualName;
+		_name = strXmlQualName;
 		return;
 	}
 	// check if valid namespace found, else assume ns = 0 and given string is name
-    quint16 new_ns = m_namespace;
+    quint16 new_ns = _namespace;
 	if (components.size() == 2 && components.at(0).startsWith(QLatin1String("ns=")))
 	{
 		bool success = false;
 		uint ns = components.at(0).mid(3).toUInt(&success);
 		if (!success || ns > (std::numeric_limits<quint16>::max)())
 		{
-			m_name = strXmlQualName;
+			_name = strXmlQualName;
 			return;
 		}
 		new_ns = ns;
@@ -414,13 +414,13 @@ void QUaQualifiedName::operator=(const QString& strXmlQualName)
 		!strLast.contains(QLatin1String("g=")) &&
 		!strLast.contains(QLatin1String("b=")))
 	{
-		m_name = strXmlQualName;
+		_name = strXmlQualName;
 		return;
 	}
 	auto lastParts = strLast.split(QLatin1Char('='));
 	// if reached here, xml format is correct
-	m_namespace = new_ns;
-	m_name = 
+	_namespace = new_ns;
+	_name = 
 		lastParts.size() == 1 ?
 		QString() : // NOTE : possible that just "s="
 		lastParts.size() == 2 ?
@@ -436,43 +436,43 @@ void QUaQualifiedName::operator=(const char* strXmlQualName)
 
 bool QUaQualifiedName::operator==(const QUaQualifiedName& other) const
 {
-	return m_namespace == other.m_namespace &&
-		m_name.compare(other.m_name, Qt::CaseSensitive) == 0;
+	return _namespace == other._namespace &&
+		_name.compare(other._name, Qt::CaseSensitive) == 0;
 }
 
 bool QUaQualifiedName::operator!=(const QUaQualifiedName& other) const
 {
-	return m_namespace != other.m_namespace ||
-		m_name.compare(other.m_name, Qt::CaseSensitive) != 0;
+	return _namespace != other._namespace ||
+		_name.compare(other._name, Qt::CaseSensitive) != 0;
 }
 
 bool QUaQualifiedName::operator<(const QUaQualifiedName& other) const
 {
-	if (m_namespace != other.m_namespace)
+	if (_namespace != other._namespace)
 	{
-		return m_namespace < other.m_namespace;
+		return _namespace < other._namespace;
 	}
-	return m_name < other.m_name;
+	return _name < other._name;
 }
 
 quint16 QUaQualifiedName::namespaceIndex() const
 {
-	return m_namespace;
+	return _namespace;
 }
 
 void QUaQualifiedName::setNamespaceIndex(const quint16& index)
 {
-	m_namespace = index;
+	_namespace = index;
 }
 
 QString QUaQualifiedName::name() const
 {
-	return m_name;
+	return _name;
 }
 
 void QUaQualifiedName::setName(const QString& name)
 {
-	m_name = name;
+	_name = name;
 }
 
 QString QUaQualifiedName::toXmlString() const
@@ -489,7 +489,7 @@ UA_QualifiedName QUaQualifiedName::toUaQualifiedName() const
 
 bool QUaQualifiedName::isEmpty() const
 {
-	return m_name.isEmpty();
+	return _name.isEmpty();
 }
 
 QUaQualifiedName QUaQualifiedName::fromXmlString(const QString& strXmlQualName)
@@ -559,10 +559,10 @@ QUaBrowsePath QUaQualifiedName::expandName(const QString& strPath, const QString
 	return retPath;
 }
 
-QMetaEnum QUaChangeStructureDataType::m_metaEnumVerb = QMetaEnum::fromType<QUa::ChangeVerb>();
+QMetaEnum QUaChangeStructureDataType::_metaEnumVerb = QMetaEnum::fromType<QUa::ChangeVerb>();
 
 QUaChangeStructureDataType::QUaChangeStructureDataType()
-	: m_uiVerb(static_cast<uchar>(QUaChangeVerb::NodeAdded))
+	: _uiVerb(static_cast<uchar>(QUaChangeVerb::NodeAdded))
 {
 }
 
@@ -570,9 +570,9 @@ QUaChangeStructureDataType::QUaChangeStructureDataType(
 	const QUaNodeId& nodeIdAffected,
 	const QUaNodeId& nodeIdAffectedType,
 	const QUaChangeVerb& uiVerb)
-	: m_nodeIdAffected(nodeIdAffected),
-	m_nodeIdAffectedType(nodeIdAffectedType),
-	m_uiVerb(static_cast<uchar>(uiVerb))
+	: _nodeIdAffected(nodeIdAffected),
+	_nodeIdAffectedType(nodeIdAffectedType),
+	_uiVerb(static_cast<uchar>(uiVerb))
 {
 }
 
@@ -585,27 +585,27 @@ QUaChangeStructureDataType::QUaChangeStructureDataType(const QString& strChangeS
 	}
 	if (components.count() >= 1)
 	{
-		m_nodeIdAffected = components.at(0).toString();
+		_nodeIdAffected = components.at(0).toString();
 	}
 	if (components.count() >= 2)
 	{
-		m_nodeIdAffectedType = components.at(1).toString();;
+		_nodeIdAffectedType = components.at(1).toString();;
 	}
 	if (components.count() >= 3)
 	{
 		bool ok = false;
 		auto byte = components.at(2).toUtf8();
-		int val = m_metaEnumVerb.keyToValue(byte.data(), &ok);
-		m_uiVerb = ok ? static_cast<uchar>(val) : static_cast<uchar>(QUaChangeVerb::NodeAdded);
+		int val = _metaEnumVerb.keyToValue(byte.data(), &ok);
+		_uiVerb = ok ? static_cast<uchar>(val) : static_cast<uchar>(QUaChangeVerb::NodeAdded);
 	}
 }
 
 QUaChangeStructureDataType::operator QString() const
 {
-	const char* verb = m_metaEnumVerb.valueToKey(static_cast<int>(m_uiVerb));
+	const char* verb = _metaEnumVerb.valueToKey(static_cast<int>(_uiVerb));
 	return QStringLiteral("%1|%2|%3")
-		.arg(m_nodeIdAffected)
-		.arg(m_nodeIdAffectedType)
+		.arg(_nodeIdAffected)
+		.arg(_nodeIdAffectedType)
 		.arg(QString::fromUtf8(verb));
 }
 
@@ -616,49 +616,49 @@ QString QUaChangeStructureDataType::toString() const
 
 QUaSession::QUaSession(QObject* parent/* = 0*/) :
 	QObject(parent),
-	m_intPort(0),
-	m_timestamp(QDateTime::currentDateTimeUtc())
+	_intPort(0),
+	_timestamp(QDateTime::currentDateTimeUtc())
 {
 }
 
 QString QUaSession::sessionId() const
 {
-	return m_strSessionId;
+	return _strSessionId;
 }
 
 QString QUaSession::userName() const
 {
-	return m_strUserName;
+	return _strUserName;
 }
 
 QString QUaSession::applicationName() const
 {
-	return m_strApplicationName;
+	return _strApplicationName;
 }
 
 QString QUaSession::applicationUri() const
 {
-	return m_strApplicationUri;
+	return _strApplicationUri;
 }
 
 QString QUaSession::productUri() const
 {
-	return m_strProductUri;
+	return _strProductUri;
 }
 
 QString QUaSession::address() const
 {
-	return m_strAddress;
+	return _strAddress;
 }
 
 quint16 QUaSession::port() const
 {
-	return m_intPort;
+	return _intPort;
 }
 
 QDateTime QUaSession::timestamp() const
 {
-	return m_timestamp;
+	return _timestamp;
 }
 
 QUaLocalizedText::QUaLocalizedText()
@@ -666,8 +666,8 @@ QUaLocalizedText::QUaLocalizedText()
 }
 
 QUaLocalizedText::QUaLocalizedText(const QString& locale, const QString& text) :
-	m_locale(locale),
-	m_text(text)
+	_locale(locale),
+	_text(text)
 {
 }
 
@@ -694,31 +694,31 @@ QUaLocalizedText::QUaLocalizedText(const char* strXmlLocalizedText)
 QUaLocalizedText::operator UA_LocalizedText() const
 {
 	UA_LocalizedText uaLocalizedText;
-	uaLocalizedText.locale = QUaTypesConverter::uaStringFromQString(m_locale);
-	uaLocalizedText.text = QUaTypesConverter::uaStringFromQString(m_text);
+	uaLocalizedText.locale = QUaTypesConverter::uaStringFromQString(_locale);
+	uaLocalizedText.text = QUaTypesConverter::uaStringFromQString(_text);
 	return uaLocalizedText;
 }
 
 QUaLocalizedText::operator QString() const
 {
-	return m_locale.isEmpty() ? m_text : QStringLiteral("l=%1;t=%2").arg(m_locale).arg(m_text);
+	return _locale.isEmpty() ? _text : QStringLiteral("l=%1;t=%2").arg(_locale).arg(_text);
 }
 
 void QUaLocalizedText::operator=(const UA_LocalizedText& uaLocalizedText)
 {
-	m_locale = QUaTypesConverter::uaStringToQString(uaLocalizedText.locale);
-	m_text = QUaTypesConverter::uaStringToQString(uaLocalizedText.text);
+	_locale = QUaTypesConverter::uaStringToQString(uaLocalizedText.locale);
+	_text = QUaTypesConverter::uaStringToQString(uaLocalizedText.text);
 }
 
 void QUaLocalizedText::operator=(const QString& strXmlLocalizedText)
 {
-	m_locale = QString();
+	_locale = QString();
 	auto components = QStringView(strXmlLocalizedText).split(QLatin1Char(';'));
 	// check if valid xml format
 	if (components.size() != 2)
 	{
 		// if no valid xml format, assume no-locale, and given string is text
-		m_text = strXmlLocalizedText;
+		_text = strXmlLocalizedText;
 		return;
 	}
 	// check if valid locale found, else assume no-locale
@@ -728,7 +728,7 @@ void QUaLocalizedText::operator=(const QString& strXmlLocalizedText)
 		auto partsLocale = components.at(0).split(QLatin1Char('='));
 		if (partsLocale.size() < 2)
 		{
-			m_text = strXmlLocalizedText;
+			_text = strXmlLocalizedText;
 			return;
 		}
 		new_locale = 
@@ -739,13 +739,13 @@ void QUaLocalizedText::operator=(const QString& strXmlLocalizedText)
 	// check if valid text found, else assume no-locale and given string is name
 	if (!components.last().contains(QLatin1String("t=")))
 	{
-		m_text = strXmlLocalizedText;
+		_text = strXmlLocalizedText;
 		return;
 	}
 	auto partsText = components.last().split(QLatin1Char('='));
 	// if reached here, xml format is correct
-	m_locale = new_locale;
-	m_text =
+	_locale = new_locale;
+	_text =
 		partsText.size() == 1 ?
 		QString() : // NOTE : possible that just "t="
 		partsText.size() == 2 ?
@@ -760,37 +760,37 @@ void QUaLocalizedText::operator=(const char* strXmlLocalizedText)
 
 bool QUaLocalizedText::operator==(const QUaLocalizedText& other) const
 {
-	return this->m_locale.compare(other.m_locale, Qt::CaseSensitive) == 0 &&
-		this->m_text.compare(other.m_text, Qt::CaseSensitive) == 0;
+	return this->_locale.compare(other._locale, Qt::CaseSensitive) == 0 &&
+		this->_text.compare(other._text, Qt::CaseSensitive) == 0;
 }
 
 bool QUaLocalizedText::operator<(const QUaLocalizedText& other) const
 {
-	if (m_locale != other.m_locale)
+	if (_locale != other._locale)
 	{
-		return m_locale < other.m_locale;
+		return _locale < other._locale;
 	}
-	return m_text < other.m_text;
+	return _text < other._text;
 }
 
 QString QUaLocalizedText::locale() const
 {
-	return m_locale;
+	return _locale;
 }
 
 void QUaLocalizedText::setLocale(const QString& locale)
 {
-	m_locale = locale;
+	_locale = locale;
 }
 
 QString QUaLocalizedText::text() const
 {
-	return m_text;
+	return _text;
 }
 
 void QUaLocalizedText::setText(const QString& text)
 {
-	m_text = text;
+	_text = text;
 }
 
 QString QUaLocalizedText::toXmlString() const
@@ -805,63 +805,63 @@ UA_LocalizedText QUaLocalizedText::toUaLocalizedText() const
 	return *this;
 }
 
-QUaNodeId::QUaNodeId() : m_nodeId(UA_NODEID_NULL)
+QUaNodeId::QUaNodeId() : _nodeId(UA_NODEID_NULL)
 {
 }
 QUaNodeId::QUaNodeId(const quint16& index, const quint32& numericId)
-	: m_nodeId(UA_NODEID_NULL)
+	: _nodeId(UA_NODEID_NULL)
 {
 	this->setNamespaceIndex(index);
 	this->setNumericId(numericId);
 }
 
 QUaNodeId::QUaNodeId(const quint16& index, const QString& stringId)
-	: m_nodeId(UA_NODEID_NULL)
+	: _nodeId(UA_NODEID_NULL)
 {
 	this->setNamespaceIndex(index);
 	this->setStringId(stringId);
 }
 
 QUaNodeId::QUaNodeId(const quint16& index, const char* stringId)
-	: m_nodeId(UA_NODEID_NULL)
+	: _nodeId(UA_NODEID_NULL)
 {
 	*this = QUaNodeId(index, QString::fromUtf8(stringId));
 }
 
 QUaNodeId::QUaNodeId(const quint16& index, const QUuid& uuId)
-	: m_nodeId(UA_NODEID_NULL)
+	: _nodeId(UA_NODEID_NULL)
 {
 	this->setNamespaceIndex(index);
 	this->setUuId(uuId);
 }
 
 QUaNodeId::QUaNodeId(const quint16& index, const QByteArray& byteArrayId)
-	: m_nodeId(UA_NODEID_NULL)
+	: _nodeId(UA_NODEID_NULL)
 {
 	this->setNamespaceIndex(index);
 	this->setByteArrayId(byteArrayId);
 }
 
 QUaNodeId::QUaNodeId(const QUaNodeId& other)
-	: m_nodeId(UA_NODEID_NULL)
+	: _nodeId(UA_NODEID_NULL)
 {
 	*this = other;
 }
 
 QUaNodeId::QUaNodeId(const UA_NodeId& uaNodeId)
-	: m_nodeId(UA_NODEID_NULL)
+	: _nodeId(UA_NODEID_NULL)
 {
 	*this = uaNodeId;
 }
 
 QUaNodeId::QUaNodeId(const QString& strXmlNodeId)
-	: m_nodeId(UA_NODEID_NULL)
+	: _nodeId(UA_NODEID_NULL)
 {
 	*this = strXmlNodeId;
 }
 
 QUaNodeId::QUaNodeId(const char* strXmlNodeId)
-	: m_nodeId(UA_NODEID_NULL)
+	: _nodeId(UA_NODEID_NULL)
 {
 	*this = strXmlNodeId;
 }
@@ -874,13 +874,13 @@ QUaNodeId::~QUaNodeId()
 void QUaNodeId::operator=(const UA_NodeId& uaNodeId)
 {
 	this->clear();
-	UA_NodeId_copy(&uaNodeId, &this->m_nodeId);
+	UA_NodeId_copy(&uaNodeId, &this->_nodeId);
 }
 
 void QUaNodeId::operator=(const QString& strXmlNodeId)
 {
 	this->clear();
-	m_nodeId = QUaTypesConverter::nodeIdFromQString(strXmlNodeId);
+	_nodeId = QUaTypesConverter::nodeIdFromQString(strXmlNodeId);
 }
 
 void QUaNodeId::operator=(const char* strXmlNodeId)
@@ -891,41 +891,41 @@ void QUaNodeId::operator=(const char* strXmlNodeId)
 void QUaNodeId::operator=(const QUaNodeId& other)
 {
 	this->clear();
-	UA_NodeId_copy(&other.m_nodeId, &this->m_nodeId);
+	UA_NodeId_copy(&other._nodeId, &this->_nodeId);
 }
 
 QUaNodeId::operator UA_NodeId() const
 {
 	UA_NodeId retNodeId;
-	UA_NodeId_copy(&m_nodeId, &retNodeId);
+	UA_NodeId_copy(&_nodeId, &retNodeId);
 	return retNodeId;
 }
 
 QUaNodeId::operator QString() const
 {
-	return QUaTypesConverter::nodeIdToQString(m_nodeId);
+	return QUaTypesConverter::nodeIdToQString(_nodeId);
 }
 
 bool QUaNodeId::operator==(const QUaNodeId& other) const
 {
-	return UA_NodeId_equal(&this->m_nodeId, &other.m_nodeId);
+	return UA_NodeId_equal(&this->_nodeId, &other._nodeId);
 }
 
 bool QUaNodeId::operator!=(const QUaNodeId& other) const
 {
-	return !UA_NodeId_equal(&this->m_nodeId, &other.m_nodeId);
+	return !UA_NodeId_equal(&this->_nodeId, &other._nodeId);
 }
 
 bool QUaNodeId::operator==(const UA_NodeId& other) const
 {
-	return UA_NodeId_equal(&this->m_nodeId, &other);
+	return UA_NodeId_equal(&this->_nodeId, &other);
 }
 
 bool QUaNodeId::operator<(const QUaNodeId& other) const
 {
-	if (m_nodeId.namespaceIndex != other.m_nodeId.namespaceIndex)
+	if (_nodeId.namespaceIndex != other._nodeId.namespaceIndex)
 	{
-		return m_nodeId.namespaceIndex < other.m_nodeId.namespaceIndex;
+		return _nodeId.namespaceIndex < other._nodeId.namespaceIndex;
 	}
 	switch (this->type())
 	{
@@ -944,85 +944,85 @@ bool QUaNodeId::operator<(const QUaNodeId& other) const
 
 quint16 QUaNodeId::namespaceIndex() const
 {
-	return m_nodeId.namespaceIndex;
+	return _nodeId.namespaceIndex;
 }
 
 void QUaNodeId::setNamespaceIndex(const quint16& index)
 {
-	m_nodeId.namespaceIndex = index;
+	_nodeId.namespaceIndex = index;
 }
 
 QUaNodeIdType QUaNodeId::type() const
 {
-	return static_cast<QUaNodeIdType>(m_nodeId.identifierType);
+	return static_cast<QUaNodeIdType>(_nodeId.identifierType);
 }
 
 quint32 QUaNodeId::numericId() const
 {
-	return m_nodeId.identifier.numeric;
+	return _nodeId.identifier.numeric;
 }
 
 void QUaNodeId::setNumericId(const quint32& numericId)
 {
-	if (m_nodeId.identifierType != UA_NodeIdType::UA_NODEIDTYPE_NUMERIC)
+	if (_nodeId.identifierType != UA_NodeIdType::UA_NODEIDTYPE_NUMERIC)
 	{
-		auto index = m_nodeId.namespaceIndex;
+		auto index = _nodeId.namespaceIndex;
 		this->clear();
-		m_nodeId.namespaceIndex = index;
-		m_nodeId.identifierType = UA_NodeIdType::UA_NODEIDTYPE_NUMERIC;
+		_nodeId.namespaceIndex = index;
+		_nodeId.identifierType = UA_NodeIdType::UA_NODEIDTYPE_NUMERIC;
 	}
-	m_nodeId.identifier.numeric = numericId;
+	_nodeId.identifier.numeric = numericId;
 }
 
 QString QUaNodeId::stringId() const
 {
-	return QUaTypesConverter::uaStringToQString(m_nodeId.identifier.string);
+	return QUaTypesConverter::uaStringToQString(_nodeId.identifier.string);
 }
 
 void QUaNodeId::setStringId(const QString& stringId)
 {
-	if (m_nodeId.identifierType != UA_NodeIdType::UA_NODEIDTYPE_STRING)
+	if (_nodeId.identifierType != UA_NodeIdType::UA_NODEIDTYPE_STRING)
 	{
-		auto index = m_nodeId.namespaceIndex;
+		auto index = _nodeId.namespaceIndex;
 		this->clear();
-		m_nodeId.namespaceIndex = index;
-		m_nodeId.identifierType = UA_NodeIdType::UA_NODEIDTYPE_STRING;
+		_nodeId.namespaceIndex = index;
+		_nodeId.identifierType = UA_NodeIdType::UA_NODEIDTYPE_STRING;
 	}
-	QUaTypesConverter::uaVariantFromQVariantScalar<UA_String, QString>(stringId, &m_nodeId.identifier.string);
+	QUaTypesConverter::uaVariantFromQVariantScalar<UA_String, QString>(stringId, &_nodeId.identifier.string);
 }
 
 QUuid QUaNodeId::uuId() const
 {
-	return QUaTypesConverter::uaVariantToQVariantScalar<QUuid, UA_Guid>(&m_nodeId.identifier.guid);
+	return QUaTypesConverter::uaVariantToQVariantScalar<QUuid, UA_Guid>(&_nodeId.identifier.guid);
 }
 
 void QUaNodeId::setUuId(const QUuid& uuId)
 {
-	if (m_nodeId.identifierType != UA_NodeIdType::UA_NODEIDTYPE_GUID)
+	if (_nodeId.identifierType != UA_NodeIdType::UA_NODEIDTYPE_GUID)
 	{
-		auto index = m_nodeId.namespaceIndex;
+		auto index = _nodeId.namespaceIndex;
 		this->clear();
-		m_nodeId.namespaceIndex = index;
-		m_nodeId.identifierType = UA_NodeIdType::UA_NODEIDTYPE_GUID;
+		_nodeId.namespaceIndex = index;
+		_nodeId.identifierType = UA_NodeIdType::UA_NODEIDTYPE_GUID;
 	}
-	QUaTypesConverter::uaVariantFromQVariantScalar<UA_Guid, QUuid>(uuId, &m_nodeId.identifier.guid);
+	QUaTypesConverter::uaVariantFromQVariantScalar<UA_Guid, QUuid>(uuId, &_nodeId.identifier.guid);
 }
 
 QByteArray QUaNodeId::byteArrayId() const
 {
-	return QUaTypesConverter::uaVariantToQVariantScalar<QByteArray, UA_ByteString>(&m_nodeId.identifier.byteString);
+	return QUaTypesConverter::uaVariantToQVariantScalar<QByteArray, UA_ByteString>(&_nodeId.identifier.byteString);
 }
 
 void QUaNodeId::setByteArrayId(const QByteArray& byteArrayId)
 {
-	if (m_nodeId.identifierType != UA_NodeIdType::UA_NODEIDTYPE_BYTESTRING)
+	if (_nodeId.identifierType != UA_NodeIdType::UA_NODEIDTYPE_BYTESTRING)
 	{
-		auto index = m_nodeId.namespaceIndex;
+		auto index = _nodeId.namespaceIndex;
 		this->clear();
-		m_nodeId.namespaceIndex = index;
-		m_nodeId.identifierType = UA_NodeIdType::UA_NODEIDTYPE_BYTESTRING;
+		_nodeId.namespaceIndex = index;
+		_nodeId.identifierType = UA_NodeIdType::UA_NODEIDTYPE_BYTESTRING;
 	}
-	QUaTypesConverter::uaVariantFromQVariantScalar<UA_ByteString, QByteArray>(byteArrayId, &m_nodeId.identifier.byteString);
+	QUaTypesConverter::uaVariantFromQVariantScalar<UA_ByteString, QByteArray>(byteArrayId, &_nodeId.identifier.byteString);
 }
 
 QString QUaNodeId::toXmlString() const
@@ -1039,29 +1039,29 @@ UA_NodeId QUaNodeId::toUaNodeId() const
 
 bool QUaNodeId::isNull() const
 {
-	return UA_NodeId_isNull(&m_nodeId);
+	return UA_NodeId_isNull(&_nodeId);
 }
 
 void QUaNodeId::clear()
 {
-	if (UA_NodeId_isNull(&m_nodeId))
+	if (UA_NodeId_isNull(&_nodeId))
 	{
 		return;
 	}
-	UA_NodeId_clear(&m_nodeId);
-	m_nodeId = UA_NODEID_NULL;
+	UA_NodeId_clear(&_nodeId);
+	_nodeId = UA_NODEID_NULL;
 }
 
 quint32 QUaNodeId::internalHash() const
 {
-	return UA_NodeId_hash(&m_nodeId);
+	return UA_NodeId_hash(&_nodeId);
 }
 
-QMetaEnum QUaExclusiveLimitState::m_metaEnum = QMetaEnum::fromType<QUa::ExclusiveLimitState>();
+QMetaEnum QUaExclusiveLimitState::_metaEnum = QMetaEnum::fromType<QUa::ExclusiveLimitState>();
 
 QUaExclusiveLimitState::QUaExclusiveLimitState()
 {
-	m_state = QUa::ExclusiveLimitState::None;
+	_state = QUa::ExclusiveLimitState::None;
 }
 
 QUaExclusiveLimitState::QUaExclusiveLimitState(const QUa::ExclusiveLimitState& state)
@@ -1081,7 +1081,7 @@ QUaExclusiveLimitState::QUaExclusiveLimitState(const char* strState)
 
 void QUaExclusiveLimitState::operator=(const QUa::ExclusiveLimitState& state)
 {
-	m_state = state;
+	_state = state;
 }
 
 void QUaExclusiveLimitState::operator=(const QString& strState)
@@ -1093,28 +1093,28 @@ void QUaExclusiveLimitState::operator=(const QString& strState)
 void QUaExclusiveLimitState::operator=(const char* strState)
 {
 	bool ok = false;
-	int val = m_metaEnum.keyToValue(strState, &ok);
-	m_state = ok ? static_cast<QUa::ExclusiveLimitState>(val) : QUa::ExclusiveLimitState::None;
+	int val = _metaEnum.keyToValue(strState, &ok);
+	_state = ok ? static_cast<QUa::ExclusiveLimitState>(val) : QUa::ExclusiveLimitState::None;
 }
 
 bool QUaExclusiveLimitState::operator==(const QUaExclusiveLimitState& other) const
 {
-	return m_state == other.m_state;
+	return _state == other._state;
 }
 
 bool QUaExclusiveLimitState::operator==(const QUa::ExclusiveLimitState& other) const
 {
-	return m_state == other;
+	return _state == other;
 }
 
 QUaExclusiveLimitState::operator QUa::ExclusiveLimitState() const
 {
-	return m_state;
+	return _state;
 }
 
 QUaExclusiveLimitState::operator QString() const
 {
-	const char* state = m_metaEnum.valueToKey(static_cast<int>(m_state));
+	const char* state = _metaEnum.valueToKey(static_cast<int>(_state));
 	Q_ASSERT(state);
 	return QString::fromUtf8(state);
 }
@@ -1124,11 +1124,11 @@ QString QUaExclusiveLimitState::toString() const
 	return *this;
 }
 
-QMetaEnum QUaExclusiveLimitTransition::m_metaEnum = QMetaEnum::fromType<QUa::ExclusiveLimitTransition>();
+QMetaEnum QUaExclusiveLimitTransition::_metaEnum = QMetaEnum::fromType<QUa::ExclusiveLimitTransition>();
 
 QUaExclusiveLimitTransition::QUaExclusiveLimitTransition()
 {
-	m_transition = QUa::ExclusiveLimitTransition::Null;
+	_transition = QUa::ExclusiveLimitTransition::Null;
 }
 
 QUaExclusiveLimitTransition::QUaExclusiveLimitTransition(const QUa::ExclusiveLimitTransition& transition)
@@ -1148,7 +1148,7 @@ QUaExclusiveLimitTransition::QUaExclusiveLimitTransition(const char* strTransiti
 
 void QUaExclusiveLimitTransition::operator=(const QUa::ExclusiveLimitTransition& transition)
 {
-	m_transition = transition;
+	_transition = transition;
 }
 
 void QUaExclusiveLimitTransition::operator=(const QString& strTransition)
@@ -1160,28 +1160,28 @@ void QUaExclusiveLimitTransition::operator=(const QString& strTransition)
 void QUaExclusiveLimitTransition::operator=(const char* strTransition)
 {
 	bool ok = false;
-	int val = m_metaEnum.keyToValue(strTransition, &ok);
-	m_transition = ok ? static_cast<QUa::ExclusiveLimitTransition>(val) : QUa::ExclusiveLimitTransition::Null;
+	int val = _metaEnum.keyToValue(strTransition, &ok);
+	_transition = ok ? static_cast<QUa::ExclusiveLimitTransition>(val) : QUa::ExclusiveLimitTransition::Null;
 }
 
 bool QUaExclusiveLimitTransition::operator==(const QUaExclusiveLimitTransition& other) const
 {
-	return m_transition == other.m_transition;
+	return _transition == other._transition;
 }
 
 bool QUaExclusiveLimitTransition::operator==(const QUa::ExclusiveLimitTransition& other) const
 {
-	return m_transition == other;
+	return _transition == other;
 }
 
 QUaExclusiveLimitTransition::operator QUa::ExclusiveLimitTransition() const
 {
-	return m_transition;
+	return _transition;
 }
 
 QUaExclusiveLimitTransition::operator QString() const
 {
-	const char* transition = m_metaEnum.valueToKey(static_cast<int>(m_transition));
+	const char* transition = _metaEnum.valueToKey(static_cast<int>(_transition));
 	Q_ASSERT(transition);
 	return QString::fromUtf8(transition);
 }
@@ -1195,14 +1195,14 @@ QString QUaExclusiveLimitTransition::toString() const
 bool QUaEventHistoryQueryData::operator==(const QUaEventHistoryQueryData& other) const
 {
 	return 
-		m_timeStartExisting    == other.m_timeStartExisting &&
-		m_numEventsToRead      == other.m_numEventsToRead   &&
-		m_numEventsAlreadyRead == other.m_numEventsAlreadyRead;
+		_timeStartExisting    == other._timeStartExisting &&
+		_numEventsToRead      == other._numEventsToRead   &&
+		_numEventsAlreadyRead == other._numEventsAlreadyRead;
 }
 
 bool QUaEventHistoryQueryData::isValid() const
 {
-	return m_timeStartExisting.isValid();
+	return _timeStartExisting.isValid();
 }
 
 QByteArray QUaEventHistoryQueryData::toByteArray(const QUaEventHistoryQueryData& inQueryData)
@@ -1270,8 +1270,8 @@ QUaEventHistoryContinuationPoint QUaEventHistoryQueryData::ContinuationFromUaByt
 	);
 }
 
-QMetaEnum QUaLog::m_metaEnumCategory = QMetaEnum::fromType<QUa::LogCategory>();
-QMetaEnum QUaLog::m_metaEnumLevel = QMetaEnum::fromType<QUa::LogLevel>();
+QMetaEnum QUaLog::_metaEnumCategory = QMetaEnum::fromType<QUa::LogCategory>();
+QMetaEnum QUaLog::_metaEnumLevel = QMetaEnum::fromType<QUa::LogLevel>();
 
 QUaLog::QUaLog() :
 	level(QUaLogLevel::Info),
@@ -1337,18 +1337,18 @@ size_t QUa::qHash(const ChangeVerb &key, size_t seed)
 QUaOptionSet::QUaOptionSet() :
 	QUaOptionSet(0, 0)
 {
-	Q_ASSERT(m_value.size() == 8);
-	Q_ASSERT(m_validBits.size() == 8);
+	Q_ASSERT(_value.size() == 8);
+	Q_ASSERT(_validBits.size() == 8);
 }
 
 QUaOptionSet::QUaOptionSet(const QUaOptionSet& other)
 {
-	Q_ASSERT(other.m_value.size() == 8);
-	Q_ASSERT(other.m_validBits.size() == 8);
+	Q_ASSERT(other._value.size() == 8);
+	Q_ASSERT(other._validBits.size() == 8);
 	// use overloaded equality operator
 	*this = other;
-	Q_ASSERT(m_value.size() == 8);
-	Q_ASSERT(m_validBits.size() == 8);
+	Q_ASSERT(_value.size() == 8);
+	Q_ASSERT(_validBits.size() == 8);
 }
 
 QUaOptionSet::QUaOptionSet(const quint64& values, const quint64& validBits)
@@ -1361,31 +1361,31 @@ QUaOptionSet::QUaOptionSet(const UA_OptionSet& uaOptionSet)
 {
 	// use overloaded equality operator
 	*this = uaOptionSet;
-	Q_ASSERT(m_value.size() == 8);
-	Q_ASSERT(m_validBits.size() == 8);
+	Q_ASSERT(_value.size() == 8);
+	Q_ASSERT(_validBits.size() == 8);
 }
 
 QUaOptionSet::QUaOptionSet(const QString& strXmlOptionSet)
 {
 	// use overloaded equality operator
 	*this = strXmlOptionSet;
-	Q_ASSERT(m_value.size() == 8);
-	Q_ASSERT(m_validBits.size() == 8);
+	Q_ASSERT(_value.size() == 8);
+	Q_ASSERT(_validBits.size() == 8);
 }
 
 QUaOptionSet::QUaOptionSet(const char* strXmlOptionSet)
 {
 	// use overloaded equality operator
 	*this = QString(strXmlOptionSet);
-	Q_ASSERT(m_value.size() == 8);
-	Q_ASSERT(m_validBits.size() == 8);
+	Q_ASSERT(_value.size() == 8);
+	Q_ASSERT(_validBits.size() == 8);
 }
 
 QUaOptionSet::operator UA_OptionSet() const
 {
 	UA_OptionSet uaOptionSet;
-	QUaTypesConverter::uaVariantFromQVariantScalar<UA_ByteString, QByteArray>(m_value    , &uaOptionSet.value);
-	QUaTypesConverter::uaVariantFromQVariantScalar<UA_ByteString, QByteArray>(m_validBits, &uaOptionSet.validBits);
+	QUaTypesConverter::uaVariantFromQVariantScalar<UA_ByteString, QByteArray>(_value    , &uaOptionSet.value);
+	QUaTypesConverter::uaVariantFromQVariantScalar<UA_ByteString, QByteArray>(_validBits, &uaOptionSet.validBits);
 	return uaOptionSet;
 }
 
@@ -1396,10 +1396,10 @@ QUaOptionSet::operator QString() const
 
 void QUaOptionSet::operator=(const UA_OptionSet& uaOptionSet)
 {
-	m_value     = QUaTypesConverter::uaVariantToQVariantScalar<QByteArray, UA_ByteString>(&uaOptionSet.value);
-	m_validBits = QUaTypesConverter::uaVariantToQVariantScalar<QByteArray, UA_ByteString>(&uaOptionSet.validBits);
-	Q_ASSERT(m_value.size() == 8);
-	Q_ASSERT(m_validBits.size() == 8);
+	_value     = QUaTypesConverter::uaVariantToQVariantScalar<QByteArray, UA_ByteString>(&uaOptionSet.value);
+	_validBits = QUaTypesConverter::uaVariantToQVariantScalar<QByteArray, UA_ByteString>(&uaOptionSet.validBits);
+	Q_ASSERT(_value.size() == 8);
+	Q_ASSERT(_validBits.size() == 8);
 }
 
 void QUaOptionSet::operator=(const QString& strXmlOptionSet)
@@ -1444,18 +1444,18 @@ void QUaOptionSet::operator=(const char* strXmlOptionSet)
 
 void QUaOptionSet::operator=(const QUaOptionSet& other)
 {
-	m_value     = other.m_value;
-	m_validBits = other.m_validBits;
+	_value     = other._value;
+	_validBits = other._validBits;
 }
 
 bool QUaOptionSet::operator==(const QUaOptionSet& other) const
 {
-	return m_value == other.m_value && m_validBits == other.m_validBits;
+	return _value == other._value && _validBits == other._validBits;
 }
 
 bool QUaOptionSet::operator!=(const QUaOptionSet& other) const
 {
-	return m_value != other.m_value || m_validBits != other.m_validBits;
+	return _value != other._value || _validBits != other._validBits;
 }
 
 bool QUaOptionSet::operator<(const QUaOptionSet& other) const
@@ -1466,8 +1466,8 @@ bool QUaOptionSet::operator<(const QUaOptionSet& other) const
 quint64 QUaOptionSet::values() const
 {
 	quint64 values;
-	Q_ASSERT(m_value.size() == 8);
-	QDataStream inStream(m_value);
+	Q_ASSERT(_value.size() == 8);
+	QDataStream inStream(_value);
 	inStream.setVersion(QDataStream::Qt_6_3);
 	inStream.setByteOrder(QDataStream::LittleEndian);
 	inStream >> values;
@@ -1476,18 +1476,18 @@ quint64 QUaOptionSet::values() const
 
 void QUaOptionSet::setValues(const quint64& values)
 {
-	QDataStream valueStream(&m_value, QIODeviceBase::OpenMode( QIODeviceBase::WriteOnly | QIODeviceBase::Truncate) );
+	QDataStream valueStream(&_value, QIODeviceBase::OpenMode( QIODeviceBase::WriteOnly | QIODeviceBase::Truncate) );
 	valueStream.setVersion(QDataStream::Qt_6_3);
 	valueStream.setByteOrder(QDataStream::LittleEndian);
 	valueStream << static_cast<quint64>(values);
-	Q_ASSERT(m_value.size() == 8);
+	Q_ASSERT(_value.size() == 8);
 }
 
 quint64 QUaOptionSet::validBits() const
 {
 	quint64 validBits;
-	Q_ASSERT(m_validBits.size() == 8);
-	QDataStream inStream(m_validBits);
+	Q_ASSERT(_validBits.size() == 8);
+	QDataStream inStream(_validBits);
 	inStream.setVersion(QDataStream::Qt_6_3);
 	inStream.setByteOrder(QDataStream::LittleEndian);
 	inStream >> validBits;
@@ -1496,11 +1496,11 @@ quint64 QUaOptionSet::validBits() const
 
 void QUaOptionSet::setValidBits(const quint64& validBits)
 {
-	QDataStream validBitsStream(&m_validBits, QIODeviceBase::OpenMode( QIODeviceBase::WriteOnly | QIODeviceBase::Truncate) );
+	QDataStream validBitsStream(&_validBits, QIODeviceBase::OpenMode( QIODeviceBase::WriteOnly | QIODeviceBase::Truncate) );
 	validBitsStream.setVersion(QDataStream::Qt_6_3);
 	validBitsStream.setByteOrder(QDataStream::LittleEndian);
 	validBitsStream << static_cast<quint64>(validBits);
-	Q_ASSERT(m_validBits.size() == 8);
+	Q_ASSERT(_validBits.size() == 8);
 }
 
 // https://stackoverflow.com/questions/47981/how-do-you-set-clear-and-toggle-a-single-bit

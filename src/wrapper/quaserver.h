@@ -475,115 +475,115 @@ public slots:
 	
 
 private:
-	UA_Server             * m_server;
-	quint16                 m_port;
-	quint16                 m_maxSecureChannels;
-	quint16                 m_maxSessions;
-	QUaServerLimits         m_limits;
-	UA_Boolean              m_running;
-	QTimer                  m_iterWaitTimer;
-	QByteArray              m_byteCertificate;
-	QByteArray              m_byteCertificateInternal; // NOTE : needs to exists as long as server instance
-	bool                    m_anonymousLoginAllowed;
-	QUaFolderObject       * m_pobjectsFolder;
-	char                    m_logBuffer[QUA_MAX_LOG_MESSAGE_SIZE];
-	UA_Logger               m_logger; // NOTE : must outlive m_server (referenced by server config)
-	UA_GlobalNodeLifecycle  m_nodeLifecycle; // NOTE : referenced by server config
-    bool                    m_beingDestroyed;
+	UA_Server             * _server;
+	quint16                 _port;
+	quint16                 _maxSecureChannels;
+	quint16                 _maxSessions;
+	QUaServerLimits         _limits;
+	UA_Boolean              _running;
+	QTimer                  _iterWaitTimer;
+	QByteArray              _byteCertificate;
+	QByteArray              _byteCertificateInternal; // NOTE : needs to exists as long as server instance
+	bool                    _anonymousLoginAllowed;
+	QUaFolderObject       * _pobjectsFolder;
+	char                    _logBuffer[QUA_MAX_LOG_MESSAGE_SIZE];
+	UA_Logger               _logger; // NOTE : must outlive _server (referenced by server config)
+	UA_GlobalNodeLifecycle  _nodeLifecycle; // NOTE : referenced by server config
+    bool                    _beingDestroyed;
 
 #ifdef UA_ENABLE_ENCRYPTION
-	QByteArray m_bytePrivateKey;
-	QByteArray m_bytePrivateKeyInternal; // NOTE : needs to exists as long as server instance
-	QList<QByteArray>       m_listTrusted;
-	QList<QByteArray>       m_listIssuers;
-	QList<QByteArray>       m_listRevocation;
-	QUaSecurityPolicies     m_securityPolicies;
-	QUaMessageSecurityModes m_securityModes;
+	QByteArray _bytePrivateKey;
+	QByteArray _bytePrivateKeyInternal; // NOTE : needs to exists as long as server instance
+	QList<QByteArray>       _listTrusted;
+	QList<QByteArray>       _listIssuers;
+	QList<QByteArray>       _listRevocation;
+	QUaSecurityPolicies     _securityPolicies;
+	QUaMessageSecurityModes _securityModes;
 #endif
-	QString m_strHostname;
+	QString _strHostname;
 
-	QByteArray m_byteApplicationName;
-	QByteArray m_byteApplicationUri;
+	QByteArray _byteApplicationName;
+	QByteArray _byteApplicationUri;
 
-	QByteArray m_byteProductName;
-	QByteArray m_byteProductUri;
-	QByteArray m_byteManufacturerName;
-	QByteArray m_byteSoftwareVersion;
-	QByteArray m_byteBuildNumber; 
+	QByteArray _byteProductName;
+	QByteArray _byteProductUri;
+	QByteArray _byteManufacturerName;
+	QByteArray _byteSoftwareVersion;
+	QByteArray _byteBuildNumber; 
 
-	QHash<QString         , QString      > m_hashUsers;
-	QHash<UA_NodeId       , QUaSession*  > m_hashSessions;
+	QHash<QString         , QString      > _hashUsers;
+	QHash<UA_NodeId       , QUaSession*  > _hashSessions;
 	// remote address of open secure channels (key is the secure channel id)
-	QHash<UA_UInt32, QPair<QString, quint16>> m_hashChannelAddresses;
-	QMap <QString         , UA_NodeId    > m_mapTypes;
-	QHash<QString         , QMetaObject  > m_hashMetaObjects;
-	QHash<QString         , UA_NodeId    > m_hashEnums;
+	QHash<UA_UInt32, QPair<QString, quint16>> _hashChannelAddresses;
+	QMap <QString         , UA_NodeId    > _mapTypes;
+	QHash<QString         , QMetaObject  > _hashMetaObjects;
+	QHash<QString         , UA_NodeId    > _hashEnums;
 #ifdef UA_GENERATED_NAMESPACE_ZERO_FULL
-    QHash<QString         , UA_NodeId    > m_hashOptionSets;
+    QHash<QString         , UA_NodeId    > _hashOptionSets;
 #endif // UA_GENERATED_NAMESPACE_ZERO_FULL
-	QHash<QUaReferenceType, UA_NodeId    > m_hashRefTypes;
-	QHash<QUaReferenceType, UA_NodeId    > m_hashHierRefTypes;
-	QHash<UA_NodeId       , QUaSignaler* > m_hashSignalers;
+	QHash<QUaReferenceType, UA_NodeId    > _hashRefTypes;
+	QHash<QUaReferenceType, UA_NodeId    > _hashHierRefTypes;
+	QHash<UA_NodeId       , QUaSignaler* > _hashSignalers;
     // mandatory children browsenames for type definition
-    QHash<QUaNodeId, QSet<QUaQualifiedName>> m_hashMandatoryChildren;
+    QHash<QUaNodeId, QSet<QUaQualifiedName>> _hashMandatoryChildren;
 
-	QUaValidationCallback m_validationCallback;
-	QUaAddNodeCallback    m_addNodeCallback;
-	QUaDeleteNodeCallback m_deleteNodeCallback;
-	QUaReferenceCallback  m_addReferenceCallback;
-	QUaReferenceCallback  m_deleteReferenceCallback;
+	QUaValidationCallback _validationCallback;
+	QUaAddNodeCallback    _addNodeCallback;
+	QUaDeleteNodeCallback _deleteNodeCallback;
+	QUaReferenceCallback  _addReferenceCallback;
+	QUaReferenceCallback  _deleteReferenceCallback;
 #ifdef UA_ENABLE_ENCRYPTION
-	QUaUserCertificateCallback m_userCertificateCallback;
-	// users authenticated by certificate; kept apart from m_hashUsers, where they would get an empty password
-	QSet<QString> m_certificateUsers;
+	QUaUserCertificateCallback _userCertificateCallback;
+	// users authenticated by certificate; kept apart from _hashUsers, where they would get an empty password
+	QSet<QString> _certificateUsers;
 #endif // UA_ENABLE_ENCRYPTION
 	// default open62541 implementation, wrapped by QUaServer::activateSession
-	UA_StatusCode (*m_defaultActivateSession)(UA_Server *server, UA_AccessControl *ac,
+	UA_StatusCode (*_defaultActivateSession)(UA_Server *server, UA_AccessControl *ac,
 		const UA_EndpointDescription *endpointDescription,
 		const UA_ByteString *secureChannelRemoteCertificate,
 		const UA_NodeId *sessionId,
 		const UA_ExtensionObject *userIdentityToken,
 		void **sessionContext);
 
-    QUaChildNodeIdCallback m_childNodeIdCallback;
+    QUaChildNodeIdCallback _childNodeIdCallback;
 
-    const QUaSession* m_currentSession;
+    const QUaSession* _currentSession;
 
-    static QString m_anonUser;
-    static QString m_anonUserToken;
-    static QStringList m_anonUsers;
+    static QString _anonUser;
+    static QString _anonUserToken;
+    static QStringList _anonUsers;
 
 	// change event instance to notify client when nodes added or removed
 #ifdef UA_ENABLE_SUBSCRIPTIONS_EVENTS
-    QUaSignaler m_changeEventSignaler;
-	QUaGeneralModelChangeEvent * m_changeEvent;
-	QUaChangesList m_listChanges; // buffer
+    QUaSignaler _changeEventSignaler;
+	QUaGeneralModelChangeEvent * _changeEvent;
+	QUaChangesList _listChanges; // buffer
 	void addChange(const QUaChangeStructureDataType& change);
     // mandatory and optional variable children browsenames for event type definition
     // need this to store historic events in a consistent way, ignoring manually added children
-    QHash<QUaNodeId, QUaNode::QUaEventFieldMetaData> m_hashTypeVars;
+    QHash<QUaNodeId, QUaNode::QUaEventFieldMetaData> _hashTypeVars;
 #endif // UA_ENABLE_SUBSCRIPTIONS_EVENTS
 
 #ifdef UA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS
-    QUaRefreshStartEvent* m_refreshStartEvent;
-    QUaRefreshEndEvent  * m_refreshEndEvent;
-    QUaRefreshRequiredEvent* m_refreshRequiredEvent;
-    QHash<QUaNode*, QSet<QUaCondition*>> m_retainedConditions;
+    QUaRefreshStartEvent* _refreshStartEvent;
+    QUaRefreshEndEvent  * _refreshEndEvent;
+    QUaRefreshRequiredEvent* _refreshRequiredEvent;
+    QHash<QUaNode*, QSet<QUaCondition*>> _retainedConditions;
     // event monitored items : session id -> subscription id -> monitored item id -> monitored node id
     // NOTE : needed to implement ConditionRefresh using only the public open62541 API
-    QHash<UA_NodeId, QHash<UA_UInt32, QHash<UA_UInt32, UA_NodeId>>> m_hashEventMonitoredItems;
-    bool m_conditionsRefreshRequired;
+    QHash<UA_NodeId, QHash<UA_UInt32, QHash<UA_UInt32, UA_NodeId>>> _hashEventMonitoredItems;
+    bool _conditionsRefreshRequired;
     void requireConditionsRefresh(const QUaLocalizedText &message = QUaLocalizedText());
 #endif // UA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS
 
 #ifdef UA_ENABLE_HISTORIZING
-    UA_HistoryDatabase m_historDatabase;
-    UA_HistoryDataGathering m_historGathering; // NOTE : shares context with the one in m_historDatabase
-    QUaHistoryBackend  m_historBackend;
+    UA_HistoryDatabase _historDatabase;
+    UA_HistoryDataGathering _historGathering; // NOTE : shares context with the one in _historDatabase
+    QUaHistoryBackend  _historBackend;
     UA_HistoryDataGathering getGathering() const;
     quint8 eventNotifier() const;
     void   setEventNotifier(const quint8& eventNotifier);
-    quint64 m_maxHistoryEventResponseSize;
+    quint64 _maxHistoryEventResponseSize;
 #endif // UA_ENABLE_HISTORIZING
 
 	// reset open62541 config
@@ -628,7 +628,7 @@ private:
 		UA_DataTypeArray array;
 		QByteArray       name;
 	};
-	QList<QUaCustomDataType*> m_customDataTypes;
+	QList<QUaCustomDataType*> _customDataTypes;
 	void registerEnumDataType(const UA_NodeId &enumNodeId, const QString &strEnumName);
 #ifdef UA_GENERATED_NAMESPACE_ZERO_FULL
     // optionsets
@@ -671,15 +671,15 @@ private:
         metaObject.newInstance 
         */
         UA_StatusCode(const UA_NodeId *nodeId, void ** nodeContext)>
-    > m_hashConstructors;
+    > _hashConstructors;
 	QHash< UA_NodeId, std::function<
         /* RetCode(objectContext, input, output) captures QUaServer*, methIdx  -> calls
         QUaServer::callMetaMethod(this, object, metaMethod, input, output) -> calls
         metaMethod.invoke */
         UA_StatusCode(void *, const UA_Variant*, UA_Variant*)>
-    > m_hashMethods;
+    > _hashMethods;
 
-    UA_StatusCode m_methodRetStatusCode;
+    UA_StatusCode _methodRetStatusCode;
 
 	static UA_NodeId getReferenceTypeId(
         const QMetaObject &parentMetaObject, 
@@ -864,8 +864,8 @@ private:
 
 	// NOTE : temporary values needed to instantiate node, used to simplify user API
 	//        passed-in in QUaServer::uaConstructor and used in QUaNode::QUaNode
-	const UA_NodeId   * m_newNodeNodeId;
-	const QMetaObject * m_newNodeMetaObject;
+	const UA_NodeId   * _newNodeNodeId;
+	const QMetaObject * _newNodeMetaObject;
 };
 
 template<typename T>
@@ -915,7 +915,7 @@ inline QMetaObject::Connection QUaServer::instanceCreated(
 template<typename M>
 inline void QUaServer::setChildNodeIdCallback(const M& callback)
 {
-    m_childNodeIdCallback = 
+    _childNodeIdCallback = 
         [callback](const QUaNodeId& parentNodeId, const QUaQualifiedName& childBrowseName) {
         return callback(parentNodeId, childBrowseName);
     };
@@ -926,19 +926,19 @@ inline void QUaServer::registerSpecificationType(const UA_NodeId& typeNodeId, co
 {
     auto& metaObject = T::staticMetaObject;
     QString strClassName = QString::fromUtf8(metaObject.className());
-    m_mapTypes.insert(strClassName, typeNodeId);
-    m_hashMetaObjects.insert(strClassName, metaObject);
+    _mapTypes.insert(strClassName, typeNodeId);
+    _hashMetaObjects.insert(strClassName, metaObject);
     // register for default mandatory children and so on
     this->registerTypeDefaults(typeNodeId, metaObject);
 #ifdef UA_ENABLE_SUBSCRIPTIONS_EVENTS
     // needed to store historic events in a consistent way
     if (metaObject.inherits(&QUaBaseEvent::staticMetaObject))
     {
-        Q_ASSERT(!m_hashTypeVars.contains(typeNodeId));
-        m_hashTypeVars[typeNodeId] =
+        Q_ASSERT(!_hashTypeVars.contains(typeNodeId));
+        _hashTypeVars[typeNodeId] =
             QUaNode::getTypeVars(
                 typeNodeId,
-                this->m_server
+                this->_server
             );
     }
 #endif // UA_ENABLE_SUBSCRIPTIONS_EVENTS
@@ -947,7 +947,7 @@ inline void QUaServer::registerSpecificationType(const UA_NodeId& typeNodeId, co
     {
         return;
     }
-    auto st = UA_Server_setNodeContext(m_server, typeNodeId, (void*)this);
+    auto st = UA_Server_setNodeContext(_server, typeNodeId, (void*)this);
     Q_ASSERT(st == UA_STATUSCODE_GOOD);
     // NOTE : cannot move all the registering stuff to templated versions
     //        because we need recursive upstream regitration to base classes
@@ -969,20 +969,20 @@ inline QMetaObject::Connection QUaServer::instanceCreated(
 	}
 	// try to get typeNodeId, if null, then register it
 	QString   strClassName = QString::fromUtf8(metaObject.className());
-	UA_NodeId typeNodeId = m_mapTypes.value(strClassName, UA_NODEID_NULL);
+	UA_NodeId typeNodeId = _mapTypes.value(strClassName, UA_NODEID_NULL);
 	if (UA_NodeId_isNull(&typeNodeId))
 	{
 		this->registerTypeInternal(metaObject);
-		typeNodeId = m_mapTypes.value(strClassName, UA_NODEID_NULL);
+		typeNodeId = _mapTypes.value(strClassName, UA_NODEID_NULL);
 	}
 	Q_ASSERT(!UA_NodeId_isNull(&typeNodeId));
 	// check if there is already a signaler
 	// NOTE : one signaler per registered ua type
-	auto signaler = m_hashSignalers.value(typeNodeId, nullptr);
+	auto signaler = _hashSignalers.value(typeNodeId, nullptr);
 	if (!signaler)
 	{
-		m_hashSignalers[typeNodeId] = new QUaSignaler(this);
-		signaler = m_hashSignalers.value(typeNodeId, nullptr);
+		_hashSignalers[typeNodeId] = new QUaSignaler(this);
+		signaler = _hashSignalers.value(typeNodeId, nullptr);
 	}
 	Q_CHECK_PTR(signaler);
 	// connect to signal
@@ -1021,7 +1021,7 @@ inline T * QUaServer::createInstance(
 		return nullptr;
 	}
 	// get new c++ instance created in UA constructor
-	auto tmp = QUaNode::getNodeContext(newInstanceNodeId, this->m_server);
+	auto tmp = QUaNode::getNodeContext(newInstanceNodeId, this->_server);
 	T * newInstance = qobject_cast<T*>(tmp);
 	Q_CHECK_PTR(newInstance);
     Q_ASSERT(newInstance->parent() == parentNode);
@@ -1043,7 +1043,7 @@ inline T * QUaServer::createEvent()
 		return nullptr;
 	}
 	// get new c++ instance created in UA constructor
-	auto tmp = QUaNode::getNodeContext(newEventNodeId, this->m_server);
+	auto tmp = QUaNode::getNodeContext(newEventNodeId, this->_server);
 	T * newEvent = qobject_cast<T*>(tmp);
 	Q_CHECK_PTR(newEvent);
     // set originator 
@@ -1076,7 +1076,7 @@ inline T * QUaServer::browsePath(const QUaBrowsePath& browsePath) const
 template<typename M>
 inline void QUaServer::setUserValidationCallback(const M & callback)
 {
-	m_validationCallback = [callback](const QString &strUserName, const QString &strPassword) {
+	_validationCallback = [callback](const QString &strUserName, const QString &strPassword) {
 		return callback(strUserName, strPassword);
 	};
 }
@@ -1085,7 +1085,7 @@ inline void QUaServer::setUserValidationCallback(const M & callback)
 template<typename T>
 inline void QUaServer::setHistorizer(T& historizer)
 {
-    m_historBackend.setHistorizer<T>(historizer);
+    _historBackend.setHistorizer<T>(historizer);
 }
 #endif // UA_ENABLE_HISTORIZING
 
@@ -1158,7 +1158,7 @@ inline bool QUaNode::serializeInternal(T& serializer, QQueue<QUaLog> &logOut)
         return false;
     }
     // recurse children (only hierarchical references)
-    const auto refTypes = m_qUaServer->m_hashHierRefTypes.keys();
+    const auto refTypes = _qUaServer->_hashHierRefTypes.keys();
     for (const auto& refType : refTypes)
     {
         const auto references = this->findReferences(refType);
@@ -1207,7 +1207,7 @@ inline bool QUaNode::deserialize(T& deserializer, QQueue<QUaLog> &logOut)
         forwardRefs,
         nonHierRefs,
         logOut,
-        this == m_qUaServer->objectsFolder()
+        this == _qUaServer->objectsFolder()
     ))
     {
         for (auto &log : logOut)
@@ -1305,7 +1305,7 @@ inline bool QUaNode::deserializeInternal(
     for (auto &forwRef : forwardRefs)
     {
         // leave non-hierarchical refs for the end (nonHierRefs)
-        if (!m_qUaServer->m_hashHierRefTypes.contains(forwRef.refType))
+        if (!_qUaServer->_hashHierRefTypes.contains(forwRef.refType))
         {
             nonHierRefs[this] << forwRef;
             continue;
@@ -1460,7 +1460,7 @@ inline bool QUaNode::deserializeInternal(
                 forwardRefs,
                 nonHierRefs,
                 logOut,
-                instance == m_qUaServer->objectsFolder()
+                instance == _qUaServer->objectsFolder()
             );
             if (!ok)
             {
@@ -1470,19 +1470,19 @@ inline bool QUaNode::deserializeInternal(
             continue;
         }
         // check if browsename is optional child 
-        //UA_NodeId typeId = QUaNode::typeDefinitionNodeId(m_nodeId, this->server()->m_server);
+        //UA_NodeId typeId = QUaNode::typeDefinitionNodeId(_nodeId, this->server()->_server);
         QUaNodeId typeId = this->typeDefinitionNodeId();
         UA_NodeId uaTypeId = typeId;
         UA_QualifiedName uaName = browseName;
         UA_NodeId uaOptionalId = QUaNode::getOptionalChildNodeId(
-            this->server()->m_server,
+            this->server()->_server,
             uaTypeId,
             uaName
         );
         if (!UA_NodeId_isNull(&uaOptionalId))
         {
             QUaNode* instance = QUaNode::instantiateOptionalChild(
-                this->server()->m_server,
+                this->server()->_server,
                 this,
                 uaOptionalId,
                 uaName
@@ -1500,7 +1500,7 @@ inline bool QUaNode::deserializeInternal(
                 forwardRefs,
                 nonHierRefs,
                 logOut,
-                instance == m_qUaServer->objectsFolder()
+                instance == _qUaServer->objectsFolder()
                 );
             if (!ok)
             {
@@ -1549,7 +1549,7 @@ inline bool QUaNode::deserializeInternal(
             continue;
         }
         // get new c++ instance created in UA constructor
-        auto instance = QUaNode::getNodeContext(newInstanceNodeId, this->m_qUaServer->m_server);
+        auto instance = QUaNode::getNodeContext(newInstanceNodeId, this->_qUaServer->_server);
         // return c++ instance
         UA_NodeId_clear(&newInstanceNodeId);
         // deserialize (recursive)
@@ -1559,7 +1559,7 @@ inline bool QUaNode::deserializeInternal(
             forwardRefs,
             nonHierRefs,
             logOut,
-            instance == m_qUaServer->objectsFolder()
+            instance == _qUaServer->objectsFolder()
         );
         if (!ok)
         {
@@ -1587,7 +1587,7 @@ inline T * QUaBaseObject::addChild(
     const QUaNodeId &nodeId/* = ""*/
 )
 {
-    return m_qUaServer->createInstance<T>(this, browseName, nodeId);
+    return _qUaServer->createInstance<T>(this, browseName, nodeId);
 }
 
 #ifdef UA_ENABLE_SUBSCRIPTIONS_EVENTS
@@ -1595,7 +1595,7 @@ template<typename T>
 inline T * QUaBaseObject::createEvent()
 {
     // instantiate first in OPC UA
-    UA_NodeId newEventNodeId = m_qUaServer->createEventInternal(
+    UA_NodeId newEventNodeId = _qUaServer->createEventInternal(
         T::staticMetaObject
     );
     if (UA_NodeId_isNull(&newEventNodeId))
@@ -1603,7 +1603,7 @@ inline T * QUaBaseObject::createEvent()
         return nullptr;
     }
     // get new c++ instance created in UA constructor
-    auto tmp = QUaNode::getNodeContext(newEventNodeId, m_qUaServer->m_server);
+    auto tmp = QUaNode::getNodeContext(newEventNodeId, _qUaServer->_server);
     T * newEvent = qobject_cast<T*>(tmp);
     Q_CHECK_PTR(newEvent);
     // set originator 
@@ -1626,14 +1626,14 @@ inline T * QUaBaseDataVariable::addChild(
     const QUaNodeId &nodeId/* = ""*/
 )
 {
-    return m_qUaServer->createInstance<T>(this, browseName, nodeId);
+    return _qUaServer->createInstance<T>(this, browseName, nodeId);
 }
 
 template<typename T>
 inline void QUaBaseVariable::setDataTypeEnum()
 {
 	// register if not registered
-	m_qUaServer->registerEnum<T>();
+	_qUaServer->registerEnum<T>();
 	this->setDataTypeEnum(QMetaEnum::fromType<T>());
 }
 
@@ -1713,12 +1713,12 @@ private:
             const QString strEnumName = QStringLiteral("%1::%2").arg(
                 QString::fromLatin1(metaEnum.scope()),
                 QString::fromLatin1(metaEnum.enumName()));
-            if (!uaServer->m_hashEnums.contains(strEnumName))
+            if (!uaServer->_hashEnums.contains(strEnumName))
             {
                 uaServer->registerEnum(metaEnum);
             }
-            Q_ASSERT(uaServer->m_hashEnums.contains(strEnumName));
-            return makeInputUaArgument(uaServer->m_hashEnums.value(strEnumName), iArg);
+            Q_ASSERT(uaServer->_hashEnums.contains(strEnumName));
+            return makeInputUaArgument(uaServer->_hashEnums.value(strEnumName), iArg);
         }
         else
         {
@@ -1803,7 +1803,7 @@ inline void QUaBaseObject::addMethod(
     QVector<UA_Argument> listInputArguments;
     if constexpr (QOpcUaMethodTraits<M>::numArgs > 0)
     {
-        listInputArguments = QOpcUaMethodTraits<M>::getArgsUaArguments(m_qUaServer);
+        listInputArguments = QOpcUaMethodTraits<M>::getArgsUaArguments(_qUaServer);
         p_inputArguments = listInputArguments.data();
     }
     // create output arguments
@@ -1823,14 +1823,14 @@ inline void QUaBaseObject::addMethod(
         p_outputArgument
     );
     // store method with node id hash as key
-    Q_ASSERT_X(!m_hashMethods.contains(methNodeId), "QUaBaseObject::addMethodInternal", "Method already exists, callback will be overwritten.");
-    m_hashMethods[methNodeId] = 
+    Q_ASSERT_X(!_hashMethods.contains(methNodeId), "QUaBaseObject::addMethodInternal", "Method already exists, callback will be overwritten.");
+    _hashMethods[methNodeId] = 
         [this, methodCallback](const UA_Variant * input, UA_Variant * output) {
         // NOTE : save server ref because method might delete this instance
         // setMethodReturnStatusCode is just syntax sugar tu use within QUaBaseObject::
-        QUaServer* srv = m_qUaServer;
+        QUaServer* srv = _qUaServer;
         // reset status code
-        srv->m_methodRetStatusCode = UA_STATUSCODE_GOOD;
+        srv->_methodRetStatusCode = UA_STATUSCODE_GOOD;
         // call method
         if constexpr (QOpcUaMethodTraits<M>::isVoid)
         {
@@ -1841,9 +1841,9 @@ inline void QUaBaseObject::addMethod(
             *output = QOpcUaMethodTraits<M>::execCallback(methodCallback, input);
         }
         // copy return status code
-        UA_StatusCode retStatusCode = srv->m_methodRetStatusCode;
+        UA_StatusCode retStatusCode = srv->_methodRetStatusCode;
         // reset status code
-        srv->m_methodRetStatusCode = UA_STATUSCODE_GOOD;
+        srv->_methodRetStatusCode = UA_STATUSCODE_GOOD;
         // return success status
         return retStatusCode;
     };

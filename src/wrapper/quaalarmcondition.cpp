@@ -10,7 +10,7 @@ QUaAlarmCondition::QUaAlarmCondition(
 	QUaServer *server
 ) : QUaAcknowledgeableCondition(server)
 {
-	m_inputNode = nullptr;
+	_inputNode = nullptr;
 	// resue rest of defaults 
 	this->resetInternals();
 }
@@ -77,7 +77,7 @@ QUaNodeId QUaAlarmCondition::inputNode() const
 
 void QUaAlarmCondition::setInputNode(const QUaNodeId& inputNodeId)
 {
-	QUaNode * node = m_qUaServer->nodeById(inputNodeId);
+	QUaNode * node = _qUaServer->nodeById(inputNodeId);
 	QUaBaseVariable* var = qobject_cast<QUaBaseVariable*>(node);
 	if (node && !var)
 	{
@@ -90,16 +90,16 @@ void QUaAlarmCondition::setInputNode(const QUaNodeId& inputNodeId)
 void QUaAlarmCondition::setInputNode(QUaBaseVariable* inputNode)
 {
 	this->cleanConnections();
-	m_inputNode = inputNode;
+	_inputNode = inputNode;
 	// set nodeId
-	this->getInputNode()->setValue(m_inputNode ? m_inputNode->nodeId() : QUaNodeId());
+	this->getInputNode()->setValue(_inputNode ? _inputNode->nodeId() : QUaNodeId());
 	// subscribe to source changes
-	if (!m_inputNode)
+	if (!_inputNode)
 	{
 		return;
 	}
-	m_connections <<
-	QObject::connect(m_inputNode, &QObject::destroyed, this,
+	_connections <<
+	QObject::connect(_inputNode, &QObject::destroyed, this,
 	[this]() {
 		this->cleanConnections();
 		this->setInputNode(nullptr);
@@ -201,7 +201,7 @@ void QUaAlarmCondition::setActive(const bool& active, const QString& strMessageA
 			{
 				strMessage += tr(" Requires Acknowledge.");
 			}
-			else if (m_confirmRequired && !this->confirmed())
+			else if (_confirmRequired && !this->confirmed())
 			{
 				strMessage += tr(" Requires Confirm.");
 			}
@@ -234,9 +234,9 @@ void QUaAlarmCondition::setActive(const bool& active, const QString& strMessageA
 
 void QUaAlarmCondition::cleanConnections()
 {
-	while (m_connections.count() > 0)
+	while (_connections.count() > 0)
 	{
-		QObject::disconnect(m_connections.takeFirst());
+		QObject::disconnect(_connections.takeFirst());
 	}
 }
 

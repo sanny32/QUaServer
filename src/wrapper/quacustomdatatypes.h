@@ -189,8 +189,8 @@ struct QUaLog
     QUaLogCategory category;
     QDateTime      timestamp;
 
-    static QMetaEnum m_metaEnumCategory;
-    static QMetaEnum m_metaEnumLevel;
+    static QMetaEnum _metaEnumCategory;
+    static QMetaEnum _metaEnumLevel;
     template<typename T>
     static QString toString(
         const T& log,
@@ -232,8 +232,8 @@ inline QString QUaLog::toString(
         )
 {
     QString strTime  = log.timestamp.toLocalTime().toString(timeFormat);
-    QString strLevel = QString::fromLatin1( QUaLog::m_metaEnumLevel.valueToKey(static_cast<int>(log.level)) );
-    QString strCateg = QString::fromLatin1( QUaLog::m_metaEnumCategory.valueToKey(static_cast<int>(log.category)) );
+    QString strLevel = QString::fromLatin1( QUaLog::_metaEnumLevel.valueToKey(static_cast<int>(log.level)) );
+    QString strCateg = QString::fromLatin1( QUaLog::_metaEnumCategory.valueToKey(static_cast<int>(log.category)) );
     return lineFormat
             .arg(strTime)
             .arg(strLevel)
@@ -408,17 +408,17 @@ public:
     static QString            stringByQType   (const QMetaType::Type& type);
 
 private:
-    QMetaType::Type m_type;
-    static QHash<QString  , QMetaType::Type> m_custTypesByName;
-    static QHash<UA_NodeId, QMetaType::Type> m_custTypesByNodeId;
-    static QHash<int      , QMetaType::Type> m_custTypesByTypeIndex;
+    QMetaType::Type _type;
+    static QHash<QString  , QMetaType::Type> _custTypesByName;
+    static QHash<UA_NodeId, QMetaType::Type> _custTypesByNodeId;
+    static QHash<int      , QMetaType::Type> _custTypesByTypeIndex;
     struct TypeData
     {
         QString            name;
         UA_NodeId          nodeId;
         const UA_DataType* dataType;
     };
-    static QHash<QMetaType::Type, TypeData> m_custTypesByType;
+    static QHash<QMetaType::Type, TypeData> _custTypesByType;
 };
 
 Q_DECLARE_METATYPE(QUaDataType);
@@ -440,9 +440,9 @@ public:
     static QString longDescription(const QUaStatusCode& statusCode);
 
 private:
-    QUaStatus m_status;
-    static QMetaEnum m_metaEnum;
-    static QHash<QUaStatus, QString> m_descriptions;
+    QUaStatus _status;
+    static QMetaEnum _metaEnum;
+    static QHash<QUaStatus, QString> _descriptions;
     QUaStatusCode(const QByteArray& byteStatus);
 };
 
@@ -499,7 +499,7 @@ public:
     quint32 internalHash() const;
 
 private:
-    UA_NodeId m_nodeId;
+    UA_NodeId _nodeId;
     friend QDataStream& operator<<(QDataStream& outStream, const QUaNodeId& inNodeId);
     friend QDataStream& operator>>(QDataStream& inStream, QUaNodeId& outNodeId);
 };
@@ -519,13 +519,13 @@ inline size_t qHash(const QUaNodeId& key, size_t seed)
 
 inline QDataStream& operator<<(QDataStream& outStream, const QUaNodeId& inNodeId)
 {
-    outStream << inNodeId.m_nodeId.namespaceIndex;
-    outStream << static_cast<quint8>(inNodeId.m_nodeId.identifierType);
+    outStream << inNodeId._nodeId.namespaceIndex;
+    outStream << static_cast<quint8>(inNodeId._nodeId.identifierType);
     QUaNodeIdType type = inNodeId.type();
     switch (type)
     {
     case QUaNodeIdType::Numeric:
-        outStream << inNodeId.m_nodeId.identifier.numeric;
+        outStream << inNodeId._nodeId.identifier.numeric;
         break;
     case QUaNodeIdType::String:
         outStream << inNodeId.stringId();
@@ -544,16 +544,16 @@ inline QDataStream& operator<<(QDataStream& outStream, const QUaNodeId& inNodeId
 
 inline QDataStream& operator>>(QDataStream& inStream, QUaNodeId& outNodeId)
 {
-    inStream >> outNodeId.m_nodeId.namespaceIndex;
+    inStream >> outNodeId._nodeId.namespaceIndex;
     quint8 identifierType;
     inStream >> identifierType;
-    outNodeId.m_nodeId.identifierType = static_cast<UA_NodeIdType>(identifierType);
+    outNodeId._nodeId.identifierType = static_cast<UA_NodeIdType>(identifierType);
     QUaNodeIdType type = outNodeId.type();
     switch (type)
     {
     case QUaNodeIdType::Numeric:
     {
-        inStream >> outNodeId.m_nodeId.identifier.numeric;
+        inStream >> outNodeId._nodeId.identifier.numeric;
     }
         break;
     case QUaNodeIdType::String:
@@ -611,8 +611,8 @@ public:
     UA_LocalizedText toUaLocalizedText() const; // needs cleanup with UA_LocalizedText_clear after use
 
 private:
-    QString m_locale;
-    QString m_text;
+    QString _locale;
+    QString _text;
 };
 
 Q_DECLARE_METATYPE(QUaLocalizedText);
@@ -660,8 +660,8 @@ public:
     static QUaBrowsePath expandName(const QString& strPath, const QString& separator = QStringLiteral("/"));
 
 private:
-    quint16 m_namespace;
-    QString m_name;
+    quint16 _namespace;
+    QString _name;
 
     friend QDataStream& operator<<(QDataStream& outStream, const QUaQualifiedName& inQualName);
     friend QDataStream& operator>>(QDataStream& inStream, QUaQualifiedName& outQualName);
@@ -681,15 +681,15 @@ inline size_t qHash(const QUaQualifiedName& key, size_t seed)
 
 inline QDataStream& operator<<(QDataStream& outStream, const QUaQualifiedName& inQualName)
 {
-    outStream << inQualName.m_namespace;
-    outStream << inQualName.m_name;
+    outStream << inQualName._namespace;
+    outStream << inQualName._name;
     return outStream;
 }
 
 inline QDataStream& operator>>(QDataStream& inStream, QUaQualifiedName& outQualName)
 {
-    inStream >> outQualName.m_namespace;
-    inStream >> outQualName.m_name;
+    inStream >> outQualName._namespace;
+    inStream >> outQualName._name;
     return inStream;
 }
 
@@ -749,8 +749,8 @@ public:
     void    setBitValidity(const quint8& bit, const bool& validity);
 
 private:
-    QByteArray m_value;
-    QByteArray m_validBits;
+    QByteArray _value;
+    QByteArray _validBits;
 };
 
 Q_DECLARE_METATYPE(QUaOptionSet);
@@ -771,20 +771,20 @@ public:
 
     QString toString() const;
 
-    QUaNodeId m_nodeIdAffected;
-    QUaNodeId m_nodeIdAffectedType;
-    uchar     m_uiVerb;
+    QUaNodeId _nodeIdAffected;
+    QUaNodeId _nodeIdAffectedType;
+    uchar     _uiVerb;
 
 private:
-    static QMetaEnum m_metaEnumVerb;
+    static QMetaEnum _metaEnumVerb;
 };
 using QUaChangesList = QList<QUaChangeStructureDataType>;
 
 inline bool operator==(const QUaChangeStructureDataType& lhs, const QUaChangeStructureDataType& rhs)
 {
-    return lhs.m_nodeIdAffected     == rhs.m_nodeIdAffected     &&
-            lhs.m_nodeIdAffectedType == rhs.m_nodeIdAffectedType &&
-            lhs.m_uiVerb == rhs.m_uiVerb;
+    return lhs._nodeIdAffected     == rhs._nodeIdAffected     &&
+            lhs._nodeIdAffectedType == rhs._nodeIdAffectedType &&
+            lhs._uiVerb == rhs._uiVerb;
 }
 
 Q_DECLARE_METATYPE(QUaChangeStructureDataType);
@@ -812,8 +812,8 @@ public:
     QString toString() const;
 
 private:
-    QUa::ExclusiveLimitState m_state;
-    static QMetaEnum m_metaEnum;
+    QUa::ExclusiveLimitState _state;
+    static QMetaEnum _metaEnum;
 };
 
 Q_DECLARE_METATYPE(QUaExclusiveLimitState);
@@ -838,8 +838,8 @@ public:
     QString toString() const;
 
 private:
-    QUa::ExclusiveLimitTransition m_transition;
-    static QMetaEnum m_metaEnum;
+    QUa::ExclusiveLimitTransition _transition;
+    static QMetaEnum _metaEnum;
 };
 
 Q_DECLARE_METATYPE(QUaExclusiveLimitTransition);
@@ -857,7 +857,7 @@ public:
     explicit QUaSignaler(QObject *parent = nullptr)
         : QObject(parent)
     {
-        m_processing = false;
+        _processing = false;
         QObject::connect(
                     this,
                     &QUaSignaler::sendEvent,
@@ -869,17 +869,17 @@ public:
     template <typename M1 = const std::function<void(void)>&>
     inline void execLater(M1&& func)
     {
-        m_funcs.enqueue(func);
-        if (m_processing)
+        _funcs.enqueue(func);
+        if (_processing)
         {
             return;
         }
-        m_processing = true;
+        _processing = true;
         emit this->sendEvent(QPrivateSignal());
     };
     inline bool processing() const
     {
-        return m_processing;
+        return _processing;
     };
 signals:
     void signalNewInstance(QUaNode *node);
@@ -888,18 +888,18 @@ signals:
 private slots:
     inline void on_sendEvent()
     {
-        Q_ASSERT(m_processing);
-        if (m_funcs.isEmpty())
+        Q_ASSERT(_processing);
+        if (_funcs.isEmpty())
         {
-            m_processing = false;
+            _processing = false;
             return;
         }
-        m_funcs.dequeue()();
+        _funcs.dequeue()();
         emit this->sendEvent(QPrivateSignal());
     };
 private:
-    bool m_processing;
-    QQueue<std::function<void(void)>> m_funcs;
+    bool _processing;
+    QQueue<std::function<void(void)>> _funcs;
 };
 
 class QUaSession : public QObject
@@ -930,14 +930,14 @@ public:
     QDateTime timestamp      () const;
 
 private:
-    QString   m_strSessionId;
-    QString   m_strUserName;
-    QString   m_strApplicationName;
-    QString   m_strApplicationUri;
-    QString   m_strProductUri;
-    QString   m_strAddress;
-    quint16   m_intPort;
-    QDateTime m_timestamp;
+    QString   _strSessionId;
+    QString   _strUserName;
+    QString   _strApplicationName;
+    QString   _strApplicationUri;
+    QString   _strProductUri;
+    QString   _strAddress;
+    quint16   _intPort;
+    QDateTime _timestamp;
 };
 
 
@@ -990,9 +990,9 @@ public:
             const quint64   &numEventsToRead       = 0,
             const quint64   & numEventsAlreadyRead = 0
             ) :
-        m_timeStartExisting   (timeStartExisting),
-        m_numEventsToRead     (numEventsToRead),
-        m_numEventsAlreadyRead(numEventsAlreadyRead)
+        _timeStartExisting   (timeStartExisting),
+        _numEventsToRead     (numEventsToRead),
+        _numEventsAlreadyRead(numEventsAlreadyRead)
     {};
 
     bool operator==(const QUaEventHistoryQueryData& other) const;
@@ -1010,9 +1010,9 @@ public:
     static QUaEventHistoryContinuationPoint ContinuationFromUaByteString(const UA_ByteString& uaByteArray);
 
 private:
-    QDateTime m_timeStartExisting;
-    quint64   m_numEventsToRead;
-    quint64   m_numEventsAlreadyRead;
+    QDateTime _timeStartExisting;
+    quint64   _numEventsToRead;
+    quint64   _numEventsAlreadyRead;
     friend QDataStream& operator<<(QDataStream& outStream, const QUaEventHistoryQueryData& inQueryData);
     friend QDataStream& operator>>(QDataStream& inStream, QUaEventHistoryQueryData& outQueryData);
 };
@@ -1021,9 +1021,9 @@ using QUaEventHistoryContinuationPoint = QHash<QUaNodeId, QUaEventHistoryQueryDa
 
 inline QDataStream& operator<<(QDataStream& outStream, const QUaEventHistoryQueryData& inQueryData)
 {
-    outStream << inQueryData.m_timeStartExisting.toMSecsSinceEpoch();
-    outStream << inQueryData.m_numEventsToRead;
-    outStream << inQueryData.m_numEventsAlreadyRead;
+    outStream << inQueryData._timeStartExisting.toMSecsSinceEpoch();
+    outStream << inQueryData._numEventsToRead;
+    outStream << inQueryData._numEventsAlreadyRead;
     return outStream;
 }
 
@@ -1031,9 +1031,9 @@ inline QDataStream& operator>>(QDataStream& inStream, QUaEventHistoryQueryData& 
 {
     qint64 timeStartExisting;
     inStream >> timeStartExisting;
-    outQueryData.m_timeStartExisting = QDateTime::fromMSecsSinceEpoch(timeStartExisting, QTimeZone::UTC);
-    inStream >> outQueryData.m_numEventsToRead;
-    inStream >> outQueryData.m_numEventsAlreadyRead;
+    outQueryData._timeStartExisting = QDateTime::fromMSecsSinceEpoch(timeStartExisting, QTimeZone::UTC);
+    inStream >> outQueryData._numEventsToRead;
+    inStream >> outQueryData._numEventsAlreadyRead;
     return inStream;
 }
 

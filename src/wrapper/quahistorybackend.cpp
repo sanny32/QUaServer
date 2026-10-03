@@ -15,7 +15,7 @@ UA_StatusCode UA_DataValue_backend_copyRange(
 	return UA_STATUSCODE_BADDATAUNAVAILABLE;
 }
 
-UA_HistoryDataBackend QUaHistoryBackend::m_historUaBackend = QUaHistoryBackend::CreateUaBackend();
+UA_HistoryDataBackend QUaHistoryBackend::_historUaBackend = QUaHistoryBackend::CreateUaBackend();
 
 QUaHistoryDataPoint QUaHistoryBackend::dataValueToPoint(const UA_DataValue* value)
 {
@@ -140,7 +140,7 @@ UA_HistoryDataBackend QUaHistoryBackend::CreateUaBackend()
 		QQueue<QUaLog> logOut;
 		QUaServer* srv = QUaServer::getServerNodeContext(server);
 		// call internal backend method
-		if (!srv->m_historBackend.writeHistoryData(
+		if (!srv->_historBackend.writeHistoryData(
 			*nodeId,
 			dataValueToPoint(value),
 			logOut
@@ -218,7 +218,7 @@ UA_HistoryDataBackend QUaHistoryBackend::CreateUaBackend()
 		QQueue<QUaLog> logOut;
 		QUaServer* srv = QUaServer::getServerNodeContext(server);
 		// simplify API by considering that the timestamp is the index
-		QDateTime time = srv->m_historBackend.firstTimestamp(
+		QDateTime time = srv->_historBackend.firstTimestamp(
 			*nodeId,
 			logOut
 		);
@@ -246,7 +246,7 @@ UA_HistoryDataBackend QUaHistoryBackend::CreateUaBackend()
 		QQueue<QUaLog> logOut;
 		QUaServer* srv = QUaServer::getServerNodeContext(server);
 		// simplify API by considering that the timestamp is the index
-		QDateTime time = srv->m_historBackend.lastTimestamp(
+		QDateTime time = srv->_historBackend.lastTimestamp(
 			*nodeId,
 			logOut
 		);
@@ -277,7 +277,7 @@ UA_HistoryDataBackend QUaHistoryBackend::CreateUaBackend()
 		QQueue<QUaLog> logOut;
 		QUaServer* srv = QUaServer::getServerNodeContext(server);
 		// check if exact time stamp exists in history database
-		bool hasTimestamp = time.isValid() ? srv->m_historBackend.hasTimestamp(
+		bool hasTimestamp = time.isValid() ? srv->_historBackend.hasTimestamp(
 			nodeIdQt,
 			time,
 			logOut
@@ -313,7 +313,7 @@ UA_HistoryDataBackend QUaHistoryBackend::CreateUaBackend()
 			break;
 		}
 		// find timestamp
-		QDateTime outTime = srv->m_historBackend.findTimestamp(
+		QDateTime outTime = srv->_historBackend.findTimestamp(
 			nodeIdQt,
 			time,
 			match,
@@ -348,16 +348,16 @@ UA_HistoryDataBackend QUaHistoryBackend::CreateUaBackend()
 		QQueue<QUaLog> logOut;
 		QUaServer* srv = QUaServer::getServerNodeContext(server);
 		Q_ASSERT_X(
-			timeStart.isValid() && srv->m_historBackend.hasTimestamp(nodeIdQt, timeStart, logOut),
+			timeStart.isValid() && srv->_historBackend.hasTimestamp(nodeIdQt, timeStart, logOut),
 			"QUaHistoryBackend::resultSize",
 			"Error; startIndex not found"
 		);
 		Q_ASSERT_X(
-			timeEnd.isValid() && srv->m_historBackend.hasTimestamp(nodeIdQt, timeEnd, logOut) ? true : endIndex == LLONG_MAX,
+			timeEnd.isValid() && srv->_historBackend.hasTimestamp(nodeIdQt, timeEnd, logOut) ? true : endIndex == LLONG_MAX,
 			"QUaHistoryBackend::resultSize",
 			"Error; endIndex not found");
 		// get number of data points in time range
-		auto res = static_cast<size_t>(srv->m_historBackend.numDataPointsInRange(nodeIdQt, timeStart, timeEnd, logOut));
+		auto res = static_cast<size_t>(srv->_historBackend.numDataPointsInRange(nodeIdQt, timeStart, timeEnd, logOut));
 		QUaHistoryBackend::processServerLog(srv, logOut);
 		return res;
 	};
@@ -414,17 +414,17 @@ UA_HistoryDataBackend QUaHistoryBackend::CreateUaBackend()
 			Q_ASSERT(timeStart <= timeEnd);
 		}
 		Q_ASSERT_X(
-			timeStart.isValid() && srv->m_historBackend.hasTimestamp(nodeIdQt, timeStart, logOut),
+			timeStart.isValid() && srv->_historBackend.hasTimestamp(nodeIdQt, timeStart, logOut),
 			"QUaHistoryBackend::copyDataValues",
 			"Error; startIndex not found"
 		);
 		Q_ASSERT_X(
-			!timeEnd.isValid() || srv->m_historBackend.hasTimestamp(nodeIdQt, timeEnd, logOut),
+			!timeEnd.isValid() || srv->_historBackend.hasTimestamp(nodeIdQt, timeEnd, logOut),
 			"QUaHistoryBackend::copyDataValues",
 			"Error; invalid endIndex"
 		);
 		// read data, points must always come back in incresing timestamp order
-		QVector<QUaHistoryDataPoint> points = srv->m_historBackend.readHistoryData(
+		QVector<QUaHistoryDataPoint> points = srv->_historBackend.readHistoryData(
 			nodeIdQt,
 			timeStart,
 			offset,
@@ -487,7 +487,7 @@ UA_HistoryDataBackend QUaHistoryBackend::CreateUaBackend()
 		QQueue<QUaLog> logOut;
 		QUaServer* srv = QUaServer::getServerNodeContext(server);
 		// read data, reusing existing API
-		QVector<QUaHistoryDataPoint> points = srv->m_historBackend.readHistoryData(
+		QVector<QUaHistoryDataPoint> points = srv->_historBackend.readHistoryData(
 			nodeIdQt,
 			time,
 			0, /* no offset*/
@@ -529,7 +529,7 @@ UA_HistoryDataBackend QUaHistoryBackend::CreateUaBackend()
 		QQueue<QUaLog> logOut;
 		QUaServer* srv = QUaServer::getServerNodeContext(server);
 		// call internal backend method
-		if (!srv->m_historBackend.writeHistoryData(
+		if (!srv->_historBackend.writeHistoryData(
 			nodeIdQt,
 			dataValueToPoint(value),
 			logOut
@@ -560,7 +560,7 @@ UA_HistoryDataBackend QUaHistoryBackend::CreateUaBackend()
 		QQueue<QUaLog> logOut;
 		QUaServer* srv = QUaServer::getServerNodeContext(server);
 		// call internal backend method
-		if (!srv->m_historBackend.updateHistoryData(
+		if (!srv->_historBackend.updateHistoryData(
 			nodeIdQt,
 			dataValueToPoint(value),
 			logOut
@@ -596,17 +596,17 @@ UA_HistoryDataBackend QUaHistoryBackend::CreateUaBackend()
 		QQueue<QUaLog> logOut;
 		QUaServer* srv = QUaServer::getServerNodeContext(server);
 		Q_ASSERT_X(
-			timeStart.isValid() && srv->m_historBackend.hasTimestamp(nodeIdQt, timeStart, logOut),
+			timeStart.isValid() && srv->_historBackend.hasTimestamp(nodeIdQt, timeStart, logOut),
 			"QUaHistoryBackend::removeDataValue",
 			"Error; startIndex not found"
 		);
 		Q_ASSERT_X(
-			!timeEnd.isValid() || srv->m_historBackend.hasTimestamp(nodeIdQt, timeEnd, logOut),
+			!timeEnd.isValid() || srv->_historBackend.hasTimestamp(nodeIdQt, timeEnd, logOut),
 			"QUaHistoryBackend::removeDataValue",
 			"Error; invalid endIndex"
 		);
 		// call internal backend method
-		if (!srv->m_historBackend.removeHistoryData(
+		if (!srv->_historBackend.removeHistoryData(
 			nodeIdQt,
 			timeStart,
 			timeEnd,
@@ -632,22 +632,22 @@ UA_HistoryDataBackend QUaHistoryBackend::CreateUaBackend()
 
 QUaHistoryBackend::QUaHistoryBackend()
 {
-	m_writeHistoryData = nullptr;
-	m_updateHistoryData = nullptr;
-	m_removeHistoryData = nullptr;
-	m_firstTimestamp = nullptr;
-	m_lastTimestamp = nullptr;
-	m_hasTimestamp = nullptr;
-	m_findTimestamp = nullptr;
-	m_numDataPointsInRange = nullptr;
-	m_readHistoryData = nullptr;
+	_writeHistoryData = nullptr;
+	_updateHistoryData = nullptr;
+	_removeHistoryData = nullptr;
+	_firstTimestamp = nullptr;
+	_lastTimestamp = nullptr;
+	_hasTimestamp = nullptr;
+	_findTimestamp = nullptr;
+	_numDataPointsInRange = nullptr;
+	_readHistoryData = nullptr;
 	// event history support
 #ifdef UA_ENABLE_SUBSCRIPTIONS_EVENTS
-	m_writeHistoryEventsOfType = nullptr;
-	m_eventTypesOfEmitter = nullptr;
-	m_findTimestampEventOfType = nullptr;
-	m_numEventsOfTypeInRange = nullptr;
-	m_readHistoryEventsOfType = nullptr;
+	_writeHistoryEventsOfType = nullptr;
+	_eventTypesOfEmitter = nullptr;
+	_findTimestampEventOfType = nullptr;
+	_numEventsOfTypeInRange = nullptr;
+	_readHistoryEventsOfType = nullptr;
 #endif // UA_ENABLE_SUBSCRIPTIONS_EVENTS
 }
 
@@ -656,7 +656,7 @@ bool QUaHistoryBackend::writeHistoryData(
 	const QUaHistoryDataPoint& dataPoint,
 	QQueue<QUaLog>& logOut)
 {
-	if (!m_writeHistoryData)
+	if (!_writeHistoryData)
 	{
 		logOut << QUaLog({
 			QObject::tr("Historizing enabled, but historized not set."),
@@ -665,7 +665,7 @@ bool QUaHistoryBackend::writeHistoryData(
 		});
 		return false;
 	}
-	return m_writeHistoryData(nodeId, dataPoint, logOut);
+	return _writeHistoryData(nodeId, dataPoint, logOut);
 }
 
 bool QUaHistoryBackend::updateHistoryData(
@@ -673,7 +673,7 @@ bool QUaHistoryBackend::updateHistoryData(
 	const QUaHistoryDataPoint& dataPoint,
 	QQueue<QUaLog>& logOut)
 {
-	if (!m_updateHistoryData)
+	if (!_updateHistoryData)
 	{
 		logOut << QUaLog({
 			QObject::tr("Historizing enabled, but historized not set."),
@@ -682,7 +682,7 @@ bool QUaHistoryBackend::updateHistoryData(
 		});
 		return false;
 	}
-	return m_updateHistoryData(nodeId, dataPoint, logOut);
+	return _updateHistoryData(nodeId, dataPoint, logOut);
 }
 
 bool QUaHistoryBackend::removeHistoryData(
@@ -691,7 +691,7 @@ bool QUaHistoryBackend::removeHistoryData(
 	const QDateTime& timeEnd,
 	QQueue<QUaLog>& logOut)
 {
-	if (!m_removeHistoryData)
+	if (!_removeHistoryData)
 	{
 		logOut << QUaLog({
 			QObject::tr("Historizing enabled, but historized not set."),
@@ -700,7 +700,7 @@ bool QUaHistoryBackend::removeHistoryData(
 		});
 		return false;
 	}
-	return m_removeHistoryData(nodeId, timeStart, timeEnd, logOut);
+	return _removeHistoryData(nodeId, timeStart, timeEnd, logOut);
 }
 
 QDateTime QUaHistoryBackend::firstTimestamp(
@@ -708,7 +708,7 @@ QDateTime QUaHistoryBackend::firstTimestamp(
 	QQueue<QUaLog>& logOut
 ) const
 {
-	if (!m_firstTimestamp)
+	if (!_firstTimestamp)
 	{
 		logOut << QUaLog({
 			QObject::tr("Historizing enabled, but historized not set."),
@@ -717,7 +717,7 @@ QDateTime QUaHistoryBackend::firstTimestamp(
 		});
 		return QDateTime();
 	}
-	return m_firstTimestamp(nodeId, logOut);
+	return _firstTimestamp(nodeId, logOut);
 }
 
 QDateTime QUaHistoryBackend::lastTimestamp(
@@ -725,7 +725,7 @@ QDateTime QUaHistoryBackend::lastTimestamp(
 	QQueue<QUaLog>& logOut
 ) const
 {
-	if (!m_lastTimestamp)
+	if (!_lastTimestamp)
 	{
 		logOut << QUaLog({
 			QObject::tr("Historizing enabled, but historized not set."),
@@ -734,7 +734,7 @@ QDateTime QUaHistoryBackend::lastTimestamp(
 		});
 		return QDateTime();
 	}
-	return m_lastTimestamp(nodeId, logOut);
+	return _lastTimestamp(nodeId, logOut);
 }
 
 bool QUaHistoryBackend::hasTimestamp(
@@ -743,7 +743,7 @@ bool QUaHistoryBackend::hasTimestamp(
 	QQueue<QUaLog>& logOut
 ) const
 {
-	if (!m_hasTimestamp)
+	if (!_hasTimestamp)
 	{
 		logOut << QUaLog({
 			QObject::tr("Historizing enabled, but historized not set."),
@@ -752,7 +752,7 @@ bool QUaHistoryBackend::hasTimestamp(
 		});
 		return false;
 	}
-	return m_hasTimestamp(nodeId, timestamp, logOut);
+	return _hasTimestamp(nodeId, timestamp, logOut);
 }
 
 QDateTime QUaHistoryBackend::findTimestamp(
@@ -762,7 +762,7 @@ QDateTime QUaHistoryBackend::findTimestamp(
 	QQueue<QUaLog>& logOut
 ) const
 {
-	if (!m_findTimestamp)
+	if (!_findTimestamp)
 	{
 		logOut << QUaLog({
 			QObject::tr("Historizing enabled, but historized not set."),
@@ -771,7 +771,7 @@ QDateTime QUaHistoryBackend::findTimestamp(
 		});
 		return QDateTime();
 	}
-	return m_findTimestamp(nodeId, timestamp, match, logOut);
+	return _findTimestamp(nodeId, timestamp, match, logOut);
 }
 
 quint64 QUaHistoryBackend::numDataPointsInRange(
@@ -781,7 +781,7 @@ quint64 QUaHistoryBackend::numDataPointsInRange(
 	QQueue<QUaLog>& logOut
 ) const
 {
-	if (!m_numDataPointsInRange)
+	if (!_numDataPointsInRange)
 	{
 		logOut << QUaLog({
 			QObject::tr("Historizing enabled, but historized not set."),
@@ -790,7 +790,7 @@ quint64 QUaHistoryBackend::numDataPointsInRange(
 		});
 		return 0;
 	}
-	return m_numDataPointsInRange(nodeId, timeStart, timeEnd, logOut);
+	return _numDataPointsInRange(nodeId, timeStart, timeEnd, logOut);
 }
 
 QVector<QUaHistoryDataPoint>
@@ -801,7 +801,7 @@ QUaHistoryBackend::readHistoryData(
 	const quint64& numPointsToRead,
 	QQueue<QUaLog>& logOut) const
 {
-	if (!m_readHistoryData)
+	if (!_readHistoryData)
 	{
 		logOut << QUaLog({
 			QObject::tr("Historizing enabled, but historized not set."),
@@ -810,7 +810,7 @@ QUaHistoryBackend::readHistoryData(
 		});
 		return QVector<QUaHistoryDataPoint>();
 	}
-	return m_readHistoryData(
+	return _readHistoryData(
 		nodeId,
 		timeStart,
 		numPointsOffset,
@@ -828,7 +828,7 @@ bool QUaHistoryBackend::writeHistoryEventsOfType(
 	QQueue<QUaLog>             &logOut
 )
 {
-	if (!m_writeHistoryEventsOfType)
+	if (!_writeHistoryEventsOfType)
 	{
 		logOut << QUaLog({
 			QObject::tr("Historizing enabled, but historized not set."),
@@ -837,7 +837,7 @@ bool QUaHistoryBackend::writeHistoryEventsOfType(
 		});
 		return false;
 	}
-	return m_writeHistoryEventsOfType(
+	return _writeHistoryEventsOfType(
 		eventTypeNodeId,
 		emittersNodeIds,
 		eventPoint,
@@ -850,7 +850,7 @@ QVector<QUaNodeId> QUaHistoryBackend::eventTypesOfEmitter(
 	QQueue<QUaLog>  &logOut
 )
 {
-	if (!m_eventTypesOfEmitter)
+	if (!_eventTypesOfEmitter)
 	{
 		logOut << QUaLog({
 			QObject::tr("Historizing enabled, but historized not set."),
@@ -859,7 +859,7 @@ QVector<QUaNodeId> QUaHistoryBackend::eventTypesOfEmitter(
 		});
 		return QVector<QUaNodeId>();
 	}
-	return m_eventTypesOfEmitter(
+	return _eventTypesOfEmitter(
 		emitterNodeId,
 		logOut
 	);
@@ -873,7 +873,7 @@ QDateTime QUaHistoryBackend::findTimestampEventOfType(
 	QQueue<QUaLog>                     &logOut
 )
 {
-	if (!m_findTimestampEventOfType)
+	if (!_findTimestampEventOfType)
 	{
 		logOut << QUaLog({
 			QObject::tr("Historizing enabled, but historized not set."),
@@ -882,7 +882,7 @@ QDateTime QUaHistoryBackend::findTimestampEventOfType(
 		});
 		return QDateTime();
 	}
-	return m_findTimestampEventOfType(
+	return _findTimestampEventOfType(
 		emitterNodeId,
 		eventTypeNodeId,
 		timestamp,
@@ -899,7 +899,7 @@ quint64 QUaHistoryBackend::numEventsOfTypeInRange(
 	QQueue<QUaLog>  &logOut
 )
 {
-	if (!m_numEventsOfTypeInRange)
+	if (!_numEventsOfTypeInRange)
 	{
 		logOut << QUaLog({
 			QObject::tr("Historizing enabled, but historized not set."),
@@ -908,7 +908,7 @@ quint64 QUaHistoryBackend::numEventsOfTypeInRange(
 		});
 		return 0;
 	}
-	return m_numEventsOfTypeInRange(
+	return _numEventsOfTypeInRange(
 		emitterNodeId,
 		eventTypeNodeId,
 		timeStart,
@@ -927,7 +927,7 @@ QVector<QUaHistoryEventPoint> QUaHistoryBackend::readHistoryEventsOfType(
 	QQueue<QUaLog>  &logOut
 )
 {
-	if (!m_readHistoryEventsOfType)
+	if (!_readHistoryEventsOfType)
 	{
 		logOut << QUaLog({
 			QObject::tr("Historizing enabled, but historized not set."),
@@ -936,7 +936,7 @@ QVector<QUaHistoryEventPoint> QUaHistoryBackend::readHistoryEventsOfType(
 		});
 		return QVector<QUaHistoryEventPoint>();
 	}
-	return m_readHistoryEventsOfType(
+	return _readHistoryEventsOfType(
 		emitterNodeId,
 		eventTypeNodeId,
 		timeStart,
@@ -954,7 +954,7 @@ bool QUaHistoryBackend::setEvent(
 	const QUaHistoryEventPoint& eventPoint)
 {
 	QQueue<QUaLog> logOut;
-	bool ok = server->m_historBackend.writeHistoryEventsOfType(
+	bool ok = server->_historBackend.writeHistoryEventsOfType(
 		eventTypeNodeId,
 		emittersNodeIds,
 		eventPoint,
@@ -1034,13 +1034,13 @@ void QUaHistoryBackend::readEvent(
 		else
 		{
 			// if no valid continuation point, then compute it
-			QVector<QUaNodeId> eventTypeNodeIds = srv->m_historBackend.eventTypesOfEmitter(
+			QVector<QUaNodeId> eventTypeNodeIds = srv->_historBackend.eventTypesOfEmitter(
 				emitterNodeId,
 				logOut
 			);
 			for (const auto & eventTypeNodeId : eventTypeNodeIds)
 			{
-				QDateTime timeStartExisting = srv->m_historBackend.findTimestampEventOfType(
+				QDateTime timeStartExisting = srv->_historBackend.findTimestampEventOfType(
 					emitterNodeId,
 					eventTypeNodeId,
 					timeStart,
@@ -1063,7 +1063,7 @@ void QUaHistoryBackend::readEvent(
 					// out of range
 					continue;
 				}
-				QDateTime timeEndExisting = srv->m_historBackend.findTimestampEventOfType(
+				QDateTime timeEndExisting = srv->_historBackend.findTimestampEventOfType(
 					emitterNodeId,
 					eventTypeNodeId,
 					timeEnd,
@@ -1086,7 +1086,7 @@ void QUaHistoryBackend::readEvent(
 					// out of range
 					continue;
 				}
-				quint64 numEventsToRead = srv->m_historBackend.numEventsOfTypeInRange(
+				quint64 numEventsToRead = srv->_historBackend.numEventsOfTypeInRange(
 					emitterNodeId,
 					eventTypeNodeId,
 					timeStartExisting,
@@ -1116,7 +1116,7 @@ void QUaHistoryBackend::readEvent(
 		}
 		for (auto& eventTypeNodeId : eventTypeNodeIds)
 		{
-			totalMissingToRead += queryData[eventTypeNodeId].m_numEventsToRead;
+			totalMissingToRead += queryData[eventTypeNodeId]._numEventsToRead;
 		}
 		totalToReadInThisCall = (std::min)(maxPerEmitter, totalMissingToRead);
 		// alloc output in qt format
@@ -1125,7 +1125,7 @@ void QUaHistoryBackend::readEvent(
 		for (auto &eventTypeNodeId : eventTypeNodeIds)
 		{
 			quint64 totalToReadForThisType =
-				queryData[eventTypeNodeId].m_numEventsToRead;
+				queryData[eventTypeNodeId]._numEventsToRead;
 			if (totalToReadForThisType == 0)
 			{
 				continue;
@@ -1135,11 +1135,11 @@ void QUaHistoryBackend::readEvent(
 			totalToReadForThisType = (std::min)(totalToReadForThisType, totalToReadInThisCall - totalAlreadyReadInThisCall);
 			Q_ASSERT(totalToReadForThisType > 0);
 			// read output for current event type
-			auto eventsOfType = srv->m_historBackend.readHistoryEventsOfType(
+			auto eventsOfType = srv->_historBackend.readHistoryEventsOfType(
 				emitterNodeId,
 				eventTypeNodeId,
-				queryData[eventTypeNodeId].m_timeStartExisting,
-				queryData[eventTypeNodeId].m_numEventsAlreadyRead, // offset
+				queryData[eventTypeNodeId]._timeStartExisting,
+				queryData[eventTypeNodeId]._numEventsAlreadyRead, // offset
 				totalToReadForThisType,
 				colBrowsePaths,
 				logOut
@@ -1166,22 +1166,22 @@ void QUaHistoryBackend::readEvent(
 			totalToReadForThisType = (std::min)(totalToReadForThisType, static_cast<quint64>(eventsOfType.size()));
 			Q_ASSERT(totalToReadForThisType > 0);
 			// update continuation
-			queryData[eventTypeNodeId].m_numEventsToRead      -= totalToReadForThisType;
-			queryData[eventTypeNodeId].m_numEventsAlreadyRead += totalToReadForThisType;
-			if (queryData[eventTypeNodeId].m_numEventsToRead == 0)
+			queryData[eventTypeNodeId]._numEventsToRead      -= totalToReadForThisType;
+			queryData[eventTypeNodeId]._numEventsAlreadyRead += totalToReadForThisType;
+			if (queryData[eventTypeNodeId]._numEventsToRead == 0)
 			{
 				queryData.remove(eventTypeNodeId);
 			}
 			// if the user returned non-matching qvariant types, they need fixing
-			Q_ASSERT(srv->m_hashTypeVars.contains(eventTypeNodeId));
-			auto& fieldInfo = srv->m_hashTypeVars[eventTypeNodeId];
+			Q_ASSERT(srv->_hashTypeVars.contains(eventTypeNodeId));
+			auto& fieldInfo = srv->_hashTypeVars[eventTypeNodeId];
 			std::for_each(eventsOfType.begin(), eventsOfType.end(), [&fieldInfo](QUaHistoryEventPoint &point) {
 				auto i = point.fields.begin();
 				while (i != point.fields.end())
 				{
 					auto& name = i.key();
 					QVariant& value = i.value();
-					// NOTE : use ::value to avoid creating an unwanted entry into m_hashTypeVars
+					// NOTE : use ::value to avoid creating an unwanted entry into _hashTypeVars
 					const auto &type = fieldInfo.value(name, QMetaType::UnknownType); 
 					// NOTE : expensive, e.g. QString to QUaNodeId
 					QUaHistoryBackend::fixOutputVariantType(value, type); 

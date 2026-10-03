@@ -66,8 +66,8 @@ private slots:
     void duplicateNodeIdIsRejected();
 
 private:
-    QUaServer *m_server = nullptr;
-    QUaFolderObject *objects() const { return m_server->objectsFolder(); }
+    QUaServer *_server = nullptr;
+    QUaFolderObject *objects() const { return _server->objectsFolder(); }
 };
 
 ///
@@ -75,7 +75,7 @@ private:
 ///
 void TestAddressSpace::init()
 {
-    m_server = new QUaServer;
+    _server = new QUaServer;
 }
 
 ///
@@ -83,8 +83,8 @@ void TestAddressSpace::init()
 ///
 void TestAddressSpace::cleanup()
 {
-    delete m_server;
-    m_server = nullptr;
+    delete _server;
+    _server = nullptr;
 }
 
 ///
@@ -106,7 +106,7 @@ void TestAddressSpace::childrenGetRequestedIdsAndClasses()
     QCOMPARE(variable->browseName(), QUaQualifiedName(0, QStringLiteral("variable")));
     QCOMPARE(folder->typeDefinitionNodeId(), QUaNodeId(0, quint32(UA_NS0ID_FOLDERTYPE)));
     QCOMPARE(property->typeDefinitionNodeId(), QUaNodeId(0, quint32(UA_NS0ID_PROPERTYTYPE)));
-    QCOMPARE(m_server->nodeById<QUaBaseDataVariable>(QUaNodeId(1, 500u)), variable);
+    QCOMPARE(_server->nodeById<QUaBaseDataVariable>(QUaNodeId(1, 500u)), variable);
 }
 
 ///
@@ -140,10 +140,10 @@ void TestAddressSpace::browsePathResolvesFromObjectsFolder()
     const QUaBrowsePath path = leaf->nodeBrowsePath();
 
     QCOMPARE(QUaQualifiedName::reduceName(path), QStringLiteral("Objects/plant/line/level"));
-    QCOMPARE(m_server->browsePath(path), leaf);
-    QCOMPARE(m_server->browsePath(path.mid(1)), leaf);
-    QVERIFY(!m_server->browsePath(QUaQualifiedName::expandName(QStringLiteral("plant/none"))));
-    QVERIFY(!m_server->browsePath(QUaBrowsePath()));
+    QCOMPARE(_server->browsePath(path), leaf);
+    QCOMPARE(_server->browsePath(path.mid(1)), leaf);
+    QVERIFY(!_server->browsePath(QUaQualifiedName::expandName(QStringLiteral("plant/none"))));
+    QVERIFY(!_server->browsePath(QUaBrowsePath()));
 }
 
 ///
@@ -170,8 +170,8 @@ void TestAddressSpace::deletingNodeRemovesItFromServer()
 
     delete variable;
 
-    QVERIFY(!m_server->nodeById(nodeId));
-    QVERIFY(!m_server->isNodeIdUsed(nodeId));
+    QVERIFY(!_server->nodeById(nodeId));
+    QVERIFY(!_server->isNodeIdUsed(nodeId));
     QVERIFY(!objects()->hasChild(QStringLiteral("doomed")));
 }
 
@@ -186,7 +186,7 @@ void TestAddressSpace::deletingParentRemovesChildren()
 
     delete folder;
 
-    QVERIFY(!m_server->isNodeIdUsed(childId));
+    QVERIFY(!_server->isNodeIdUsed(childId));
 }
 
 ///
@@ -201,7 +201,7 @@ void TestAddressSpace::stringNodeIdOutlivesSourceString()
     }
 
     QCOMPARE(variable->nodeId().stringId(), QStringLiteral("Temporary.42"));
-    QCOMPARE(m_server->nodeById(QUaNodeId(1, QStringLiteral("Temporary.42"))), variable);
+    QCOMPARE(_server->nodeById(QUaNodeId(1, QStringLiteral("Temporary.42"))), variable);
 }
 
 ///
@@ -369,7 +369,7 @@ void TestAddressSpace::displayNameAndDescriptionNotify()
 void TestAddressSpace::enumDataTypeRequiresRegisteredEnum()
 {
     QUaBaseDataVariable *variable = objects()->addBaseDataVariable(QStringLiteral("mode"));
-    m_server->registerEnum(QStringLiteral("Mode"), { { 0, { QUaLocalizedText(QStringLiteral("Off")), QUaLocalizedText() } },
+    _server->registerEnum(QStringLiteral("Mode"), { { 0, { QUaLocalizedText(QStringLiteral("Off")), QUaLocalizedText() } },
                                                      { 1, { QUaLocalizedText(QStringLiteral("On")), QUaLocalizedText() } } });
 
     QVERIFY(!variable->setDataTypeEnum(QStringLiteral("Unknown")));
@@ -393,7 +393,7 @@ void TestAddressSpace::customTypeInstantiatesPropertyChildren()
     QCOMPARE(pump->model()->value().toString(), QStringLiteral("P-100"));
     QCOMPARE(pump->speed()->dataType(), QMetaType::Double);
     QCOMPARE(pump->typeDefinitionBrowseName().name(), QStringLiteral("Pump"));
-    QVERIFY(m_server->isTypeNameRegistered(QStringLiteral("Pump")));
+    QVERIFY(_server->isTypeNameRegistered(QStringLiteral("Pump")));
 }
 
 ///
@@ -401,15 +401,15 @@ void TestAddressSpace::customTypeInstantiatesPropertyChildren()
 ///
 void TestAddressSpace::customTypeTracksInstances()
 {
-    m_server->registerType<Pump>(QUaNodeId(1, QStringLiteral("PumpType")));
+    _server->registerType<Pump>(QUaNodeId(1, QStringLiteral("PumpType")));
     Pump *first = objects()->addChild<Pump>(QStringLiteral("first"));
     Pump *second = objects()->addChild<Pump>(QStringLiteral("second"));
 
-    QCOMPARE(m_server->typeInstances<Pump>().count(), 2);
+    QCOMPARE(_server->typeInstances<Pump>().count(), 2);
     QCOMPARE(first->typeDefinitionNodeId(), QUaNodeId(1, QStringLiteral("PumpType")));
 
     delete first;
-    QCOMPARE(m_server->typeInstances<Pump>(), QList<Pump *>({ second }));
+    QCOMPARE(_server->typeInstances<Pump>(), QList<Pump *>({ second }));
 }
 
 ///
@@ -418,7 +418,7 @@ void TestAddressSpace::customTypeTracksInstances()
 void TestAddressSpace::instanceCreatedCallbackFires()
 {
     QList<Pump *> created;
-    m_server->instanceCreated<Pump>([&created](Pump *pump) { created << pump; });
+    _server->instanceCreated<Pump>([&created](Pump *pump) { created << pump; });
 
     Pump *pump = objects()->addChild<Pump>(QStringLiteral("pump"));
 
@@ -428,7 +428,7 @@ void TestAddressSpace::instanceCreatedCallbackFires()
 void TestAddressSpace::instanceCreatedMemberCallbackFires()
 {
     PumpRegistry registry;
-    m_server->instanceCreated<Pump>(&registry, &PumpRegistry::add);
+    _server->instanceCreated<Pump>(&registry, &PumpRegistry::add);
 
     Pump *pump = objects()->addChild<Pump>(QStringLiteral("pump"));
 
@@ -441,7 +441,7 @@ void TestAddressSpace::instanceCreatedMemberCallbackFires()
 void TestAddressSpace::referencesCanBeAddedAndRemoved()
 {
     const QUaReferenceType feeds = { QStringLiteral("Feeds"), QStringLiteral("FedBy") };
-    m_server->registerReferenceType(feeds);
+    _server->registerReferenceType(feeds);
     QUaBaseObject *tank = objects()->addBaseObject(QStringLiteral("tank"));
     QUaBaseObject *pump = objects()->addBaseObject(QStringLiteral("pump"));
     QSignalSpy addedSpy(tank, &QUaNode::referenceAdded);

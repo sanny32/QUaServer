@@ -57,8 +57,8 @@ UA_StatusCode QUaServer_Anex::createEvent(
         auto srv = QUaServer::getServerNodeContext(server);
         Q_ASSERT(srv);
         const QUaNodeId eventTypeNodeId(eventType);
-        Q_ASSERT(srv->m_hashTypeVars.contains(eventTypeNodeId));
-        const auto typeVars = srv->m_hashTypeVars.value(eventTypeNodeId);
+        Q_ASSERT(srv->_hashTypeVars.contains(eventTypeNodeId));
+        const auto typeVars = srv->_hashTypeVars.value(eventTypeNodeId);
         for (auto it = typeVars.constBegin(); it != typeVars.constEnd(); ++it)
         {
             UA_QualifiedName key = QUaServer_Anex::eventFieldKey(it.key());
@@ -131,7 +131,7 @@ UA_StatusCode QUaServer_Anex::UA_Event_addEventToMonitoredItem(
     {
         return UA_STATUSCODE_BADNOTFOUND;
     }
-    UA_NodeId origin = event->m_sourceNodeId;
+    UA_NodeId origin = event->_sourceNodeId;
     return QUaServer_Anex::createEvent(
         server,
         *eventNodeId,
@@ -239,10 +239,10 @@ QUaServer_Anex::UA_Server_triggerEvent_Modified(
     }
     // get event type node id
     QUaNodeId eventTypeNodeId = event->typeDefinitionNodeId();
-    Q_ASSERT(srv->m_hashTypeVars.contains(eventTypeNodeId));
+    Q_ASSERT(srv->_hashTypeVars.contains(eventTypeNodeId));
     // populate history point
     QUaHistoryEventPoint eventPoint;
-    auto& typeData = srv->m_hashTypeVars[eventTypeNodeId];
+    auto& typeData = srv->_hashTypeVars[eventTypeNodeId];
     auto i = typeData.begin();
     while (i != typeData.end())
     {

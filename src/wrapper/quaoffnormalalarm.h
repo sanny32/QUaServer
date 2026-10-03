@@ -31,7 +31,7 @@ public:
 	void setNormalState(const QUaNodeId& normalState);
 
 protected:
-	QVariant m_normalValue;
+	QVariant _normalValue;
 
 	// NodeId
 	QUaProperty* getNormalState();

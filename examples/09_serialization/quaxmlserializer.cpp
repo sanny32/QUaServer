@@ -8,20 +8,20 @@ QUaXmlSerializer::QUaXmlSerializer()
 void QUaXmlSerializer::reset()
 {
 	// reset serialization state
-	m_doc.clear();
-	QDomProcessingInstruction header = m_doc.createProcessingInstruction("xml", "version='1.0' encoding='UTF-8'");
-	m_doc.appendChild(header);
-	QDomElement root = m_doc.createElement("nodes");
-	m_doc.appendChild(root);
+	_doc.clear();
+	QDomProcessingInstruction header = _doc.createProcessingInstruction("xml", "version='1.0' encoding='UTF-8'");
+	_doc.appendChild(header);
+	QDomElement root = _doc.createElement("nodes");
+	_doc.appendChild(root);
 	// reset deserialization state
-	m_mapNodeData.clear();
+	_mapNodeData.clear();
 	// close file
-	m_xmlFileConf.close();
+	_xmlFileConf.close();
 }
 
 QByteArray QUaXmlSerializer::toByteArray() const
 {
-	return m_doc.toByteArray();
+	return _doc.toByteArray();
 }
 
 bool QUaXmlSerializer::fromByteArray(
@@ -29,7 +29,7 @@ bool QUaXmlSerializer::fromByteArray(
 	QQueue<QUaLog>& logOut)
 {
 	// load from xml
-	const QDomDocument::ParseResult result = m_doc.setContent(xmlData);
+	const QDomDocument::ParseResult result = _doc.setContent(xmlData);
 	if (!result)
 	{
 		logOut << QUaLog({
@@ -43,7 +43,7 @@ bool QUaXmlSerializer::fromByteArray(
 		return false;
 	}
 	// fill up nodes data
-	QDomElement root = m_doc.documentElement();
+	QDomElement root = _doc.documentElement();
 	QDomNode nIter = root.firstChild();
 	while (!nIter.isNull()) 
 	{
@@ -124,7 +124,7 @@ bool QUaXmlSerializer::fromByteArray(
 			rIter = rIter.nextSibling();
 		}
 		// insert to internal data
-		m_mapNodeData.insert(nodeId, {
+		_mapNodeData.insert(nodeId, {
 			mapAttrs,
 			refs
 		});
@@ -136,7 +136,7 @@ bool QUaXmlSerializer::fromByteArray(
 
 QString QUaXmlSerializer::xmlFileName() const
 {
-	return m_strXmlFileName;
+	return _strXmlFileName;
 }
 
 bool QUaXmlSerializer::setXmlFileName(
@@ -145,11 +145,11 @@ bool QUaXmlSerializer::setXmlFileName(
 {
 	Q_UNUSED(logOut);
 	// copy internally
-	m_strXmlFileName = strXmlFileName;
+	_strXmlFileName = strXmlFileName;
 	// reset internal state (close file, etc.)
 	this->reset();
 	// set filename
-	m_xmlFileConf.setFileName(m_strXmlFileName);
+	_xmlFileConf.setFileName(_strXmlFileName);
 	// always success
 	return true;
 }
@@ -159,10 +159,10 @@ bool QUaXmlSerializer::serializeStart(QQueue<QUaLog>& logOut)
 	// reset internal state
 	this->reset();
 	// if we cannot open file, then no point in continuing with serialization
-	if (!m_xmlFileConf.open(QIODevice::WriteOnly | QIODevice::Text | QFile::Truncate))
+	if (!_xmlFileConf.open(QIODevice::WriteOnly | QIODevice::Text | QFile::Truncate))
 	{
 		logOut << QUaLog({
-			QObject::tr("Could not open file %1.").arg(m_strXmlFileName),
+			QObject::tr("Could not open file %1.").arg(_strXmlFileName),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
 		});
@@ -174,22 +174,22 @@ bool QUaXmlSerializer::serializeStart(QQueue<QUaLog>& logOut)
 
 bool QUaXmlSerializer::serializeEnd(QQueue<QUaLog>& logOut)
 {
-	if (!m_xmlFileConf.isOpen())
+	if (!_xmlFileConf.isOpen())
 	{
 		logOut << QUaLog({
-			QObject::tr("File %1 is not open.").arg(m_strXmlFileName),
+			QObject::tr("File %1 is not open.").arg(_strXmlFileName),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
 		});
 		return false;
 	}
 	// create stream
-	QTextStream streamConfig(&m_xmlFileConf);
+	QTextStream streamConfig(&_xmlFileConf);
 	// save config in file
 	auto b = this->toByteArray();
 	streamConfig << b;
 	// close file
-	m_xmlFileConf.close();
+	_xmlFileConf.close();
 	return true;
 }
 
@@ -202,9 +202,9 @@ bool QUaXmlSerializer::writeInstance(
 {
 	Q_UNUSED(logOut);
 	Q_UNUSED(typeName);
-	QDomElement root = m_doc.documentElement();
+	QDomElement root = _doc.documentElement();
 	// create node in xml
-	QDomElement node = m_doc.createElement("n");
+	QDomElement node = _doc.createElement("n");
 	root.appendChild(node);
 	// copy attributes
 	this->writeAttribute(node, "nodeId", nodeId.toXmlString());
@@ -217,7 +217,7 @@ bool QUaXmlSerializer::writeInstance(
 	// copy references
 	for (auto &ref : forwardRefs)
 	{
-		QDomElement refElem = m_doc.createElement("r");
+		QDomElement refElem = _doc.createElement("r");
 		node.appendChild(refElem);
 		this->writeAttribute(refElem, "targetNodeId", ref.targetNodeId.toXmlString());
 		this->writeAttribute(refElem, "targetType"  , ref.targetType);
@@ -232,17 +232,17 @@ bool QUaXmlSerializer::deserializeStart(QQueue<QUaLog>& logOut)
 	// reset internal state
 	this->reset();
 	// if we cannot open file, then no point in continuing with deserialization
-	if (!m_xmlFileConf.open(QIODevice::ReadOnly | QIODevice::Text))
+	if (!_xmlFileConf.open(QIODevice::ReadOnly | QIODevice::Text))
 	{
 		logOut << QUaLog({
-			QObject::tr("Could not open file %1.").arg(m_strXmlFileName),
+			QObject::tr("Could not open file %1.").arg(_strXmlFileName),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
 			});
 		return false;
 	}
 	// load all data
-	if (!this->fromByteArray(m_xmlFileConf.readAll(), logOut))
+	if (!this->fromByteArray(_xmlFileConf.readAll(), logOut))
 	{
 		// print log entries if any
 		for (auto log : logOut)
@@ -250,12 +250,12 @@ bool QUaXmlSerializer::deserializeStart(QQueue<QUaLog>& logOut)
 			qWarning() << "[" << log.level << "] :" << log.message;
 		}
 		// close file
-		m_xmlFileConf.close();
+		_xmlFileConf.close();
 		// exit
 		return false;
 	}
 	// close file
-	m_xmlFileConf.close();
+	_xmlFileConf.close();
 	// exit
 	return true;
 }
@@ -276,7 +276,7 @@ bool QUaXmlSerializer::readInstance(
 	QQueue<QUaLog>& logOut)
 {
 	Q_UNUSED(typeName);
-	if (!m_mapNodeData.contains(nodeId))
+	if (!_mapNodeData.contains(nodeId))
 	{
 		logOut.append({
 			QObject::tr("Could not find nodeId %1").arg(nodeId),
@@ -286,7 +286,7 @@ bool QUaXmlSerializer::readInstance(
 		return false;
 	}
 	// set return values
-	auto& data  = m_mapNodeData[nodeId];
+	auto& data  = _mapNodeData[nodeId];
 	attrs       = data.attrs;
 	forwardRefs = data.forwardRefs;
 	return true;

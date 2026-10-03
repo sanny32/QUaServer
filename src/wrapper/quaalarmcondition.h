@@ -83,8 +83,8 @@ signals:
 	void deactivated();
 
 protected:
-	QUaBaseVariable* m_inputNode;
-	QList<QMetaObject::Connection> m_connections;
+	QUaBaseVariable* _inputNode;
+	QList<QMetaObject::Connection> _connections;
 	void cleanConnections();
 	// LocalizedText
 	QUaTwoStateVariable* getActiveState();

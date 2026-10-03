@@ -11,7 +11,7 @@ QUaAcknowledgeableCondition::QUaAcknowledgeableCondition(
 ) : QUaCondition(server)
 {
 	// ConfirmedState default set when instantiating because is optional
-	m_confirmRequired = false;
+	_confirmRequired = false;
 	// resue rest of defaults 
 	this->resetInternals();
 }
@@ -91,7 +91,7 @@ void QUaAcknowledgeableCondition::setAcknowledged(const bool& acknowledged)
 			strMessage += tr(" Has branches.");
 		}
 	}
-	if (m_confirmRequired && !this->confirmed())
+	if (_confirmRequired && !this->confirmed())
 	{
 		strMessage += tr(" Requires Confirm.");
 	}
@@ -107,7 +107,7 @@ void QUaAcknowledgeableCondition::setAcknowledged(const bool& acknowledged)
 
 QUaLocalizedText QUaAcknowledgeableCondition::confirmedStateCurrentStateName() const
 {
-	if (!m_confirmRequired)
+	if (!_confirmRequired)
 	{
 		// TODO : log error message
 		return QUaLocalizedText();
@@ -117,7 +117,7 @@ QUaLocalizedText QUaAcknowledgeableCondition::confirmedStateCurrentStateName() c
 
 void QUaAcknowledgeableCondition::setConfirmedStateCurrentStateName(const QUaLocalizedText& confirmedState)
 {
-	if (!m_confirmRequired)
+	if (!_confirmRequired)
 	{
 		// TODO : log error message
 		return;
@@ -127,7 +127,7 @@ void QUaAcknowledgeableCondition::setConfirmedStateCurrentStateName(const QUaLoc
 
 bool QUaAcknowledgeableCondition::confirmedStateId() const
 {
-	if (!m_confirmRequired)
+	if (!_confirmRequired)
 	{
 		// TODO : log error message
 		return false;
@@ -137,7 +137,7 @@ bool QUaAcknowledgeableCondition::confirmedStateId() const
 
 void QUaAcknowledgeableCondition::setConfirmedStateId(const bool& confirmedStateId)
 {
-	if (!m_confirmRequired)
+	if (!_confirmRequired)
 	{
 		// TODO : log error message
 		return;
@@ -147,7 +147,7 @@ void QUaAcknowledgeableCondition::setConfirmedStateId(const bool& confirmedState
 
 QDateTime QUaAcknowledgeableCondition::confirmedStateTransitionTime() const
 {
-	if (!m_confirmRequired)
+	if (!_confirmRequired)
 	{
 		// TODO : log error message
 		return QDateTime();
@@ -157,7 +157,7 @@ QDateTime QUaAcknowledgeableCondition::confirmedStateTransitionTime() const
 
 void QUaAcknowledgeableCondition::setConfirmedStateTransitionTime(const QDateTime& transitionTime)
 {
-	if (!m_confirmRequired)
+	if (!_confirmRequired)
 	{
 		// TODO : log error message
 		return;
@@ -167,7 +167,7 @@ void QUaAcknowledgeableCondition::setConfirmedStateTransitionTime(const QDateTim
 
 QUaLocalizedText QUaAcknowledgeableCondition::confirmedStateTrueState() const
 {
-	if (!m_confirmRequired)
+	if (!_confirmRequired)
 	{
 		// TODO : log error message
 		return QUaLocalizedText();
@@ -177,7 +177,7 @@ QUaLocalizedText QUaAcknowledgeableCondition::confirmedStateTrueState() const
 
 void QUaAcknowledgeableCondition::setConfirmedStateTrueState(const QUaLocalizedText& trueState)
 {
-	if (!m_confirmRequired)
+	if (!_confirmRequired)
 	{
 		// TODO : log error message
 		return;
@@ -187,7 +187,7 @@ void QUaAcknowledgeableCondition::setConfirmedStateTrueState(const QUaLocalizedT
 
 QUaLocalizedText QUaAcknowledgeableCondition::confirmedStateFalseState() const
 {
-	if (!m_confirmRequired)
+	if (!_confirmRequired)
 	{
 		// TODO : log error message
 		return QUaLocalizedText();
@@ -197,7 +197,7 @@ QUaLocalizedText QUaAcknowledgeableCondition::confirmedStateFalseState() const
 
 void QUaAcknowledgeableCondition::setConfirmedStateFalseState(const QUaLocalizedText& falseState)
 {
-	if (!m_confirmRequired)
+	if (!_confirmRequired)
 	{
 		// TODO : log error message
 		return;
@@ -297,7 +297,7 @@ void QUaAcknowledgeableCondition::Acknowledge(QByteArray EventId, QUaLocalizedTe
 void QUaAcknowledgeableCondition::Confirm(QByteArray EventId, QUaLocalizedText Comment)
 {
 	// check if need to block progammatic called
-	if (!m_confirmRequired)
+	if (!_confirmRequired)
 	{
 		// TODO : log error message
 		return;
@@ -360,28 +360,28 @@ void QUaAcknowledgeableCondition::Confirm(QByteArray EventId, QUaLocalizedText C
 	this->setConfirmed(true);
 }
 
-QUaLocalizedText QUaAcknowledgeableCondition::m_ackedStateTrueState      = {0, QObject::tr("Acknowledged")};
-QUaLocalizedText QUaAcknowledgeableCondition::m_ackedStateFalseState     = {0, QObject::tr("Unacknowledged")};
-QUaLocalizedText QUaAcknowledgeableCondition::m_confirmedStateTrueState  = {0, QObject::tr("Confirmed")};
-QUaLocalizedText QUaAcknowledgeableCondition::m_confirmedStateFalseState = {0, QObject::tr("Unconfirmed")};
+QUaLocalizedText QUaAcknowledgeableCondition::_ackedStateTrueState      = {0, QObject::tr("Acknowledged")};
+QUaLocalizedText QUaAcknowledgeableCondition::_ackedStateFalseState     = {0, QObject::tr("Unacknowledged")};
+QUaLocalizedText QUaAcknowledgeableCondition::_confirmedStateTrueState  = {0, QObject::tr("Confirmed")};
+QUaLocalizedText QUaAcknowledgeableCondition::_confirmedStateFalseState = {0, QObject::tr("Unconfirmed")};
 
 void QUaAcknowledgeableCondition::resetInternals()
 {
 	QUaCondition::resetInternals();
 	// set default : Unacknowledged state
-	this->setAckedStateFalseState(m_ackedStateFalseState);
-	this->setAckedStateTrueState(m_ackedStateTrueState);
+	this->setAckedStateFalseState(_ackedStateFalseState);
+	this->setAckedStateTrueState(_ackedStateTrueState);
 	this->setAckedStateCurrentStateName(this->ackedStateTrueState());
 	this->setAckedStateId(true);
 	this->setAckedStateTransitionTime(this->getAckedState()->serverTimestamp());
 	// check if confirm allowed
-	if (!m_confirmRequired)
+	if (!_confirmRequired)
 	{
 		return;
 	}
 	// initialize and set defaults
-	this->setConfirmedStateFalseState(m_confirmedStateFalseState);
-	this->setConfirmedStateTrueState(m_confirmedStateTrueState);
+	this->setConfirmedStateFalseState(_confirmedStateFalseState);
+	this->setConfirmedStateTrueState(_confirmedStateTrueState);
 	this->setConfirmedStateCurrentStateName(this->confirmedStateTrueState());
 	this->setConfirmedStateId(true);
 	this->setConfirmedStateTransitionTime(this->getConfirmedState()->serverTimestamp());
@@ -389,8 +389,8 @@ void QUaAcknowledgeableCondition::resetInternals()
 
 bool QUaAcknowledgeableCondition::confirmRequired() const
 {
-	Q_ASSERT(m_confirmRequired == this->hasOptionalMethod("Confirm"));
-	return m_confirmRequired;
+	Q_ASSERT(_confirmRequired == this->hasOptionalMethod("Confirm"));
+	return _confirmRequired;
 }
 bool QUaAcknowledgeableCondition::requiresAttention() const
 {
@@ -399,7 +399,7 @@ bool QUaAcknowledgeableCondition::requiresAttention() const
 	// check acknowledged
 	requiresAttention = requiresAttention || !this->acknowledged();
 	// check confirmed
-	if (m_confirmRequired)
+	if (_confirmRequired)
 	{
 		requiresAttention = requiresAttention || !this->confirmed();
 	}
@@ -409,26 +409,26 @@ bool QUaAcknowledgeableCondition::requiresAttention() const
 
 void QUaAcknowledgeableCondition::setConfirmRequired(const bool& confirmRequired)
 {
-	if (confirmRequired == m_confirmRequired)
+	if (confirmRequired == _confirmRequired)
 	{
 		return;
 	}
-	m_confirmRequired = confirmRequired;
+	_confirmRequired = confirmRequired;
 	// add or remove method
 	Q_ASSERT(
-		(m_confirmRequired  && !this->hasOptionalMethod("Confirm")) ||
-		(!m_confirmRequired && this->hasOptionalMethod("Confirm"))
+		(_confirmRequired  && !this->hasOptionalMethod("Confirm")) ||
+		(!_confirmRequired && this->hasOptionalMethod("Confirm"))
 	);
-	m_confirmRequired ?
+	_confirmRequired ?
 		this->addOptionalMethod("Confirm") :
 		this->removeOptionalMethod("Confirm");
 	// add or remove ConfirmedState component
 	auto confirmedState = this->browseChild<QUaTwoStateVariable>("ConfirmedState");
 	Q_ASSERT(
-		(m_confirmRequired && !confirmedState) ||
-		(!m_confirmRequired && confirmedState)
+		(_confirmRequired && !confirmedState) ||
+		(!_confirmRequired && confirmedState)
 	);
-	if (!m_confirmRequired)
+	if (!_confirmRequired)
 	{
 		Q_CHECK_PTR(confirmedState);
 		// remove
@@ -436,8 +436,8 @@ void QUaAcknowledgeableCondition::setConfirmRequired(const bool& confirmRequired
 		return;
 	}
 	// initialize and set defaults
-	this->setConfirmedStateFalseState(m_confirmedStateFalseState);
-	this->setConfirmedStateTrueState(m_confirmedStateTrueState);
+	this->setConfirmedStateFalseState(_confirmedStateFalseState);
+	this->setConfirmedStateTrueState(_confirmedStateTrueState);
 	this->setConfirmedStateCurrentStateName(this->confirmedStateTrueState());
 	this->setConfirmedStateId(true);
 	this->setConfirmedStateTransitionTime(this->getConfirmedState()->serverTimestamp());
@@ -474,7 +474,7 @@ QUaAcknowledgeableConditionBranch::QUaAcknowledgeableConditionBranch(
 {
 	auto condition = dynamic_cast<QUaAcknowledgeableCondition*>(parent);
 	Q_ASSERT(condition);
-	m_confirmRequired = condition->confirmRequired();
+	_confirmRequired = condition->confirmRequired();
 }
 
 bool QUaAcknowledgeableConditionBranch::acknowledged() const
@@ -492,8 +492,8 @@ void QUaAcknowledgeableConditionBranch::setAcknowledged(
 	// set acknowledged
 	this->setValue(QUaAcknowledgeableConditionBranch::AckedState_Id, acknowledged);
 	auto strAckedStateName = acknowledged ?
-		QVariant::fromValue(QUaAcknowledgeableCondition::m_ackedStateTrueState ) :
-		QVariant::fromValue(QUaAcknowledgeableCondition::m_ackedStateFalseState);
+		QVariant::fromValue(QUaAcknowledgeableCondition::_ackedStateTrueState ) :
+		QVariant::fromValue(QUaAcknowledgeableCondition::_ackedStateFalseState);
 	this->setValue(
 		QUaAcknowledgeableConditionBranch::AckedState, 
 		strAckedStateName
@@ -514,7 +514,7 @@ void QUaAcknowledgeableConditionBranch::setAcknowledged(
 	QString strMessage = QObject::tr("Branch %1 %2.")
 		.arg(this->branchId())
 		.arg(strAckedStateName.value<QString>());
-	if (m_confirmRequired && !this->confirmed())
+	if (_confirmRequired && !this->confirmed())
 	{
 		strMessage += QObject::tr(" Requires Confirm.");
 	}
@@ -526,7 +526,7 @@ void QUaAcknowledgeableConditionBranch::setAcknowledged(
 
 bool QUaAcknowledgeableConditionBranch::confirmed() const
 {
-	Q_ASSERT(m_confirmRequired);
+	Q_ASSERT(_confirmRequired);
 	return this->value(QUaAcknowledgeableConditionBranch::ConfirmedState_Id).value<bool>();
 }
 
@@ -540,8 +540,8 @@ void QUaAcknowledgeableConditionBranch::setConfirmed(
 	// set confirmed
 	this->setValue(QUaAcknowledgeableConditionBranch::ConfirmedState_Id, confirmed);
 	auto strConfirmedStateName = confirmed ?
-		QVariant::fromValue(QUaAcknowledgeableCondition::m_confirmedStateTrueState) :
-		QVariant::fromValue(QUaAcknowledgeableCondition::m_confirmedStateFalseState);
+		QVariant::fromValue(QUaAcknowledgeableCondition::_confirmedStateTrueState) :
+		QVariant::fromValue(QUaAcknowledgeableCondition::_confirmedStateFalseState);
 	this->setValue(
 		QUaAcknowledgeableConditionBranch::ConfirmedState,
 		strConfirmedStateName
@@ -575,7 +575,7 @@ bool QUaAcknowledgeableConditionBranch::requiresAttention() const
 	// check acknowledged
 	requiresAttention = requiresAttention || !this->acknowledged();
 	// check confirmed
-	if (m_confirmRequired)
+	if (_confirmRequired)
 	{
 		requiresAttention = requiresAttention || !this->confirmed();
 	}

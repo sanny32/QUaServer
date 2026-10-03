@@ -81,7 +81,7 @@ signals:
 
 protected:
 #ifdef UA_ENABLE_HISTORIZING
-	bool m_historizing;
+	bool _historizing;
 #endif // UA_ENABLE_HISTORIZING
 	// ByteString : 
 	QUaProperty  * getEventId();
@@ -107,7 +107,7 @@ protected:
 	QUaProperty  * getSeverity();
 
 	// Used to trigger the event
-	UA_NodeId m_sourceNodeId;
+	UA_NodeId _sourceNodeId;
 	
 
 	// helpers

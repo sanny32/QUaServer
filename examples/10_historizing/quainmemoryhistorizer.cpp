@@ -8,7 +8,7 @@ bool QUaInMemoryHistorizer::writeHistoryData(
 	QQueue<QUaLog>& logOut)
 {
 	Q_UNUSED(logOut);
-	m_database[nodeId][dataPoint.timestamp] = {
+	_database[nodeId][dataPoint.timestamp] = {
 		dataPoint.value,
 		dataPoint.status
 	};
@@ -22,8 +22,8 @@ bool QUaInMemoryHistorizer::updateHistoryData(
 {
 	Q_UNUSED(logOut);
 	Q_ASSERT(
-		m_database.contains(nodeId) &&
-		m_database[nodeId].contains(dataPoint.timestamp)
+		_database.contains(nodeId) &&
+		_database[nodeId].contains(dataPoint.timestamp)
 	);
 	return this->writeHistoryData(nodeId, dataPoint, logOut);
 }
@@ -35,7 +35,7 @@ bool QUaInMemoryHistorizer::removeHistoryData(
 	QQueue<QUaLog>& logOut)
 {
 	Q_ASSERT(timeStart <= timeEnd);
-	if (!m_database.contains(nodeId))
+	if (!_database.contains(nodeId))
 	{
 		logOut << QUaLog({
 			QObject::tr("Error removing history data. "
@@ -46,7 +46,7 @@ bool QUaInMemoryHistorizer::removeHistoryData(
 			});
 		return false;
 	}
-	auto& table = m_database[nodeId];
+	auto& table = _database[nodeId];
 	Q_ASSERT(table.contains(timeStart));
 	Q_ASSERT(table.contains(timeEnd) || !timeEnd.isValid());
 	// get total range to remove
@@ -64,7 +64,7 @@ QDateTime QUaInMemoryHistorizer::firstTimestamp(
 	const QUaNodeId &nodeId,
 	QQueue<QUaLog>& logOut) const
 {
-	if (!m_database.contains(nodeId))
+	if (!_database.contains(nodeId))
 	{
 		logOut << QUaLog({
 			QObject::tr("Error finding first history timestamp. "
@@ -75,14 +75,14 @@ QDateTime QUaInMemoryHistorizer::firstTimestamp(
 			});
 		return QDateTime();
 	}
-	return m_database[nodeId].firstKey();
+	return _database[nodeId].firstKey();
 }
 
 QDateTime QUaInMemoryHistorizer::lastTimestamp(
 	const QUaNodeId &nodeId,
 	QQueue<QUaLog>& logOut) const
 {
-	if (!m_database.contains(nodeId))
+	if (!_database.contains(nodeId))
 	{
 		logOut << QUaLog({
 			QObject::tr("Error finding most recent history timstamp. "
@@ -93,7 +93,7 @@ QDateTime QUaInMemoryHistorizer::lastTimestamp(
 			});
 		return QDateTime();
 	}
-	return m_database[nodeId].lastKey();
+	return _database[nodeId].lastKey();
 }
 
 bool QUaInMemoryHistorizer::hasTimestamp(
@@ -101,7 +101,7 @@ bool QUaInMemoryHistorizer::hasTimestamp(
 	const QDateTime& timestamp,
 	QQueue<QUaLog>& logOut) const
 {
-	if (!m_database.contains(nodeId))
+	if (!_database.contains(nodeId))
 	{
 		logOut << QUaLog({
 			QObject::tr("Error finding history timestamp. "
@@ -112,7 +112,7 @@ bool QUaInMemoryHistorizer::hasTimestamp(
 			});
 		return false;
 	}
-	return m_database[nodeId].contains(timestamp);
+	return _database[nodeId].contains(timestamp);
 }
 
 QDateTime QUaInMemoryHistorizer::findTimestamp(
@@ -121,7 +121,7 @@ QDateTime QUaInMemoryHistorizer::findTimestamp(
 	const QUaHistoryBackend::TimeMatch& match,
 	QQueue<QUaLog>& logOut) const
 {
-	if (!m_database.contains(nodeId))
+	if (!_database.contains(nodeId))
 	{
 		logOut << QUaLog({
 			QObject::tr("Error finding history timestamp. "
@@ -134,7 +134,7 @@ QDateTime QUaInMemoryHistorizer::findTimestamp(
 	}
 	// NOTE : the database might or might not contain the input timestamp
 	QDateTime time;
-	auto& table = m_database[nodeId];
+	auto& table = _database[nodeId];
 	switch (match)
 	{
 	case QUaHistoryBackend::TimeMatch::ClosestFromAbove:
@@ -211,7 +211,7 @@ quint64 QUaInMemoryHistorizer::numDataPointsInRange(
 	const QDateTime& timeEnd,
 	QQueue<QUaLog>& logOut) const
 {
-	if (!m_database.contains(nodeId))
+	if (!_database.contains(nodeId))
 	{
 		logOut << QUaLog({
 			QObject::tr("Error finding history points. "
@@ -222,7 +222,7 @@ quint64 QUaInMemoryHistorizer::numDataPointsInRange(
 		});
 		return 0;
 	}
-	auto& table = m_database[nodeId];
+	auto& table = _database[nodeId];
 	// the database must contain the start timestamp
 	Q_ASSERT(table.contains(timeStart));
 	// if the end timestamp is valid, then it must be contained in the database
@@ -242,7 +242,7 @@ QVector<QUaHistoryDataPoint> QUaInMemoryHistorizer::readHistoryData(
 	QQueue<QUaLog>& logOut) const
 {
 	auto points = QVector<QUaHistoryDataPoint>();
-	if (!m_database.contains(nodeId))
+	if (!_database.contains(nodeId))
 	{
 		logOut << QUaLog({
 			QObject::tr("Error reading history data. "
@@ -253,7 +253,7 @@ QVector<QUaHistoryDataPoint> QUaInMemoryHistorizer::readHistoryData(
 			});
 		return points;
 	}
-	auto& table = m_database[nodeId];
+	auto& table = _database[nodeId];
 	Q_ASSERT(table.contains(timeStart));
 	// get total range to read
 	auto iterIni = table.find(timeStart);
@@ -307,7 +307,7 @@ bool QUaInMemoryHistorizer::writeHistoryEventsOfType(
 	}
 	QByteArray byteEventId = eventPoint.fields[eventIdPath].value<QByteArray>();
 	uint intEventKey = qHash(byteEventId);
-	if (m_eventTypeDatabase[eventTypeNodeId].contains(intEventKey))
+	if (_eventTypeDatabase[eventTypeNodeId].contains(intEventKey))
 	{
 		logOut << QUaLog({
 			QObject::tr("Repeated (unique) EventId field hash for event %1. Ignoring event.")
@@ -318,13 +318,13 @@ bool QUaInMemoryHistorizer::writeHistoryEventsOfType(
 		return false;
 	}
 	// insert in event type table
-	m_eventTypeDatabase[eventTypeNodeId][intEventKey] = eventPoint;
+	_eventTypeDatabase[eventTypeNodeId][intEventKey] = eventPoint;
 	// create reference from each emitter's table
 	for (auto &emitterNodeId : emittersNodeIds)
 	{
 		// NOTE : use QMultiMap::insert which allows 
 		// multiple values (eventKey) for same key (time)
-		m_eventEmitterDatabase[emitterNodeId][eventTypeNodeId].insert(
+		_eventEmitterDatabase[emitterNodeId][eventTypeNodeId].insert(
 			eventPoint.timestamp, 
 			intEventKey
 		);
@@ -338,7 +338,7 @@ QVector<QUaNodeId> QUaInMemoryHistorizer::eventTypesOfEmitter(
 	QQueue<QUaLog>  &logOut
 )
 {
-	if (!m_eventEmitterDatabase.contains(emitterNodeId))
+	if (!_eventEmitterDatabase.contains(emitterNodeId))
 	{
 		logOut << QUaLog({
 			QObject::tr("No event types stored for emitter %1.")
@@ -347,7 +347,7 @@ QVector<QUaNodeId> QUaInMemoryHistorizer::eventTypesOfEmitter(
 			QUaLogCategory::History
 		});
 	}
-	return m_eventEmitterDatabase[emitterNodeId].keys().toVector();
+	return _eventEmitterDatabase[emitterNodeId].keys().toVector();
 }
 
 QDateTime QUaInMemoryHistorizer::findTimestampEventOfType(
@@ -358,7 +358,7 @@ QDateTime QUaInMemoryHistorizer::findTimestampEventOfType(
 	QQueue<QUaLog>                     &logOut
 )
 {
-	if (!m_eventEmitterDatabase.contains(emitterNodeId))
+	if (!_eventEmitterDatabase.contains(emitterNodeId))
 	{
 		logOut << QUaLog({
 			QObject::tr("No event types stored for emitter %1.")
@@ -368,7 +368,7 @@ QDateTime QUaInMemoryHistorizer::findTimestampEventOfType(
 		});
 		return QDateTime();
 	}
-	if (!m_eventEmitterDatabase[emitterNodeId].contains(eventTypeNodeId))
+	if (!_eventEmitterDatabase[emitterNodeId].contains(eventTypeNodeId))
 	{
 		logOut << QUaLog({
 			QObject::tr("No events of type %1 stored for emitter %2.")
@@ -381,7 +381,7 @@ QDateTime QUaInMemoryHistorizer::findTimestampEventOfType(
 	}
 	// NOTE : the database might or might not contain the input timestamp
 	QDateTime time;
-	auto& table = m_eventEmitterDatabase[emitterNodeId][eventTypeNodeId];
+	auto& table = _eventEmitterDatabase[emitterNodeId][eventTypeNodeId];
 	switch (match)
 	{
 	case QUaHistoryBackend::TimeMatch::ClosestFromAbove:
@@ -432,7 +432,7 @@ quint64 QUaInMemoryHistorizer::numEventsOfTypeInRange(
 	QQueue<QUaLog>  &logOut
 )
 {
-	if (!m_eventEmitterDatabase.contains(emitterNodeId))
+	if (!_eventEmitterDatabase.contains(emitterNodeId))
 	{
 		logOut << QUaLog({
 			QObject::tr("No event types stored for emitter %1.")
@@ -442,7 +442,7 @@ quint64 QUaInMemoryHistorizer::numEventsOfTypeInRange(
 		});
 		return 0;
 	}
-	if (!m_eventEmitterDatabase[emitterNodeId].contains(eventTypeNodeId))
+	if (!_eventEmitterDatabase[emitterNodeId].contains(eventTypeNodeId))
 	{
 		logOut << QUaLog({
 			QObject::tr("No events of type %1 stored for emitter %2.")
@@ -453,7 +453,7 @@ quint64 QUaInMemoryHistorizer::numEventsOfTypeInRange(
 		});
 		return 0;
 	}
-	auto& table = m_eventEmitterDatabase[emitterNodeId][eventTypeNodeId];
+	auto& table = _eventEmitterDatabase[emitterNodeId][eventTypeNodeId];
 	Q_ASSERT(timeStart.isValid() && timeEnd.isValid());
 	// the database must contain the start timestamp
 	if (!table.contains(timeStart))
@@ -507,7 +507,7 @@ QVector<QUaHistoryEventPoint> QUaInMemoryHistorizer::readHistoryEventsOfType(
 {
 	Q_UNUSED(columnsToRead);
 	auto points = QVector<QUaHistoryEventPoint>();
-	if (!m_eventEmitterDatabase.contains(emitterNodeId))
+	if (!_eventEmitterDatabase.contains(emitterNodeId))
 	{
 		logOut << QUaLog({
 			QObject::tr("No event types stored for emitter %1.")
@@ -517,7 +517,7 @@ QVector<QUaHistoryEventPoint> QUaInMemoryHistorizer::readHistoryEventsOfType(
 		});
 		return points;
 	}
-	if (!m_eventEmitterDatabase[emitterNodeId].contains(eventTypeNodeId))
+	if (!_eventEmitterDatabase[emitterNodeId].contains(eventTypeNodeId))
 	{
 		logOut << QUaLog({
 			QObject::tr("No events of type %1 stored for emitter %2.")
@@ -528,7 +528,7 @@ QVector<QUaHistoryEventPoint> QUaInMemoryHistorizer::readHistoryEventsOfType(
 		});
 		return points;
 	}
-	if (!m_eventTypeDatabase.contains(eventTypeNodeId))
+	if (!_eventTypeDatabase.contains(eventTypeNodeId))
 	{
 		logOut << QUaLog({
 			QObject::tr("No events of type %1.")
@@ -538,8 +538,8 @@ QVector<QUaHistoryEventPoint> QUaInMemoryHistorizer::readHistoryEventsOfType(
 		});
 		return points;
 	}
-	auto& table  = m_eventEmitterDatabase[emitterNodeId][eventTypeNodeId];
-	auto& source = m_eventTypeDatabase[eventTypeNodeId];
+	auto& table  = _eventEmitterDatabase[emitterNodeId][eventTypeNodeId];
+	auto& source = _eventTypeDatabase[eventTypeNodeId];
 	if (!table.contains(timeStart))
 	{
 		logOut << QUaLog({

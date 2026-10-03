@@ -49,17 +49,17 @@ public:
 	);
 
 private:
-	QString m_strXmlFileName;
-	QFile   m_xmlFileConf;
+	QString _strXmlFileName;
+	QFile   _xmlFileConf;
 	// used to hold serialization state
-	QDomDocument m_doc;
+	QDomDocument _doc;
 	// used to hold deserialization state
 	struct NodeData 
 	{
 		QMap<QString, QVariant> attrs;
 		QList<QUaForwardReference> forwardRefs;
 	};
-	QMap<QString, NodeData> m_mapNodeData;
+	QMap<QString, NodeData> _mapNodeData;
 	// reset serializer state
 	void reset();
 	// write text from XML

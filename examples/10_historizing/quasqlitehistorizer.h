@@ -140,10 +140,10 @@ public:
 #endif // UA_ENABLE_SUBSCRIPTIONS_EVENTS
 
 private:
-	QString m_strSqliteDbName;
-	QTimer  m_timerTransaction;
-	int     m_timeoutTransaction;
-	QQueue<QUaLog> m_deferedLogOut;
+	QString _strSqliteDbName;
+	QTimer  _timerTransaction;
+	int     _timeoutTransaction;
+	QQueue<QUaLog> _deferedLogOut;
 	// get database handle, creates it if not already
 	bool getOpenedDatabase(
 		QSqlDatabase& db,
@@ -200,7 +200,7 @@ private:
 		QSqlQuery numDataPointsInRangeEndInvalid;
 		QSqlQuery readHistoryData;
 	};
-	std::map<QUaNodeId, DataPreparedStatements> m_dataPrepStmts;
+	std::map<QUaNodeId, DataPreparedStatements> _dataPrepStmts;
 	// prepare statement to insert history data points
 	bool dataPrepareAllStmts(
 		QSqlDatabase& db,
@@ -209,7 +209,7 @@ private:
 	);
 
 	// return SQL type in string form, for given Qt type (only QUaServer supported types)
-	static QHash<int, QString> m_hashTypes;
+	static QHash<int, QString> _hashTypes;
 	static QMetaType::Type QVariantToQtType(const QVariant& value);
 	static const QString QtTypeToSqlType(const QMetaType::Type& qtType);
 
@@ -238,7 +238,7 @@ private:
 		QQueue<QUaLog>& logOut
 	);
 	// event type prepared statements cache
-	QHash<QUaNodeId, QSqlQuery> m_eventTypePrepStmts;
+	QHash<QUaNodeId, QSqlQuery> _eventTypePrepStmts;
 	// check event type name table exists
 	bool tableEventTypeNameExists(
 		QSqlDatabase& db,
@@ -260,7 +260,7 @@ private:
 		QSqlQuery insertEventTypeName;
 		QSqlQuery selectEventTypeName;
 	};
-	std::map<QString, EventTypeNamePreparedStatements> m_eventTypeNamePrepStmt;
+	std::map<QString, EventTypeNamePreparedStatements> _eventTypeNamePrepStmt;
 	static QString eventTypesTable;
 	// check emitter node id table exists
 	bool tableEmitterByNodeIdExists(
@@ -282,7 +282,7 @@ private:
 		QQueue<QUaLog>& logOut
 	);
 	// emitter prepared statements cache
-	QHash<QUaNodeId, QSqlQuery> m_emitterPrepStmts;
+	QHash<QUaNodeId, QSqlQuery> _emitterPrepStmts;
 	// insert new event, return unique key
 	bool insertEventPoint(
 		QSqlDatabase& db,

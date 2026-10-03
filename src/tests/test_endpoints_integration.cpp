@@ -48,7 +48,7 @@ private slots:
     void unresolvableHostnameFailsToStart();
 
 private:
-    QUaServer *m_server = nullptr;
+    QUaServer *_server = nullptr;
 };
 
 ///
@@ -56,13 +56,13 @@ private:
 ///
 void TestEndpointsIntegration::init()
 {
-    m_server = new QUaServer;
+    _server = new QUaServer;
 }
 
 void TestEndpointsIntegration::cleanup()
 {
-    delete m_server;
-    m_server = nullptr;
+    delete _server;
+    _server = nullptr;
 }
 
 void TestEndpointsIntegration::emptyHostnameListensOnAllInterfaces()
@@ -72,24 +72,24 @@ void TestEndpointsIntegration::emptyHostnameListensOnAllInterfaces()
     {
         QSKIP("This host has no non-loopback IPv4 address");
     }
-    QVERIFY(TestServer::start(*m_server));
+    QVERIFY(TestServer::start(*_server));
 
-    QVERIFY(acceptsSession(QHostAddress::LocalHost, m_server->port()));
-    QVERIFY(acceptsSession(external, m_server->port()));
+    QVERIFY(acceptsSession(QHostAddress::LocalHost, _server->port()));
+    QVERIFY(acceptsSession(external, _server->port()));
 }
 
 void TestEndpointsIntegration::hostnameRestrictsListeningInterface()
 {
-    m_server->setHostname(QStringLiteral("127.0.0.1"));
-    QVERIFY(TestServer::start(*m_server));
+    _server->setHostname(QStringLiteral("127.0.0.1"));
+    QVERIFY(TestServer::start(*_server));
 
-    QVERIFY(acceptsSession(QHostAddress::LocalHost, m_server->port()));
+    QVERIFY(acceptsSession(QHostAddress::LocalHost, _server->port()));
     const QHostAddress external = nonLoopbackAddress();
     if (external.isNull())
     {
         QSKIP("This host has no non-loopback IPv4 address");
     }
-    QVERIFY(!acceptsSession(external, m_server->port()));
+    QVERIFY(!acceptsSession(external, _server->port()));
 }
 
 ///
@@ -97,10 +97,10 @@ void TestEndpointsIntegration::hostnameRestrictsListeningInterface()
 ///
 void TestEndpointsIntegration::unresolvableHostnameFailsToStart()
 {
-    m_server->setHostname(QStringLiteral("quaserver.invalid"));
+    _server->setHostname(QStringLiteral("quaserver.invalid"));
 
-    QVERIFY(!TestServer::start(*m_server));
-    QVERIFY(!m_server->isRunning());
+    QVERIFY(!TestServer::start(*_server));
+    QVERIFY(!_server->isRunning());
 }
 
 QTEST_GUILESS_MAIN(TestEndpointsIntegration)

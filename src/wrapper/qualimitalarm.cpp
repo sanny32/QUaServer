@@ -8,21 +8,21 @@ QUaLimitAlarm::QUaLimitAlarm(
 	QUaServer* server
 ) : QUaAlarmCondition(server)
 {
-	m_highHighLimitRequired     = false;
-	m_highLimitRequired         = false;
-	m_lowLimitRequired          = false;
-	m_lowLowLimitRequired       = false;
-	m_adaptiveAlarmingSupported = false;
-	m_baseHighHighLimitRequired  = false;
-	m_baseHighLimitRequired      = false;
-	m_baseLowLimitRequired       = false;
-	m_baseLowLowLimitRequired    = false;
+	_highHighLimitRequired     = false;
+	_highLimitRequired         = false;
+	_lowLimitRequired          = false;
+	_lowLowLimitRequired       = false;
+	_adaptiveAlarmingSupported = false;
+	_baseHighHighLimitRequired  = false;
+	_baseHighLimitRequired      = false;
+	_baseLowLimitRequired       = false;
+	_baseLowLowLimitRequired    = false;
 }
 
 double QUaLimitAlarm::highHighLimit() const
 {
-	Q_ASSERT_X(m_highHighLimitRequired, "QUaLimitAlarm::highHighLimit", "First call setHighHighLimitAllowed");
-	if (!m_highHighLimitRequired)
+	Q_ASSERT_X(_highHighLimitRequired, "QUaLimitAlarm::highHighLimit", "First call setHighHighLimitAllowed");
+	if (!_highHighLimitRequired)
 	{
 		return 0.0;
 	}
@@ -31,8 +31,8 @@ double QUaLimitAlarm::highHighLimit() const
 
 void QUaLimitAlarm::setHighHighLimit(const double& highHighLimit)
 {
-	Q_ASSERT_X(m_highHighLimitRequired, "QUaLimitAlarm::setHighHighLimit", "First call setHighHighLimitAllowed");
-	if (!m_highHighLimitRequired)
+	Q_ASSERT_X(_highHighLimitRequired, "QUaLimitAlarm::setHighHighLimit", "First call setHighHighLimitAllowed");
+	if (!_highHighLimitRequired)
 	{
 		return;
 	}
@@ -46,8 +46,8 @@ void QUaLimitAlarm::setHighHighLimit(const double& highHighLimit)
 
 double QUaLimitAlarm::highLimit() const
 {
-	Q_ASSERT_X(m_highLimitRequired, "QUaLimitAlarm::highLimit", "First call setHighLimitRequired");
-	if (!m_highLimitRequired)
+	Q_ASSERT_X(_highLimitRequired, "QUaLimitAlarm::highLimit", "First call setHighLimitRequired");
+	if (!_highLimitRequired)
 	{
 		return 0.0;
 	}
@@ -56,8 +56,8 @@ double QUaLimitAlarm::highLimit() const
 
 void QUaLimitAlarm::setHighLimit(const double& highLimit)
 {
-	Q_ASSERT_X(m_highLimitRequired, "QUaLimitAlarm::setHighLimit", "First call setHighLimitRequired");
-	if (!m_highLimitRequired)
+	Q_ASSERT_X(_highLimitRequired, "QUaLimitAlarm::setHighLimit", "First call setHighLimitRequired");
+	if (!_highLimitRequired)
 	{
 		return;
 	}
@@ -71,8 +71,8 @@ void QUaLimitAlarm::setHighLimit(const double& highLimit)
 
 double QUaLimitAlarm::lowLimit() const
 {
-	Q_ASSERT_X(m_lowLimitRequired, "QUaLimitAlarm::lowLimit", "First call setLowLimitRequired");
-	if (!m_lowLimitRequired)
+	Q_ASSERT_X(_lowLimitRequired, "QUaLimitAlarm::lowLimit", "First call setLowLimitRequired");
+	if (!_lowLimitRequired)
 	{
 		return 0.0;
 	}
@@ -81,8 +81,8 @@ double QUaLimitAlarm::lowLimit() const
 
 void QUaLimitAlarm::setLowLimit(const double& lowLimit)
 {
-	Q_ASSERT_X(m_lowLimitRequired, "QUaLimitAlarm::setLowLimit", "First call setLowLimitRequired");
-	if (!m_lowLimitRequired)
+	Q_ASSERT_X(_lowLimitRequired, "QUaLimitAlarm::setLowLimit", "First call setLowLimitRequired");
+	if (!_lowLimitRequired)
 	{
 		return;
 	}
@@ -96,8 +96,8 @@ void QUaLimitAlarm::setLowLimit(const double& lowLimit)
 
 double QUaLimitAlarm::lowLowLimit() const
 {
-	Q_ASSERT_X(m_lowLowLimitRequired, "QUaLimitAlarm::lowLowLimit", "First call setLowLowLimitRequired");
-	if (!m_lowLowLimitRequired)
+	Q_ASSERT_X(_lowLowLimitRequired, "QUaLimitAlarm::lowLowLimit", "First call setLowLowLimitRequired");
+	if (!_lowLowLimitRequired)
 	{
 		return 0.0;
 	}
@@ -106,8 +106,8 @@ double QUaLimitAlarm::lowLowLimit() const
 
 void QUaLimitAlarm::setLowLowLimit(const double& lowLowLimit)
 {
-	Q_ASSERT_X(m_lowLowLimitRequired, "QUaLimitAlarm::setLowLowLimit", "First call setLowLowLimitRequired");
-	if (!m_lowLowLimitRequired)
+	Q_ASSERT_X(_lowLowLimitRequired, "QUaLimitAlarm::setLowLowLimit", "First call setLowLowLimitRequired");
+	if (!_lowLowLimitRequired)
 	{
 		return;
 	}
@@ -121,14 +121,14 @@ void QUaLimitAlarm::setLowLowLimit(const double& lowLowLimit)
 
 bool QUaLimitAlarm::adaptiveAlarmingSupported() const
 {
-	return m_adaptiveAlarmingSupported;
+	return _adaptiveAlarmingSupported;
 }
 
 double QUaLimitAlarm::baseHighHighLimit() const
 {
-	Q_ASSERT_X(m_adaptiveAlarmingSupported && m_baseHighHighLimitRequired,
+	Q_ASSERT_X(_adaptiveAlarmingSupported && _baseHighHighLimitRequired,
 		"QUaLimitAlarm::baseHighHighLimit", "First call setAdaptiveAlarmingSupported and setBaseHighHighLimitRequired");
-	if (!m_adaptiveAlarmingSupported || !m_baseHighHighLimitRequired)
+	if (!_adaptiveAlarmingSupported || !_baseHighHighLimitRequired)
 	{
 		return 0.0;
 	}
@@ -137,9 +137,9 @@ double QUaLimitAlarm::baseHighHighLimit() const
 
 void QUaLimitAlarm::setBaseHighHighLimit(const double& baseHighHighLimit)
 {
-	Q_ASSERT_X(m_adaptiveAlarmingSupported && m_baseHighHighLimitRequired,
+	Q_ASSERT_X(_adaptiveAlarmingSupported && _baseHighHighLimitRequired,
 		"QUaLimitAlarm::setBaseHighHighLimit", "First call setAdaptiveAlarmingSupported and setBaseHighHighLimitRequired");
-	if (!m_adaptiveAlarmingSupported || !m_baseHighHighLimitRequired)
+	if (!_adaptiveAlarmingSupported || !_baseHighHighLimitRequired)
 	{
 		return;
 	}
@@ -148,9 +148,9 @@ void QUaLimitAlarm::setBaseHighHighLimit(const double& baseHighHighLimit)
 
 double QUaLimitAlarm::baseHighLimit() const
 {
-	Q_ASSERT_X(m_adaptiveAlarmingSupported && m_baseHighLimitRequired, 
+	Q_ASSERT_X(_adaptiveAlarmingSupported && _baseHighLimitRequired, 
 		"QUaLimitAlarm::baseHighLimit", "First call setAdaptiveAlarmingSupported and setBaseHighLimitRequired");
-	if (!m_adaptiveAlarmingSupported || !m_baseHighLimitRequired)
+	if (!_adaptiveAlarmingSupported || !_baseHighLimitRequired)
 	{
 		return 0.0;
 	}
@@ -159,9 +159,9 @@ double QUaLimitAlarm::baseHighLimit() const
 
 void QUaLimitAlarm::setBaseHighLimit(const double& baseHighLimit)
 {
-	Q_ASSERT_X(m_adaptiveAlarmingSupported && m_baseHighLimitRequired, 
+	Q_ASSERT_X(_adaptiveAlarmingSupported && _baseHighLimitRequired, 
 		"QUaLimitAlarm::baseHighLimit", "First call setAdaptiveAlarmingSupported and setBaseHighLimitRequired");
-	if (!m_adaptiveAlarmingSupported || !m_baseHighLimitRequired)
+	if (!_adaptiveAlarmingSupported || !_baseHighLimitRequired)
 	{
 		return;
 	}
@@ -170,9 +170,9 @@ void QUaLimitAlarm::setBaseHighLimit(const double& baseHighLimit)
 
 double QUaLimitAlarm::baseLowLimit() const
 {
-	Q_ASSERT_X(m_adaptiveAlarmingSupported && m_baseLowLimitRequired, 
+	Q_ASSERT_X(_adaptiveAlarmingSupported && _baseLowLimitRequired, 
 		"QUaLimitAlarm::baseLowLimit", "First call setAdaptiveAlarmingSupported and setBaseLowLimitRequired");
-	if (!m_adaptiveAlarmingSupported || !m_baseLowLimitRequired)
+	if (!_adaptiveAlarmingSupported || !_baseLowLimitRequired)
 	{
 		return 0.0;
 	}
@@ -181,9 +181,9 @@ double QUaLimitAlarm::baseLowLimit() const
 
 void QUaLimitAlarm::setBaseLowLimit(const double& baseLowLimit)
 {
-	Q_ASSERT_X(m_adaptiveAlarmingSupported && m_baseLowLimitRequired, 
+	Q_ASSERT_X(_adaptiveAlarmingSupported && _baseLowLimitRequired, 
 		"QUaLimitAlarm::setBaseLowLimit", "First call setAdaptiveAlarmingSupported and setBaseLowLimitRequired");
-	if (!m_adaptiveAlarmingSupported || !m_baseLowLimitRequired)
+	if (!_adaptiveAlarmingSupported || !_baseLowLimitRequired)
 	{
 		return;
 	}
@@ -192,9 +192,9 @@ void QUaLimitAlarm::setBaseLowLimit(const double& baseLowLimit)
 
 double QUaLimitAlarm::baseLowLowLimit() const
 {
-	Q_ASSERT_X(m_adaptiveAlarmingSupported && m_baseLowLowLimitRequired, 
+	Q_ASSERT_X(_adaptiveAlarmingSupported && _baseLowLowLimitRequired, 
 		"QUaLimitAlarm::baseLowLowLimit", "First call setAdaptiveAlarmingSupported and setBaseLowLowLimitRequired");
-	if (!m_adaptiveAlarmingSupported || !m_baseLowLowLimitRequired)
+	if (!_adaptiveAlarmingSupported || !_baseLowLowLimitRequired)
 	{
 		return 0.0;
 	}
@@ -203,9 +203,9 @@ double QUaLimitAlarm::baseLowLowLimit() const
 
 void QUaLimitAlarm::setBaseLowLowLimit(const double& baseLowLowLimit)
 {
-	Q_ASSERT_X(m_adaptiveAlarmingSupported && m_baseLowLowLimitRequired, 
+	Q_ASSERT_X(_adaptiveAlarmingSupported && _baseLowLowLimitRequired, 
 		"QUaLimitAlarm::setBaseLowLowLimit", "First call setAdaptiveAlarmingSupported and setBaseLowLowLimitRequired");
-	if (!m_adaptiveAlarmingSupported || !m_baseLowLowLimitRequired)
+	if (!_adaptiveAlarmingSupported || !_baseLowLowLimitRequired)
 	{
 		return;
 	}
@@ -214,23 +214,23 @@ void QUaLimitAlarm::setBaseLowLowLimit(const double& baseLowLowLimit)
 
 bool QUaLimitAlarm::highHighLimitRequired() const
 {
-	return m_highHighLimitRequired;
+	return _highHighLimitRequired;
 }
 
 void QUaLimitAlarm::setHighHighLimitRequired(const bool& highHighLimitRequired)
 {
-	if (highHighLimitRequired == m_highHighLimitRequired)
+	if (highHighLimitRequired == _highHighLimitRequired)
 	{
 		return;
 	}
-	m_highHighLimitRequired = highHighLimitRequired;
+	_highHighLimitRequired = highHighLimitRequired;
 	// add or remove component
 	auto highHighLimit = this->browseChild<QUaProperty>("HighHighLimit");
 	Q_ASSERT(
-		(m_highHighLimitRequired && !highHighLimit) ||
-		(!m_highHighLimitRequired && highHighLimit)
+		(_highHighLimitRequired && !highHighLimit) ||
+		(!_highHighLimitRequired && highHighLimit)
 	);
-	if (!m_highHighLimitRequired)
+	if (!_highHighLimitRequired)
 	{
 		Q_CHECK_PTR(highHighLimit);
 		// remove
@@ -244,9 +244,9 @@ void QUaLimitAlarm::setHighHighLimitRequired(const bool& highHighLimitRequired)
 	// NOTE : set default value, no event to avoid recomputing active state
 	highHighLimit->setValue(+std::numeric_limits<double>::infinity());
 	// allow base limits of currently (un)supported limits
-	if (m_adaptiveAlarmingSupported)
+	if (_adaptiveAlarmingSupported)
 	{
-		this->setBaseHighHighLimitRequired(m_highHighLimitRequired);
+		this->setBaseHighHighLimitRequired(_highHighLimitRequired);
 	}
 	// notify change
 	emit this->highHighLimitRequiredChanged();
@@ -254,23 +254,23 @@ void QUaLimitAlarm::setHighHighLimitRequired(const bool& highHighLimitRequired)
 
 bool QUaLimitAlarm::highLimitRequired() const
 {
-	return m_highLimitRequired;
+	return _highLimitRequired;
 }
 
 void QUaLimitAlarm::setHighLimitRequired(const bool& highLimitRequired)
 {
-	if (highLimitRequired == m_highLimitRequired)
+	if (highLimitRequired == _highLimitRequired)
 	{
 		return;
 	}
-	m_highLimitRequired = highLimitRequired;
+	_highLimitRequired = highLimitRequired;
 	// add or remove component
 	auto highLimit = this->browseChild<QUaProperty>("HighLimit");
 	Q_ASSERT(
-		(m_highLimitRequired && !highLimit) ||
-		(!m_highLimitRequired && highLimit)
+		(_highLimitRequired && !highLimit) ||
+		(!_highLimitRequired && highLimit)
 	);
-	if (!m_highLimitRequired)
+	if (!_highLimitRequired)
 	{
 		Q_CHECK_PTR(highLimit);
 		// remove
@@ -284,9 +284,9 @@ void QUaLimitAlarm::setHighLimitRequired(const bool& highLimitRequired)
 	// NOTE : set default value, no event to avoid recomputing active state
 	highLimit->setValue(+std::numeric_limits<double>::infinity());
 	// allow/disallow base limits of currently (un)supported limits
-	if (m_adaptiveAlarmingSupported)
+	if (_adaptiveAlarmingSupported)
 	{
-		this->setBaseHighLimitRequired(m_highLimitRequired);
+		this->setBaseHighLimitRequired(_highLimitRequired);
 	}
 	// notify change
 	emit this->highLimitRequiredChanged();
@@ -294,23 +294,23 @@ void QUaLimitAlarm::setHighLimitRequired(const bool& highLimitRequired)
 
 bool QUaLimitAlarm::lowLimitRequired() const
 {
-	return m_lowLimitRequired;
+	return _lowLimitRequired;
 }
 
 void QUaLimitAlarm::setLowLimitRequired(const bool& lowLimitRequired)
 {
-	if (lowLimitRequired == m_lowLimitRequired)
+	if (lowLimitRequired == _lowLimitRequired)
 	{
 		return;
 	}
-	m_lowLimitRequired = lowLimitRequired;
+	_lowLimitRequired = lowLimitRequired;
 	// add or remove component
 	auto lowLimit = this->browseChild<QUaProperty>("LowLimit");
 	Q_ASSERT(
-		(m_lowLimitRequired && !lowLimit) ||
-		(!m_lowLimitRequired && lowLimit)
+		(_lowLimitRequired && !lowLimit) ||
+		(!_lowLimitRequired && lowLimit)
 	);
-	if (!m_lowLimitRequired)
+	if (!_lowLimitRequired)
 	{
 		Q_CHECK_PTR(lowLimit);
 		// remove
@@ -324,9 +324,9 @@ void QUaLimitAlarm::setLowLimitRequired(const bool& lowLimitRequired)
 	// NOTE : set default value, no event to avoid recomputing active state
 	lowLimit->setValue(-std::numeric_limits<double>::infinity());
 	// allow/disallow base limits of currently (un)supported limits
-	if (m_adaptiveAlarmingSupported)
+	if (_adaptiveAlarmingSupported)
 	{
-		this->setBaseLowLimitRequired(m_lowLimitRequired);
+		this->setBaseLowLimitRequired(_lowLimitRequired);
 	}
 	// notify change
 	emit this->lowLimitRequiredChanged();
@@ -334,23 +334,23 @@ void QUaLimitAlarm::setLowLimitRequired(const bool& lowLimitRequired)
 
 bool QUaLimitAlarm::lowLowLimitRequired() const
 {
-	return m_lowLowLimitRequired;
+	return _lowLowLimitRequired;
 }
 
 void QUaLimitAlarm::setLowLowLimitRequired(const bool& lowLowLimitRequired)
 {
-	if (lowLowLimitRequired == m_lowLowLimitRequired)
+	if (lowLowLimitRequired == _lowLowLimitRequired)
 	{
 		return;
 	}
-	m_lowLowLimitRequired = lowLowLimitRequired;
+	_lowLowLimitRequired = lowLowLimitRequired;
 	// add or remove component
 	auto lowLowLimit = this->browseChild<QUaProperty>("LowLowLimit");
 	Q_ASSERT(
-		(m_lowLowLimitRequired && !lowLowLimit) ||
-		(!m_lowLowLimitRequired && lowLowLimit)
+		(_lowLowLimitRequired && !lowLowLimit) ||
+		(!_lowLowLimitRequired && lowLowLimit)
 	);
-	if (!m_lowLowLimitRequired)
+	if (!_lowLowLimitRequired)
 	{
 		Q_CHECK_PTR(lowLowLimit);
 		// remove
@@ -364,9 +364,9 @@ void QUaLimitAlarm::setLowLowLimitRequired(const bool& lowLowLimitRequired)
 	// NOTE : set default value, no event to avoid recomputing active state
 	lowLowLimit->setValue(-std::numeric_limits<double>::infinity());
 	// allow/disallow base limits of currently (un)supported limits
-	if (m_adaptiveAlarmingSupported)
+	if (_adaptiveAlarmingSupported)
 	{
-		this->setBaseLowLowLimitRequired(m_lowLowLimitRequired);
+		this->setBaseLowLowLimitRequired(_lowLowLimitRequired);
 	}
 	// notify change
 	emit this->lowLowLimitRequiredChanged();
@@ -374,20 +374,20 @@ void QUaLimitAlarm::setLowLowLimitRequired(const bool& lowLowLimitRequired)
 
 bool QUaLimitAlarm::baseHighHighLimitRequired() const
 {
-	return m_baseHighHighLimitRequired;
+	return _baseHighHighLimitRequired;
 }
 
 
 
 void QUaLimitAlarm::setAdaptiveAlarmingSupported(const bool& adaptiveAlarmingSupported)
 {
-	if (adaptiveAlarmingSupported == m_adaptiveAlarmingSupported)
+	if (adaptiveAlarmingSupported == _adaptiveAlarmingSupported)
 	{
 		return;
 	}
-	m_adaptiveAlarmingSupported = adaptiveAlarmingSupported;
+	_adaptiveAlarmingSupported = adaptiveAlarmingSupported;
 	// allow/disallow base limits of currently (un)supported limits
-	if (m_adaptiveAlarmingSupported)
+	if (_adaptiveAlarmingSupported)
 	{
 		this->setBaseHighHighLimitRequired(this->highHighLimitRequired());
 		this->setBaseHighLimitRequired    (this->highLimitRequired()    );
@@ -405,18 +405,18 @@ void QUaLimitAlarm::setAdaptiveAlarmingSupported(const bool& adaptiveAlarmingSup
 
 void QUaLimitAlarm::setBaseHighHighLimitRequired(const bool& baseHighHighLimitRequired)
 {
-	if (baseHighHighLimitRequired == m_baseHighHighLimitRequired)
+	if (baseHighHighLimitRequired == _baseHighHighLimitRequired)
 	{
 		return;
 	}
-	m_baseHighHighLimitRequired = baseHighHighLimitRequired;
+	_baseHighHighLimitRequired = baseHighHighLimitRequired;
 	// add or remove component
 	auto baseHighHighLimit = this->browseChild<QUaProperty>("BaseHighHighLimit");
 	Q_ASSERT(
-		(m_baseHighHighLimitRequired && !baseHighHighLimit) ||
-		(!m_baseHighHighLimitRequired && baseHighHighLimit)
+		(_baseHighHighLimitRequired && !baseHighHighLimit) ||
+		(!_baseHighHighLimitRequired && baseHighHighLimit)
 	);
-	if (!m_baseHighHighLimitRequired)
+	if (!_baseHighHighLimitRequired)
 	{
 		Q_CHECK_PTR(baseHighHighLimit);
 		// remove
@@ -433,23 +433,23 @@ void QUaLimitAlarm::setBaseHighHighLimitRequired(const bool& baseHighHighLimitRe
 
 bool QUaLimitAlarm::baseHighLimitRequired() const
 {
-	return m_baseHighLimitRequired;
+	return _baseHighLimitRequired;
 }
 
 void QUaLimitAlarm::setBaseHighLimitRequired(const bool& baseHighLimitRequired)
 {
-	if (baseHighLimitRequired == m_baseHighLimitRequired)
+	if (baseHighLimitRequired == _baseHighLimitRequired)
 	{
 		return;
 	}
-	m_baseHighLimitRequired = baseHighLimitRequired;
+	_baseHighLimitRequired = baseHighLimitRequired;
 	// add or remove component
 	auto baseHighLimit = this->browseChild<QUaProperty>("BaseHighLimit");
 	Q_ASSERT(
-		(m_baseHighLimitRequired && !baseHighLimit) ||
-		(!m_baseHighLimitRequired && baseHighLimit)
+		(_baseHighLimitRequired && !baseHighLimit) ||
+		(!_baseHighLimitRequired && baseHighLimit)
 	);
-	if (!m_baseHighLimitRequired)
+	if (!_baseHighLimitRequired)
 	{
 		Q_CHECK_PTR(baseHighLimit);
 		// remove
@@ -466,23 +466,23 @@ void QUaLimitAlarm::setBaseHighLimitRequired(const bool& baseHighLimitRequired)
 
 bool QUaLimitAlarm::baseLowLimitRequired() const
 {
-	return m_baseLowLimitRequired;
+	return _baseLowLimitRequired;
 }
 
 void QUaLimitAlarm::setBaseLowLimitRequired(const bool& baseLowLimitRequired)
 {
-	if (baseLowLimitRequired == m_baseLowLimitRequired)
+	if (baseLowLimitRequired == _baseLowLimitRequired)
 	{
 		return;
 	}
-	m_baseLowLimitRequired = baseLowLimitRequired;
+	_baseLowLimitRequired = baseLowLimitRequired;
 	// add or remove component
 	auto baseLowLimit = this->browseChild<QUaProperty>("BaseLowLimit");
 	Q_ASSERT(
-		(m_baseLowLimitRequired && !baseLowLimit) ||
-		(!m_baseLowLimitRequired && baseLowLimit)
+		(_baseLowLimitRequired && !baseLowLimit) ||
+		(!_baseLowLimitRequired && baseLowLimit)
 	);
-	if (!m_baseLowLimitRequired)
+	if (!_baseLowLimitRequired)
 	{
 		Q_CHECK_PTR(baseLowLimit);
 		// remove
@@ -499,23 +499,23 @@ void QUaLimitAlarm::setBaseLowLimitRequired(const bool& baseLowLimitRequired)
 
 bool QUaLimitAlarm::baseLowLowLimitRequired() const
 {
-	return m_baseLowLowLimitRequired;
+	return _baseLowLowLimitRequired;
 }
 
 void QUaLimitAlarm::setBaseLowLowLimitRequired(const bool& baseLowLowLimitRequired)
 {
-	if (baseLowLowLimitRequired == m_baseLowLowLimitRequired)
+	if (baseLowLowLimitRequired == _baseLowLowLimitRequired)
 	{
 		return;
 	}
-	m_baseLowLowLimitRequired = baseLowLowLimitRequired;
+	_baseLowLowLimitRequired = baseLowLowLimitRequired;
 	// add or remove component
 	auto baseLowLowLimit = this->browseChild<QUaProperty>("BaseLowLowLimit");
 	Q_ASSERT(
-		(m_baseLowLowLimitRequired && !baseLowLowLimit) ||
-		(!m_baseLowLowLimitRequired && baseLowLowLimit)
+		(_baseLowLowLimitRequired && !baseLowLowLimit) ||
+		(!_baseLowLowLimitRequired && baseLowLowLimit)
 	);
-	if (!m_baseLowLowLimitRequired)
+	if (!_baseLowLowLimitRequired)
 	{
 		Q_CHECK_PTR(baseLowLowLimit);
 		// remove

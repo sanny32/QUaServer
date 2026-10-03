@@ -48,8 +48,8 @@ public:
 	);
 
 private:
-	QString m_strSqliteDbName;
-	QHash<QString, QSqlQuery> m_prepStmts;
+	QString _strSqliteDbName;
+	QHash<QString, QSqlQuery> _prepStmts;
 	// get database handle, creates it if not already
 	bool getOpenedDatabase(
 		QSqlDatabase &db, 
@@ -142,7 +142,7 @@ private:
 	);
 
 	// return SQL type in string form, for given Qt type (only QUaServer supported types)
-	static QHash<int, QString> m_hashTypes;
+	static QHash<int, QString> _hashTypes;
 	static const QString QtTypeToSqlType(const QMetaType::Type& qtType);
 };
 

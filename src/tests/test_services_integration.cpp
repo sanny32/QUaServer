@@ -60,11 +60,11 @@ private slots:
     void methodTakesAndReturnsLists();
 
 private:
-    QUaServer *m_server = nullptr;
-    TestClient *m_client = nullptr;
-    QList<QUaNode *> m_created;
+    QUaServer *_server = nullptr;
+    TestClient *_client = nullptr;
+    QList<QUaNode *> _created;
 
-    QUaFolderObject *objects() const { return m_server->objectsFolder(); }
+    QUaFolderObject *objects() const { return _server->objectsFolder(); }
     QUaBaseDataVariable *addVariable(const QString &name);
 };
 
@@ -73,10 +73,10 @@ private:
 ///
 void TestServicesIntegration::initTestCase()
 {
-    m_server = new QUaServer;
-    m_server->addUser(QStringLiteral("admin"), QStringLiteral("admin"));
-    m_server->addUser(QStringLiteral("guest"), QStringLiteral("guest"));
-    QVERIFY(TestServer::start(*m_server));
+    _server = new QUaServer;
+    _server->addUser(QStringLiteral("admin"), QStringLiteral("admin"));
+    _server->addUser(QStringLiteral("guest"), QStringLiteral("guest"));
+    QVERIFY(TestServer::start(*_server));
 }
 
 ///
@@ -84,8 +84,8 @@ void TestServicesIntegration::initTestCase()
 ///
 void TestServicesIntegration::cleanupTestCase()
 {
-    delete m_server;
-    m_server = nullptr;
+    delete _server;
+    _server = nullptr;
 }
 
 ///
@@ -93,8 +93,8 @@ void TestServicesIntegration::cleanupTestCase()
 ///
 void TestServicesIntegration::init()
 {
-    m_client = new TestClient;
-    QCOMPARE(m_client->connect(TestServer::endpointUrl(*m_server)), UA_STATUSCODE_GOOD);
+    _client = new TestClient;
+    QCOMPARE(_client->connect(TestServer::endpointUrl(*_server)), UA_STATUSCODE_GOOD);
 }
 
 ///
@@ -102,10 +102,10 @@ void TestServicesIntegration::init()
 ///
 void TestServicesIntegration::cleanup()
 {
-    delete m_client;
-    m_client = nullptr;
-    qDeleteAll(m_created);
-    m_created.clear();
+    delete _client;
+    _client = nullptr;
+    qDeleteAll(_created);
+    _created.clear();
 }
 
 ///
@@ -114,7 +114,7 @@ void TestServicesIntegration::cleanup()
 QUaBaseDataVariable *TestServicesIntegration::addVariable(const QString &name)
 {
     QUaBaseDataVariable *variable = objects()->addBaseDataVariable(name, QUaNodeId(1, name));
-    m_created << variable;
+    _created << variable;
     return variable;
 }
 
@@ -127,7 +127,7 @@ void TestServicesIntegration::clientReadsServerValue()
     variable->setValue(QStringLiteral("hello"));
     QVariant value;
 
-    QCOMPARE(m_client->readValue(variable->nodeId(), value), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->readValue(variable->nodeId(), value), UA_STATUSCODE_GOOD);
 
     QCOMPARE(value.toString(), QStringLiteral("hello"));
 }
@@ -145,7 +145,7 @@ void TestServicesIntegration::requestsAreAnsweredPromptly()
     elapsed.start();
     for (int i = 0; i < 20; ++i)
     {
-        QCOMPARE(m_client->readValue(variable->nodeId(), value), UA_STATUSCODE_GOOD);
+        QCOMPARE(_client->readValue(variable->nodeId(), value), UA_STATUSCODE_GOOD);
     }
 
     QVERIFY2(elapsed.elapsed() < 2000, qPrintable(QStringLiteral("20 reads took %1 ms").arg(elapsed.elapsed())));
@@ -161,7 +161,7 @@ void TestServicesIntegration::clientWriteUpdatesValueAndNotifies()
     variable->setValue(1.0);
     QSignalSpy spy(variable, &QUaBaseVariable::valueChanged);
 
-    QCOMPARE(m_client->writeValue(variable->nodeId(), 2.5), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->writeValue(variable->nodeId(), 2.5), UA_STATUSCODE_GOOD);
 
     QCOMPARE(variable->value<double>(), 2.5);
     QTRY_COMPARE(spy.count(), 1);
@@ -177,7 +177,7 @@ void TestServicesIntegration::readOnlyVariableRejectsWrite()
     QUaBaseDataVariable *variable = addVariable(QStringLiteral("readonly"));
     variable->setValue(5);
 
-    const UA_StatusCode status = m_client->writeValue(variable->nodeId(), 6);
+    const UA_StatusCode status = _client->writeValue(variable->nodeId(), 6);
 
     QVERIFY(status != UA_STATUSCODE_GOOD);
     QCOMPARE(variable->value<int>(), 5);
@@ -192,7 +192,7 @@ void TestServicesIntegration::writeOfIncompatibleTypeIsRejected()
     variable->setWriteAccess(true);
     variable->setValue(5);
 
-    const UA_StatusCode status = m_client->writeValue(variable->nodeId(), QStringLiteral("text"));
+    const UA_StatusCode status = _client->writeValue(variable->nodeId(), QStringLiteral("text"));
 
     QCOMPARE(status, UA_STATUSCODE_BADTYPEMISMATCH);
     QCOMPARE(variable->value<int>(), 5);
@@ -203,9 +203,9 @@ void TestServicesIntegration::writeOfIncompatibleTypeIsRejected()
 ///
 void TestServicesIntegration::enumVariableAcceptsInt32()
 {
-    if (!m_server->isEnumRegistered(QStringLiteral("Direction")))
+    if (!_server->isEnumRegistered(QStringLiteral("Direction")))
     {
-        m_server->registerEnum(QStringLiteral("Direction"),
+        _server->registerEnum(QStringLiteral("Direction"),
                                { { 0, { QUaLocalizedText(QStringLiteral("Forward")), QUaLocalizedText() } },
                                  { 1, { QUaLocalizedText(QStringLiteral("Reverse")), QUaLocalizedText() } } });
     }
@@ -215,10 +215,10 @@ void TestServicesIntegration::enumVariableAcceptsInt32()
     variable->setValue(0);
     QUaNodeId dataType;
 
-    QCOMPARE(m_client->writeValue(variable->nodeId(), qint32(1)), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->writeValue(variable->nodeId(), qint32(1)), UA_STATUSCODE_GOOD);
 
     QCOMPARE(variable->value().toInt(), 1);
-    QCOMPARE(m_client->readValueDataType(variable->nodeId(), dataType), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->readValueDataType(variable->nodeId(), dataType), UA_STATUSCODE_GOOD);
     QCOMPARE(dataType, QUaNodeId(1, QStringLiteral("Direction")));
 }
 
@@ -232,8 +232,8 @@ void TestServicesIntegration::byteArrayVariableIsByteString()
     QUaNodeId dataType;
     QVariant value;
 
-    QCOMPARE(m_client->readValueDataType(variable->nodeId(), dataType), UA_STATUSCODE_GOOD);
-    QCOMPARE(m_client->readValue(variable->nodeId(), value), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->readValueDataType(variable->nodeId(), dataType), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->readValue(variable->nodeId(), value), UA_STATUSCODE_GOOD);
 
     QCOMPARE(dataType, QUaNodeId(0, quint32(UA_NS0ID_BYTESTRING)));
     QCOMPARE(value.toByteArray(), QByteArray("\x01\x02", 2));
@@ -249,7 +249,7 @@ void TestServicesIntegration::readCallbackAnswersClientReads()
     variable->setReadCallback([]() { return QVariant(77); });
     QVariant value;
 
-    QCOMPARE(m_client->readValue(variable->nodeId(), value), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->readValue(variable->nodeId(), value), UA_STATUSCODE_GOOD);
 
     QCOMPARE(value.toInt(), 77);
 }
@@ -276,10 +276,10 @@ void TestServicesIntegration::writeValidatorAcceptsOrRejectsClientWrites()
     QSignalSpy spy(variable, &QUaBaseVariable::valueChanged);
     QVariant read;
 
-    QCOMPARE(m_client->writeValue(variable->nodeId(), written), status);
+    QCOMPARE(_client->writeValue(variable->nodeId(), written), status);
 
     QCOMPARE(variable->value<int>(), stored);
-    QCOMPARE(m_client->readValue(variable->nodeId(), read), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->readValue(variable->nodeId(), read), UA_STATUSCODE_GOOD);
     QCOMPARE(read.toInt(), stored);
     QCOMPARE(spy.count(), status == UA_STATUSCODE_GOOD ? 1 : 0);
     if (!spy.isEmpty())
@@ -299,10 +299,10 @@ void TestServicesIntegration::writeValidatorReceivesWritingSession()
         return QUaStatusCode(writer == QStringLiteral("admin") ? UA_STATUSCODE_GOOD : UA_STATUSCODE_BADUSERACCESSDENIED);
     });
     TestClient admin;
-    QCOMPARE(admin.connectUsername(TestServer::endpointUrl(*m_server), QStringLiteral("admin"), QStringLiteral("admin")),
+    QCOMPARE(admin.connectUsername(TestServer::endpointUrl(*_server), QStringLiteral("admin"), QStringLiteral("admin")),
              UA_STATUSCODE_GOOD);
 
-    QCOMPARE(m_client->writeValue(variable->nodeId(), 2), UA_STATUSCODE_BADUSERACCESSDENIED);
+    QCOMPARE(_client->writeValue(variable->nodeId(), 2), UA_STATUSCODE_BADUSERACCESSDENIED);
     QCOMPARE(admin.writeValue(variable->nodeId(), 3), UA_STATUSCODE_GOOD);
 
     QCOMPARE(writer, QStringLiteral("admin"));
@@ -347,10 +347,10 @@ void TestServicesIntegration::writeValidatorChecksWholeValueOfRangeWrite()
         return QUaStatusCode(valid ? UA_STATUSCODE_GOOD : UA_STATUSCODE_BADOUTOFRANGE);
     });
 
-    QCOMPARE(m_client->writeValueRange(variable->nodeId(), QStringLiteral("1"), QVariant::fromValue(QList<int>{ -5 })),
+    QCOMPARE(_client->writeValueRange(variable->nodeId(), QStringLiteral("1"), QVariant::fromValue(QList<int>{ -5 })),
              UA_STATUSCODE_BADOUTOFRANGE);
     QCOMPARE(variable->value().toList(), (QVariantList{ 10, 20, 30 }));
-    QCOMPARE(m_client->writeValueRange(variable->nodeId(), QStringLiteral("1"), QVariant::fromValue(QList<int>{ 25 })),
+    QCOMPARE(_client->writeValueRange(variable->nodeId(), QStringLiteral("1"), QVariant::fromValue(QList<int>{ 25 })),
              UA_STATUSCODE_GOOD);
 
     QCOMPARE(seen.toList(), (QVariantList{ 10, 25, 30 }));
@@ -366,8 +366,8 @@ void TestServicesIntegration::writeValidatorKeepsReadCallbackAndSubscriptions()
     variable->setReadCallback([]() { return QVariant(42); });
     QVariant value;
 
-    QCOMPARE(m_client->readValue(variable->nodeId(), value), UA_STATUSCODE_GOOD);
-    QCOMPARE(m_client->monitorValue(variable->nodeId()), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->readValue(variable->nodeId(), value), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->monitorValue(variable->nodeId()), UA_STATUSCODE_GOOD);
 
     QCOMPARE(value.toInt(), 42);
 }
@@ -383,7 +383,7 @@ void TestServicesIntegration::removingWriteValidatorKeepsValue()
     variable->setWriteValidator();
 
     QCOMPARE(variable->value<int>(), 42);
-    QCOMPARE(m_client->writeValue(variable->nodeId(), 150), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->writeValue(variable->nodeId(), 150), UA_STATUSCODE_GOOD);
     QCOMPARE(variable->value<int>(), 150);
     QTRY_COMPARE(spy.count(), 1);
 }
@@ -403,9 +403,9 @@ void TestServicesIntegration::userAccessLevelIsCheckedPerUser()
     });
     TestClient admin;
     TestClient guest;
-    QCOMPARE(admin.connectUsername(TestServer::endpointUrl(*m_server), QStringLiteral("admin"), QStringLiteral("admin")),
+    QCOMPARE(admin.connectUsername(TestServer::endpointUrl(*_server), QStringLiteral("admin"), QStringLiteral("admin")),
              UA_STATUSCODE_GOOD);
-    QCOMPARE(guest.connectUsername(TestServer::endpointUrl(*m_server), QStringLiteral("guest"), QStringLiteral("guest")),
+    QCOMPARE(guest.connectUsername(TestServer::endpointUrl(*_server), QStringLiteral("guest"), QStringLiteral("guest")),
              UA_STATUSCODE_GOOD);
 
     QVERIFY(guest.writeValue(variable->nodeId(), 2) != UA_STATUSCODE_GOOD);
@@ -420,12 +420,12 @@ void TestServicesIntegration::userAccessLevelIsCheckedPerUser()
 void TestServicesIntegration::methodReturnsResult()
 {
     QUaBaseObject *calculator = objects()->addBaseObject(QStringLiteral("calculator"));
-    m_created << calculator;
+    _created << calculator;
     const QUaNodeId methodId(1, QStringLiteral("calculator.add"));
     calculator->addMethod(QStringLiteral("add"), [](int a, int b) { return a + b; }, methodId);
     QVariantList outputs;
 
-    QCOMPARE(m_client->call(calculator->nodeId(), methodId, { 2, 3 }, outputs), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->call(calculator->nodeId(), methodId, { 2, 3 }, outputs), UA_STATUSCODE_GOOD);
 
     QCOMPARE(outputs.count(), 1);
     QCOMPARE(outputs.first().toInt(), 5);
@@ -447,13 +447,13 @@ void TestServicesIntegration::methodRejectsWrongArguments()
 {
     QFETCH(QVariantList, inputs);
     QUaBaseObject *calculator = objects()->addBaseObject(QStringLiteral("calculator"));
-    m_created << calculator;
+    _created << calculator;
     const QUaNodeId methodId(1, QStringLiteral("calculator.multiply.%1").arg(QString::fromLatin1(QTest::currentDataTag())));
     int calls = 0;
     calculator->addMethod(QStringLiteral("multiply"), [&calls](int a, int b) { ++calls; return a * b; }, methodId);
     QVariantList outputs;
 
-    const UA_StatusCode status = m_client->call(calculator->nodeId(), methodId, inputs, outputs);
+    const UA_StatusCode status = _client->call(calculator->nodeId(), methodId, inputs, outputs);
 
     QVERIFY(status != UA_STATUSCODE_GOOD);
     QCOMPARE(calls, 0);
@@ -465,13 +465,13 @@ void TestServicesIntegration::methodRejectsWrongArguments()
 void TestServicesIntegration::voidMethodRuns()
 {
     QUaBaseObject *device = objects()->addBaseObject(QStringLiteral("device"));
-    m_created << device;
+    _created << device;
     const QUaNodeId methodId(1, QStringLiteral("device.reset"));
     QString lastReason;
     device->addMethod(QStringLiteral("reset"), [&lastReason](QString reason) { lastReason = reason; }, methodId);
     QVariantList outputs;
 
-    QCOMPARE(m_client->call(device->nodeId(), methodId, { QStringLiteral("maintenance") }, outputs), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->call(device->nodeId(), methodId, { QStringLiteral("maintenance") }, outputs), UA_STATUSCODE_GOOD);
 
     QVERIFY(outputs.isEmpty());
     QCOMPARE(lastReason, QStringLiteral("maintenance"));
@@ -483,14 +483,14 @@ void TestServicesIntegration::voidMethodRuns()
 void TestServicesIntegration::methodReceivesArgumentsInOrder()
 {
     QUaBaseObject *device = objects()->addBaseObject(QStringLiteral("device"));
-    m_created << device;
+    _created << device;
     const QUaNodeId methodId(1, QStringLiteral("device.describe"));
     device->addMethod(QStringLiteral("describe"), [](QString name, int count, double scale) {
         return QStringLiteral("%1:%2:%3").arg(name).arg(count).arg(scale);
     }, methodId);
     QVariantList outputs;
 
-    QCOMPARE(m_client->call(device->nodeId(), methodId, { QStringLiteral("pump"), 3, 0.5 }, outputs), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->call(device->nodeId(), methodId, { QStringLiteral("pump"), 3, 0.5 }, outputs), UA_STATUSCODE_GOOD);
 
     QCOMPARE(outputs.count(), 1);
     QCOMPARE(outputs.first().toString(), QStringLiteral("pump:3:0.5"));
@@ -499,7 +499,7 @@ void TestServicesIntegration::methodReceivesArgumentsInOrder()
 void TestServicesIntegration::voidMethodReceivesArgumentsInOrder()
 {
     QUaBaseObject *device = objects()->addBaseObject(QStringLiteral("device"));
-    m_created << device;
+    _created << device;
     const QUaNodeId methodId(1, QStringLiteral("device.configure"));
     QString lastName;
     int lastCount = 0;
@@ -509,7 +509,7 @@ void TestServicesIntegration::voidMethodReceivesArgumentsInOrder()
     }, methodId);
     QVariantList outputs;
 
-    QCOMPARE(m_client->call(device->nodeId(), methodId, { QStringLiteral("valve"), 7 }, outputs), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->call(device->nodeId(), methodId, { QStringLiteral("valve"), 7 }, outputs), UA_STATUSCODE_GOOD);
 
     QVERIFY(outputs.isEmpty());
     QCOMPARE(lastName, QStringLiteral("valve"));
@@ -528,12 +528,12 @@ int subtract(int minuend, int subtrahend)
 void TestServicesIntegration::functionPointerMethodRuns()
 {
     QUaBaseObject *calculator = objects()->addBaseObject(QStringLiteral("calculator"));
-    m_created << calculator;
+    _created << calculator;
     const QUaNodeId methodId(1, QStringLiteral("calculator.subtract"));
     calculator->addMethod(QStringLiteral("subtract"), &subtract, methodId);
     QVariantList outputs;
 
-    QCOMPARE(m_client->call(calculator->nodeId(), methodId, { 10, 4 }, outputs), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->call(calculator->nodeId(), methodId, { 10, 4 }, outputs), UA_STATUSCODE_GOOD);
 
     QCOMPARE(outputs.count(), 1);
     QCOMPARE(outputs.first().toInt(), 6);
@@ -545,7 +545,7 @@ void TestServicesIntegration::functionPointerMethodRuns()
 void TestServicesIntegration::methodTakesAndReturnsLists()
 {
     QUaBaseObject *calculator = objects()->addBaseObject(QStringLiteral("calculator"));
-    m_created << calculator;
+    _created << calculator;
     const QUaNodeId methodId(1, QStringLiteral("calculator.scale"));
     calculator->addMethod(QStringLiteral("scale"), [](QList<int> values, int factor) {
         QList<int> scaled;
@@ -557,7 +557,7 @@ void TestServicesIntegration::methodTakesAndReturnsLists()
     }, methodId);
     QVariantList outputs;
 
-    QCOMPARE(m_client->call(calculator->nodeId(), methodId, { QVariant::fromValue(QList<int>{ 1, 2, 3 }), 10 }, outputs),
+    QCOMPARE(_client->call(calculator->nodeId(), methodId, { QVariant::fromValue(QList<int>{ 1, 2, 3 }), 10 }, outputs),
              UA_STATUSCODE_GOOD);
 
     QCOMPARE(outputs.count(), 1);

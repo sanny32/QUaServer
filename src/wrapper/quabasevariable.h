@@ -195,7 +195,7 @@ signals:
 
 protected:
 	// cache type for performance
-	QMetaType::Type m_dataType;
+	QMetaType::Type _dataType;
 
 private:
 	static void onWrite(UA_Server             *server, 
@@ -235,15 +235,15 @@ private:
 	void runReadCallback();
 	void emitWriteSignals(const UA_DataValue &data);
 
-	bool m_bInternalWrite = false;
-	std::function<QVariant()> m_readCallback;
-	bool m_readCallbackRunning = false;
-	QUaWriteValidator m_writeValidator;
+	bool _bInternalWrite = false;
+	std::function<QVariant()> _readCallback;
+	bool _readCallbackRunning = false;
+	QUaWriteValidator _writeValidator;
 	// the value is kept here instead of in the node while a write validator is set
-	bool         m_bValueInCallbackSource = false;
-	UA_DataValue m_callbackSourceValue;
+	bool         _bValueInCallbackSource = false;
+	UA_DataValue _callbackSourceValue;
 #ifdef UA_ENABLE_HISTORIZING
-	quint64 m_maxHistoryDataResponseSize;
+	quint64 _maxHistoryDataResponseSize;
 #endif // UA_ENABLE_HISTORIZING
 
 protected:

@@ -28,11 +28,11 @@ private slots:
     void conditionRefresh2ValidatesIds();
 
 private:
-    QUaServer *m_server = nullptr;
-    TestClient *m_client = nullptr;
-    QUaBaseObject *m_sensor = nullptr;
-    QUaBaseDataVariable *m_moving = nullptr;
-    QUaOffNormalAlarm *m_alarm = nullptr;
+    QUaServer *_server = nullptr;
+    TestClient *_client = nullptr;
+    QUaBaseObject *_sensor = nullptr;
+    QUaBaseDataVariable *_moving = nullptr;
+    QUaOffNormalAlarm *_alarm = nullptr;
 
     static QList<QUaBrowsePath> selectClauses();
     QVariantList lastAlarmEvent(const QList<QVariantList> &events) const;
@@ -63,8 +63,8 @@ const QUaNodeId RefreshEndEventType(0, quint32(UA_NS0ID_REFRESHENDEVENTTYPE));
 ///
 void TestAlarmsIntegration::initTestCase()
 {
-    m_server = new QUaServer;
-    QVERIFY(TestServer::start(*m_server));
+    _server = new QUaServer;
+    QVERIFY(TestServer::start(*_server));
 }
 
 ///
@@ -72,8 +72,8 @@ void TestAlarmsIntegration::initTestCase()
 ///
 void TestAlarmsIntegration::cleanupTestCase()
 {
-    delete m_server;
-    m_server = nullptr;
+    delete _server;
+    _server = nullptr;
 }
 
 ///
@@ -81,18 +81,18 @@ void TestAlarmsIntegration::cleanupTestCase()
 ///
 void TestAlarmsIntegration::init()
 {
-    m_sensor = m_server->objectsFolder()->addBaseObject(QStringLiteral("sensor"));
-    m_sensor->setSubscribeToEvents(true);
-    m_moving = m_sensor->addBaseDataVariable(QStringLiteral("moving"));
-    m_moving->setDataType(QMetaType::Bool);
-    m_moving->setValue(false);
-    m_alarm = m_sensor->addChild<QUaOffNormalAlarm>(QStringLiteral("alarm"));
-    m_alarm->setConditionName(QStringLiteral("Motion"));
-    m_alarm->setInputNode(m_moving);
-    m_alarm->setNormalValue(false);
-    m_alarm->setEnabled(true);
-    m_client = new TestClient;
-    QCOMPARE(m_client->connect(TestServer::endpointUrl(*m_server)), UA_STATUSCODE_GOOD);
+    _sensor = _server->objectsFolder()->addBaseObject(QStringLiteral("sensor"));
+    _sensor->setSubscribeToEvents(true);
+    _moving = _sensor->addBaseDataVariable(QStringLiteral("moving"));
+    _moving->setDataType(QMetaType::Bool);
+    _moving->setValue(false);
+    _alarm = _sensor->addChild<QUaOffNormalAlarm>(QStringLiteral("alarm"));
+    _alarm->setConditionName(QStringLiteral("Motion"));
+    _alarm->setInputNode(_moving);
+    _alarm->setNormalValue(false);
+    _alarm->setEnabled(true);
+    _client = new TestClient;
+    QCOMPARE(_client->connect(TestServer::endpointUrl(*_server)), UA_STATUSCODE_GOOD);
 }
 
 ///
@@ -100,10 +100,10 @@ void TestAlarmsIntegration::init()
 ///
 void TestAlarmsIntegration::cleanup()
 {
-    delete m_client;
-    m_client = nullptr;
-    delete m_sensor;
-    m_sensor = nullptr;
+    delete _client;
+    _client = nullptr;
+    delete _sensor;
+    _sensor = nullptr;
 }
 
 ///
@@ -137,14 +137,14 @@ QVariantList TestAlarmsIntegration::lastAlarmEvent(const QList<QVariantList> &ev
 ///
 void TestAlarmsIntegration::abnormalInputActivatesAlarm()
 {
-    QSignalSpy activatedSpy(m_alarm, &QUaAlarmCondition::activated);
+    QSignalSpy activatedSpy(_alarm, &QUaAlarmCondition::activated);
 
-    m_moving->setValue(true);
+    _moving->setValue(true);
 
     QCOMPARE(activatedSpy.count(), 1);
-    QVERIFY(m_alarm->active());
-    QVERIFY(m_alarm->retain());
-    QVERIFY(!m_alarm->acknowledged());
+    QVERIFY(_alarm->active());
+    QVERIFY(_alarm->retain());
+    QVERIFY(!_alarm->acknowledged());
 }
 
 ///
@@ -152,13 +152,13 @@ void TestAlarmsIntegration::abnormalInputActivatesAlarm()
 ///
 void TestAlarmsIntegration::activationIsNotifiedToSubscribers()
 {
-    QCOMPARE(m_client->subscribeEvents(m_sensor->nodeId(), selectClauses()), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->subscribeEvents(_sensor->nodeId(), selectClauses()), UA_STATUSCODE_GOOD);
 
-    m_moving->setValue(true);
-    const QVariantList event = lastAlarmEvent(m_client->waitForEvents(1));
+    _moving->setValue(true);
+    const QVariantList event = lastAlarmEvent(_client->waitForEvents(1));
 
     QVERIFY(!event.isEmpty());
-    QCOMPARE(event.at(EventIdField).toByteArray(), m_alarm->eventId());
+    QCOMPARE(event.at(EventIdField).toByteArray(), _alarm->eventId());
     QCOMPARE(event.at(SourceNameField).toString(), QStringLiteral("sensor"));
     QCOMPARE(event.at(RetainField).toBool(), true);
 }
@@ -168,18 +168,18 @@ void TestAlarmsIntegration::activationIsNotifiedToSubscribers()
 ///
 void TestAlarmsIntegration::clientAcknowledgesAlarm()
 {
-    m_moving->setValue(true);
-    QSignalSpy ackSpy(m_alarm, &QUaAcknowledgeableCondition::conditionAcknowledged);
+    _moving->setValue(true);
+    QSignalSpy ackSpy(_alarm, &QUaAcknowledgeableCondition::conditionAcknowledged);
     QVariantList outputs;
 
-    const UA_StatusCode status = m_client->call(
-        m_alarm->nodeId(), AcknowledgeMethod,
-        { m_alarm->eventId(), QVariant::fromValue(QUaLocalizedText(QStringLiteral("seen"))) }, outputs);
+    const UA_StatusCode status = _client->call(
+        _alarm->nodeId(), AcknowledgeMethod,
+        { _alarm->eventId(), QVariant::fromValue(QUaLocalizedText(QStringLiteral("seen"))) }, outputs);
 
     QCOMPARE(status, UA_STATUSCODE_GOOD);
-    QVERIFY(m_alarm->acknowledged());
+    QVERIFY(_alarm->acknowledged());
     QCOMPARE(ackSpy.count(), 1);
-    QCOMPARE(m_alarm->comment().text(), QStringLiteral("seen"));
+    QCOMPARE(_alarm->comment().text(), QStringLiteral("seen"));
 }
 
 ///
@@ -187,13 +187,13 @@ void TestAlarmsIntegration::clientAcknowledgesAlarm()
 ///
 void TestAlarmsIntegration::secondAcknowledgeIsRejected()
 {
-    m_moving->setValue(true);
-    m_alarm->setAcknowledged(true);
+    _moving->setValue(true);
+    _alarm->setAcknowledged(true);
     QVariantList outputs;
 
-    const UA_StatusCode status = m_client->call(
-        m_alarm->nodeId(), AcknowledgeMethod,
-        { m_alarm->eventId(), QVariant::fromValue(QUaLocalizedText(QStringLiteral("again"))) }, outputs);
+    const UA_StatusCode status = _client->call(
+        _alarm->nodeId(), AcknowledgeMethod,
+        { _alarm->eventId(), QVariant::fromValue(QUaLocalizedText(QStringLiteral("again"))) }, outputs);
 
     QCOMPARE(status, UA_STATUSCODE_BADCONDITIONBRANCHALREADYACKED);
 }
@@ -203,16 +203,16 @@ void TestAlarmsIntegration::secondAcknowledgeIsRejected()
 ///
 void TestAlarmsIntegration::disabledAlarmRejectsAcknowledge()
 {
-    m_moving->setValue(true);
-    m_alarm->Disable();
+    _moving->setValue(true);
+    _alarm->Disable();
     QVariantList outputs;
 
-    const UA_StatusCode status = m_client->call(
-        m_alarm->nodeId(), AcknowledgeMethod,
-        { m_alarm->eventId(), QVariant::fromValue(QUaLocalizedText(QStringLiteral("late"))) }, outputs);
+    const UA_StatusCode status = _client->call(
+        _alarm->nodeId(), AcknowledgeMethod,
+        { _alarm->eventId(), QVariant::fromValue(QUaLocalizedText(QStringLiteral("late"))) }, outputs);
 
     QCOMPARE(status, UA_STATUSCODE_BADCONDITIONDISABLED);
-    QVERIFY(!m_alarm->acknowledged());
+    QVERIFY(!_alarm->acknowledged());
 }
 
 ///
@@ -220,13 +220,13 @@ void TestAlarmsIntegration::disabledAlarmRejectsAcknowledge()
 ///
 void TestAlarmsIntegration::acknowledgedAlarmReturningToNormalIsNotRetained()
 {
-    m_moving->setValue(true);
-    m_alarm->setAcknowledged(true);
+    _moving->setValue(true);
+    _alarm->setAcknowledged(true);
 
-    m_moving->setValue(false);
+    _moving->setValue(false);
 
-    QVERIFY(!m_alarm->active());
-    QVERIFY(!m_alarm->retain());
+    QVERIFY(!_alarm->active());
+    QVERIFY(!_alarm->retain());
 }
 
 ///
@@ -234,14 +234,14 @@ void TestAlarmsIntegration::acknowledgedAlarmReturningToNormalIsNotRetained()
 ///
 void TestAlarmsIntegration::conditionRefreshResendsRetainedAlarm()
 {
-    m_moving->setValue(true);
-    QCOMPARE(m_client->subscribeEvents(m_sensor->nodeId(), selectClauses()), UA_STATUSCODE_GOOD);
+    _moving->setValue(true);
+    QCOMPARE(_client->subscribeEvents(_sensor->nodeId(), selectClauses()), UA_STATUSCODE_GOOD);
     QVariantList outputs;
 
-    const UA_StatusCode status = m_client->call(ConditionType, ConditionRefreshMethod,
-                                                { m_client->subscriptionId() }, outputs);
+    const UA_StatusCode status = _client->call(ConditionType, ConditionRefreshMethod,
+                                                { _client->subscriptionId() }, outputs);
     QList<QUaNodeId> types;
-    for (const QVariantList &event : m_client->waitForEvents(3))
+    for (const QVariantList &event : _client->waitForEvents(3))
     {
         types << event.at(EventTypeField).value<QUaNodeId>();
     }
@@ -257,7 +257,7 @@ void TestAlarmsIntegration::conditionRefreshRejectsMissingSubscriptionId()
 {
     QVariantList outputs;
 
-    const UA_StatusCode status = m_client->call(ConditionType, ConditionRefreshMethod, {}, outputs);
+    const UA_StatusCode status = _client->call(ConditionType, ConditionRefreshMethod, {}, outputs);
 
     QVERIFY(status != UA_STATUSCODE_GOOD);
 }
@@ -267,13 +267,13 @@ void TestAlarmsIntegration::conditionRefreshRejectsMissingSubscriptionId()
 ///
 void TestAlarmsIntegration::conditionRefresh2ValidatesIds()
 {
-    QCOMPARE(m_client->subscribeEvents(m_sensor->nodeId(), selectClauses()), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->subscribeEvents(_sensor->nodeId(), selectClauses()), UA_STATUSCODE_GOOD);
     QVariantList outputs;
 
-    const UA_StatusCode badSubscription = m_client->call(
-        ConditionType, ConditionRefresh2Method, { m_client->subscriptionId() + 1000, 1u }, outputs);
-    const UA_StatusCode badItem = m_client->call(
-        ConditionType, ConditionRefresh2Method, { m_client->subscriptionId(), 99999u }, outputs);
+    const UA_StatusCode badSubscription = _client->call(
+        ConditionType, ConditionRefresh2Method, { _client->subscriptionId() + 1000, 1u }, outputs);
+    const UA_StatusCode badItem = _client->call(
+        ConditionType, ConditionRefresh2Method, { _client->subscriptionId(), 99999u }, outputs);
 
     QCOMPARE(badSubscription, UA_STATUSCODE_BADSUBSCRIPTIONIDINVALID);
     QCOMPARE(badItem, UA_STATUSCODE_BADMONITOREDITEMIDINVALID);

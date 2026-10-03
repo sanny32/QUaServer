@@ -73,7 +73,7 @@ signals:
 	void conditionConfirmed();
 
 protected:
-	bool m_confirmRequired;
+	bool _confirmRequired;
 	// LocalizedText
 	QUaTwoStateVariable* getAckedState();
 	// LocalizedText
@@ -86,10 +86,10 @@ protected:
 	// reimplement
 	virtual void resetInternals() override;
 
-	static QUaLocalizedText m_ackedStateTrueState;
-	static QUaLocalizedText m_ackedStateFalseState;
-	static QUaLocalizedText m_confirmedStateTrueState;
-	static QUaLocalizedText m_confirmedStateFalseState;
+	static QUaLocalizedText _ackedStateTrueState;
+	static QUaLocalizedText _ackedStateFalseState;
+	static QUaLocalizedText _confirmedStateTrueState;
+	static QUaLocalizedText _confirmedStateFalseState;
 
 };
 
@@ -116,7 +116,7 @@ public:
 	);
 
 protected:
-	bool m_confirmRequired;
+	bool _confirmRequired;
 
 	// reimplement
 	virtual bool requiresAttention() const override;

@@ -128,18 +128,18 @@ private:
 	};
 	// NOTE : use a map to store the data points of a single node, ordered by time
 	using DataPointTable = QMap<QDateTime, DataPoint>;
-	QHash<QUaNodeId, DataPointTable> m_database;
+	QHash<QUaNodeId, DataPointTable> _database;
 
 	// event history support
 #ifdef UA_ENABLE_SUBSCRIPTIONS_EVENTS
 	using QUaEventTypeTable = QHash<uint        /*EventKey*/, QUaHistoryEventPoint>;
 	using QUaEventTypeDatabase = QHash<QUaNodeId /*TypeNodeId*/, QUaEventTypeTable   >;
-	QUaEventTypeDatabase m_eventTypeDatabase;
+	QUaEventTypeDatabase _eventTypeDatabase;
 
 	using QUaEventEmitterTable = QMultiMap <QDateTime, uint     /*EventKey*/>;
 	using QUaEventTypeIndex = QHash     <QUaNodeId /*TypeNodeId*/, QUaEventEmitterTable >;
 	using QUaEventEmitterDatabase = QHash     <QUaNodeId  /*EmitterId*/, QUaEventTypeIndex    >;
-	QUaEventEmitterDatabase m_eventEmitterDatabase;
+	QUaEventEmitterDatabase _eventEmitterDatabase;
 #endif // UA_ENABLE_SUBSCRIPTIONS_EVENTS
 
 };

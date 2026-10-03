@@ -33,8 +33,8 @@ private slots:
     void eventOfOtherEmitterIsNotDelivered();
 
 private:
-    QUaServer *m_server = nullptr;
-    TestClient *m_client = nullptr;
+    QUaServer *_server = nullptr;
+    TestClient *_client = nullptr;
 
     static QList<QUaBrowsePath> selectClauses();
 };
@@ -57,9 +57,9 @@ enum Field
 ///
 void TestEventsIntegration::initTestCase()
 {
-    m_server = new QUaServer;
-    m_server->registerType<DoorEvent>(QUaNodeId(1, QStringLiteral("DoorEventType")));
-    QVERIFY(TestServer::start(*m_server));
+    _server = new QUaServer;
+    _server->registerType<DoorEvent>(QUaNodeId(1, QStringLiteral("DoorEventType")));
+    QVERIFY(TestServer::start(*_server));
 }
 
 ///
@@ -67,8 +67,8 @@ void TestEventsIntegration::initTestCase()
 ///
 void TestEventsIntegration::cleanupTestCase()
 {
-    delete m_server;
-    m_server = nullptr;
+    delete _server;
+    _server = nullptr;
 }
 
 ///
@@ -76,8 +76,8 @@ void TestEventsIntegration::cleanupTestCase()
 ///
 void TestEventsIntegration::init()
 {
-    m_client = new TestClient;
-    QCOMPARE(m_client->connect(TestServer::endpointUrl(*m_server)), UA_STATUSCODE_GOOD);
+    _client = new TestClient;
+    QCOMPARE(_client->connect(TestServer::endpointUrl(*_server)), UA_STATUSCODE_GOOD);
 }
 
 ///
@@ -85,8 +85,8 @@ void TestEventsIntegration::init()
 ///
 void TestEventsIntegration::cleanup()
 {
-    delete m_client;
-    m_client = nullptr;
+    delete _client;
+    _client = nullptr;
 }
 
 ///
@@ -106,15 +106,15 @@ QList<QUaBrowsePath> TestEventsIntegration::selectClauses()
 ///
 void TestEventsIntegration::serverEventReachesSubscriber()
 {
-    QCOMPARE(m_client->subscribeEvents(QUaNodeId(0, quint32(UA_NS0ID_SERVER)), selectClauses()), UA_STATUSCODE_GOOD);
-    DoorEvent *event = m_server->createEvent<DoorEvent>();
+    QCOMPARE(_client->subscribeEvents(QUaNodeId(0, quint32(UA_NS0ID_SERVER)), selectClauses()), UA_STATUSCODE_GOOD);
+    DoorEvent *event = _server->createEvent<DoorEvent>();
     QVERIFY(event);
     QSignalSpy triggeredSpy(event, &QUaBaseEvent::triggered);
     event->setMessage(QStringLiteral("Door opened"));
     event->setSeverity(600);
 
     event->trigger();
-    const QList<QVariantList> events = m_client->waitForEvents(1);
+    const QList<QVariantList> events = _client->waitForEvents(1);
 
     QCOMPARE(triggeredSpy.count(), 1);
     QCOMPARE(events.count(), 1);
@@ -131,13 +131,13 @@ void TestEventsIntegration::serverEventReachesSubscriber()
 ///
 void TestEventsIntegration::everyTriggerGetsNewEventId()
 {
-    QCOMPARE(m_client->subscribeEvents(QUaNodeId(0, quint32(UA_NS0ID_SERVER)), selectClauses()), UA_STATUSCODE_GOOD);
-    DoorEvent *event = m_server->createEvent<DoorEvent>();
+    QCOMPARE(_client->subscribeEvents(QUaNodeId(0, quint32(UA_NS0ID_SERVER)), selectClauses()), UA_STATUSCODE_GOOD);
+    DoorEvent *event = _server->createEvent<DoorEvent>();
 
     event->trigger();
     const QByteArray firstId = event->eventId();
     event->trigger();
-    const QList<QVariantList> events = m_client->waitForEvents(2);
+    const QList<QVariantList> events = _client->waitForEvents(2);
 
     QCOMPARE(events.count(), 2);
     QVERIFY(firstId != event->eventId());
@@ -151,15 +151,15 @@ void TestEventsIntegration::everyTriggerGetsNewEventId()
 ///
 void TestEventsIntegration::objectEventCarriesItsSource()
 {
-    QUaBaseObject *door = m_server->objectsFolder()->addBaseObject(QStringLiteral("door"),
+    QUaBaseObject *door = _server->objectsFolder()->addBaseObject(QStringLiteral("door"),
                                                                     QUaNodeId(1, QStringLiteral("door")));
     door->setSubscribeToEvents(true);
-    QCOMPARE(m_client->subscribeEvents(door->nodeId(), selectClauses()), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->subscribeEvents(door->nodeId(), selectClauses()), UA_STATUSCODE_GOOD);
     DoorEvent *event = door->createEvent<DoorEvent>();
 
     QCOMPARE(event->sourceNode(), door->nodeId());
     event->trigger();
-    const QList<QVariantList> events = m_client->waitForEvents(1);
+    const QList<QVariantList> events = _client->waitForEvents(1);
 
     QCOMPARE(events.count(), 1);
     QCOMPARE(events.first().at(SourceNameField).toString(), QStringLiteral("door"));
@@ -171,16 +171,16 @@ void TestEventsIntegration::objectEventCarriesItsSource()
 ///
 void TestEventsIntegration::eventOfOtherEmitterIsNotDelivered()
 {
-    QUaBaseObject *watched = m_server->objectsFolder()->addBaseObject(QStringLiteral("watched"));
-    QUaBaseObject *other = m_server->objectsFolder()->addBaseObject(QStringLiteral("other"));
+    QUaBaseObject *watched = _server->objectsFolder()->addBaseObject(QStringLiteral("watched"));
+    QUaBaseObject *other = _server->objectsFolder()->addBaseObject(QStringLiteral("other"));
     watched->setSubscribeToEvents(true);
     other->setSubscribeToEvents(true);
-    QCOMPARE(m_client->subscribeEvents(watched->nodeId(), selectClauses()), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->subscribeEvents(watched->nodeId(), selectClauses()), UA_STATUSCODE_GOOD);
     DoorEvent *event = other->createEvent<DoorEvent>();
 
     event->trigger();
 
-    QVERIFY(m_client->waitForEvents(1, 500).isEmpty());
+    QVERIFY(_client->waitForEvents(1, 500).isEmpty());
     delete watched;
     delete other;
 }

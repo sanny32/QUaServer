@@ -297,7 +297,7 @@ signals:
 
 protected:
 	// to be able to reuse methods in subclasses
-	QUaServer* m_qUaServer;
+	QUaServer* _qUaServer;
 	// to check which session is calling a service (read, write, method call, etc)
 	const QUaSession* currentSession() const;
 	// instatiate child with optional modelling rule
@@ -313,18 +313,18 @@ protected:
 
 private:
 	// INSTANCE NodeId
-	UA_NodeId m_nodeId;
+	UA_NodeId _nodeId;
 	// keep a cache since it does not change much
-	QUaNodeId m_typeDefinitionNodeId;
-	static QHash<QUaNodeId, QUaQualifiedName> m_hashTypeBrowseNames;
+	QUaNodeId _typeDefinitionNodeId;
+	static QHash<QUaNodeId, QUaQualifiedName> _hashTypeBrowseNames;
 	// with new open62541, browseName is inmutable and reading it is kind of expensive
-	QUaQualifiedName m_browseName;
+	QUaQualifiedName _browseName;
 	// browse hierarchical children cache
 	// NOTE : use uint as key because is cheaper to cache in QObject::destroyed
 	// lambda callback than the browseName. We need to cache because by the time the
 	// QUaNode destructor is called, the browseName is already unavailable from open62541
 	// TODO : consider removing after testing new open62541 tree implementation
-	QHash<uint, QUaNode*> m_browseCache;
+	QHash<uint, QUaNode*> _browseCache;
 
 	// Static Helpers
 
@@ -356,7 +356,7 @@ private:
 	// NOTE : open62541 sets non-QUaNode contexts in some nodes (e.g. diagnostics),
 	//        so a void context is only cast to QUaNode if it is a live instance
 	static QUaNode* fromVoidContext(void* context);
-	static QSet<const void*> m_liveNodes;
+	static QSet<const void*> _liveNodes;
 
 	static QUaQualifiedName getBrowseName(const UA_NodeId& nodeId, UA_Server* server);
 
@@ -429,9 +429,9 @@ private:
 	template<typename T>
 	bool deserializeEnd(T& deserializer, QQueue<QUaLog>& logOut);
 
-	std::function<QUaWriteMask(const QString&)> m_userWriteMaskCallback;
-	std::function<QUaAccessLevel(const QString&)> m_userAccessLevelCallback;
-	std::function<bool(const QString&)> m_userExecutableCallback;
+	std::function<QUaWriteMask(const QString&)> _userWriteMaskCallback;
+	std::function<QUaAccessLevel(const QString&)> _userAccessLevelCallback;
+	std::function<bool(const QString&)> _userExecutableCallback;
 };
 
 template<typename T>
@@ -485,7 +485,7 @@ inline QList<T*> QUaNode::findReferences(const QUaReferenceType&ref, const bool 
 template<typename M>
 inline void QUaNode::setUserWriteMaskCallback(const M & callback)
 {
-	m_userWriteMaskCallback = [callback](const QString &strUserName) {
+	_userWriteMaskCallback = [callback](const QString &strUserName) {
 		return callback(strUserName);
 	};
 }
@@ -493,7 +493,7 @@ inline void QUaNode::setUserWriteMaskCallback(const M & callback)
 template<typename M>
 inline void QUaNode::setUserAccessLevelCallback(const M & callback)
 {
-	m_userAccessLevelCallback = [callback](const QString &strUserName) {
+	_userAccessLevelCallback = [callback](const QString &strUserName) {
 		return callback(strUserName);
 	};
 }
@@ -501,7 +501,7 @@ inline void QUaNode::setUserAccessLevelCallback(const M & callback)
 template<typename M>
 inline void QUaNode::setUserExecutableCallback(const M & callback)
 {
-	m_userExecutableCallback = [callback](const QString &strUserName) {
+	_userExecutableCallback = [callback](const QString &strUserName) {
 		return callback(strUserName);
 	};
 }

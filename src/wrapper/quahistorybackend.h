@@ -158,18 +158,18 @@ private:
 
 	// static and unique since implementation is instance independent
 	static UA_HistoryDataBackend CreateUaBackend();
-	static UA_HistoryDataBackend m_historUaBackend;
+	static UA_HistoryDataBackend _historUaBackend;
 
 	// lambdas to capture historizer
-	std::function<bool(const QUaNodeId&, const QUaHistoryDataPoint&, QQueue<QUaLog>&)> m_writeHistoryData;
-	std::function<bool(const QUaNodeId&, const QUaHistoryDataPoint&, QQueue<QUaLog>&)> m_updateHistoryData;
-	std::function<bool(const QUaNodeId&, const QDateTime&, const QDateTime&, QQueue<QUaLog>&)> m_removeHistoryData;
-	std::function<QDateTime(const QUaNodeId&, QQueue<QUaLog>&)> m_firstTimestamp;
-	std::function<QDateTime(const QUaNodeId&, QQueue<QUaLog>&)> m_lastTimestamp;
-	std::function<bool(const QUaNodeId&, const QDateTime&, QQueue<QUaLog>&)> m_hasTimestamp;
-	std::function<QDateTime(const QUaNodeId&, const QDateTime&, const TimeMatch&, QQueue<QUaLog>&)> m_findTimestamp;
-	std::function<quint64(const QUaNodeId&, const QDateTime&, const QDateTime&, QQueue<QUaLog>&)> m_numDataPointsInRange;
-	std::function<QVector<QUaHistoryDataPoint>(const QUaNodeId&, const QDateTime&, const quint64&, const quint64&, QQueue<QUaLog>&)> m_readHistoryData;
+	std::function<bool(const QUaNodeId&, const QUaHistoryDataPoint&, QQueue<QUaLog>&)> _writeHistoryData;
+	std::function<bool(const QUaNodeId&, const QUaHistoryDataPoint&, QQueue<QUaLog>&)> _updateHistoryData;
+	std::function<bool(const QUaNodeId&, const QDateTime&, const QDateTime&, QQueue<QUaLog>&)> _removeHistoryData;
+	std::function<QDateTime(const QUaNodeId&, QQueue<QUaLog>&)> _firstTimestamp;
+	std::function<QDateTime(const QUaNodeId&, QQueue<QUaLog>&)> _lastTimestamp;
+	std::function<bool(const QUaNodeId&, const QDateTime&, QQueue<QUaLog>&)> _hasTimestamp;
+	std::function<QDateTime(const QUaNodeId&, const QDateTime&, const TimeMatch&, QQueue<QUaLog>&)> _findTimestamp;
+	std::function<quint64(const QUaNodeId&, const QDateTime&, const QDateTime&, QQueue<QUaLog>&)> _numDataPointsInRange;
+	std::function<QVector<QUaHistoryDataPoint>(const QUaNodeId&, const QDateTime&, const quint64&, const quint64&, QQueue<QUaLog>&)> _readHistoryData;
 
 	// event history support
 #ifdef UA_ENABLE_SUBSCRIPTIONS_EVENTS
@@ -178,25 +178,25 @@ private:
 		const QList<QUaNodeId>     &,
 		const QUaHistoryEventPoint &,
 		QQueue<QUaLog>             &
-	)> m_writeHistoryEventsOfType;
+	)> _writeHistoryEventsOfType;
 	std::function<QVector<QUaNodeId>(
 		const QUaNodeId &,
 		QQueue<QUaLog>  &
-	)> m_eventTypesOfEmitter;
+	)> _eventTypesOfEmitter;
 	std::function<QDateTime(
 		const QUaNodeId                    &,
 		const QUaNodeId                    &,
 		const QDateTime                    &,
 		const QUaHistoryBackend::TimeMatch &,
 		QQueue<QUaLog>                     &
-	)> m_findTimestampEventOfType;
+	)> _findTimestampEventOfType;
 	std::function<quint64(
 		const QUaNodeId &,
 		const QUaNodeId &,
 		const QDateTime &,
 		const QDateTime &,
 		QQueue<QUaLog>  &
-	)> m_numEventsOfTypeInRange;
+	)> _numEventsOfTypeInRange;
 	std::function<QVector<QUaHistoryEventPoint>(
 		const QUaNodeId &,
 		const QUaNodeId &,
@@ -205,7 +205,7 @@ private:
 		const quint64   &,
 		const QList<QUaBrowsePath> &,
 		QQueue<QUaLog>  &
-	)> m_readHistoryEventsOfType;
+	)> _readHistoryEventsOfType;
 
     static bool setEvent(
 		QUaServer*                  server,
@@ -235,7 +235,7 @@ template<typename T>
 inline void QUaHistoryBackend::setHistorizer(T& historizer)
 {
 	// writeHistoryData
-	m_writeHistoryData = [&historizer](
+	_writeHistoryData = [&historizer](
 		const QUaNodeId &nodeId,
 		const QUaHistoryDataPoint &dataPoint,
 		QQueue<QUaLog>  &logOut
@@ -247,7 +247,7 @@ inline void QUaHistoryBackend::setHistorizer(T& historizer)
 			);
 	};
 	// updateHistoryData
-	m_updateHistoryData = [&historizer](
+	_updateHistoryData = [&historizer](
 		const QUaNodeId &nodeId,
 		const QUaHistoryDataPoint &dataPoint,
 		QQueue<QUaLog>  &logOut
@@ -259,7 +259,7 @@ inline void QUaHistoryBackend::setHistorizer(T& historizer)
 			);
 	};
 	// removeHistoryData
-	m_removeHistoryData = [&historizer](
+	_removeHistoryData = [&historizer](
 		const QUaNodeId &nodeId,
 		const QDateTime &timeStart,
 		const QDateTime &timeEnd,
@@ -273,7 +273,7 @@ inline void QUaHistoryBackend::setHistorizer(T& historizer)
 			);
 	};
 	// firstTimestamp
-	m_firstTimestamp = [&historizer](
+	_firstTimestamp = [&historizer](
 		const QUaNodeId &nodeId,
 		QQueue<QUaLog> &logOut
 		) -> QDateTime {
@@ -283,7 +283,7 @@ inline void QUaHistoryBackend::setHistorizer(T& historizer)
 			);
 	};
 	// lastTimestamp
-	m_lastTimestamp = [&historizer](
+	_lastTimestamp = [&historizer](
 		const QUaNodeId &nodeId,
 		QQueue<QUaLog> &logOut
 		) -> QDateTime {
@@ -293,7 +293,7 @@ inline void QUaHistoryBackend::setHistorizer(T& historizer)
 			);
 	};
 	// hasTimestamp
-	m_hasTimestamp = [&historizer](
+	_hasTimestamp = [&historizer](
 		const QUaNodeId &nodeId,
 		const QDateTime &timestamp,
 		QQueue<QUaLog>  &logOut
@@ -305,7 +305,7 @@ inline void QUaHistoryBackend::setHistorizer(T& historizer)
 			);
 	};
 	// findTimestamp
-	m_findTimestamp = [&historizer](
+	_findTimestamp = [&historizer](
 		const QUaNodeId &nodeId,
 		const QDateTime &timestamp,
 		const TimeMatch &match,
@@ -319,7 +319,7 @@ inline void QUaHistoryBackend::setHistorizer(T& historizer)
 			);
 	};
 	// numDataPointsInRange
-	m_numDataPointsInRange = [&historizer](
+	_numDataPointsInRange = [&historizer](
 		const QUaNodeId &nodeId, 
 		const QDateTime &timeStart, 
 		const QDateTime &timeEnd,
@@ -333,7 +333,7 @@ inline void QUaHistoryBackend::setHistorizer(T& historizer)
 			);
 	};
 	// readHistoryData
-	m_readHistoryData = [&historizer](
+	_readHistoryData = [&historizer](
 		const QUaNodeId &nodeId, 
 		const QDateTime &timeStart, 
 		const quint64   &numPointsOffset,
@@ -352,7 +352,7 @@ inline void QUaHistoryBackend::setHistorizer(T& historizer)
 	// event history support
 #ifdef UA_ENABLE_SUBSCRIPTIONS_EVENTS
 	// writeHistoryEventsOfType
-	m_writeHistoryEventsOfType = [&historizer](
+	_writeHistoryEventsOfType = [&historizer](
 		const QUaNodeId            &eventTypeNodeId,
 		const QList<QUaNodeId>     &emittersNodeIds,
 		const QUaHistoryEventPoint &eventPoint,
@@ -366,7 +366,7 @@ inline void QUaHistoryBackend::setHistorizer(T& historizer)
 			);
 	};
 	// findTimestampEventOfType
-	m_findTimestampEventOfType = [&historizer](
+	_findTimestampEventOfType = [&historizer](
 		const QUaNodeId                    &emitterNodeId,
 		const QUaNodeId                    &eventTypeNodeId,
 		const QDateTime                    &timestamp,
@@ -382,7 +382,7 @@ inline void QUaHistoryBackend::setHistorizer(T& historizer)
 			);
 	};
 	// eventTypesOfEmitter
-	m_eventTypesOfEmitter = [&historizer](
+	_eventTypesOfEmitter = [&historizer](
 		const QUaNodeId &emitterNodeId,
 		QQueue<QUaLog>  &logOut
 	) -> QVector<QUaNodeId> {
@@ -392,7 +392,7 @@ inline void QUaHistoryBackend::setHistorizer(T& historizer)
 			);
 	};
 	// numEventsOfTypeInRange
-	m_numEventsOfTypeInRange = [&historizer](
+	_numEventsOfTypeInRange = [&historizer](
 		const QUaNodeId &emitterNodeId,
 		const QUaNodeId &eventTypeNodeId,
 		const QDateTime &timeStart,
@@ -409,7 +409,7 @@ inline void QUaHistoryBackend::setHistorizer(T& historizer)
 		);
 	};
 	// readHistoryEventsOfType
-	m_readHistoryEventsOfType = [&historizer](
+	_readHistoryEventsOfType = [&historizer](
 		const QUaNodeId &emitterNodeId,
 		const QUaNodeId &eventTypeNodeId,
 		const QDateTime &timeStart,

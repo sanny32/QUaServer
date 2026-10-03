@@ -39,10 +39,10 @@ private slots:
 #endif // UA_ENABLE_SUBSCRIPTIONS_EVENTS
 
 private:
-    QUaInMemoryHistorizer m_historizer;
-    QUaServer *m_server = nullptr;
-    TestClient *m_client = nullptr;
-    QList<QUaNode *> m_created;
+    QUaInMemoryHistorizer _historizer;
+    QUaServer *_server = nullptr;
+    TestClient *_client = nullptr;
+    QList<QUaNode *> _created;
 
     QUaBaseDataVariable *addHistorizedVariable(const QString &name);
 };
@@ -52,13 +52,13 @@ private:
 ///
 void TestHistoryIntegration::initTestCase()
 {
-    m_server = new QUaServer;
-    m_server->setHistorizer(m_historizer);
+    _server = new QUaServer;
+    _server->setHistorizer(_historizer);
 #ifdef UA_ENABLE_SUBSCRIPTIONS_EVENTS
-    m_server->registerType<ShiftEvent>();
-    m_server->setEventHistoryRead(true);
+    _server->registerType<ShiftEvent>();
+    _server->setEventHistoryRead(true);
 #endif // UA_ENABLE_SUBSCRIPTIONS_EVENTS
-    QVERIFY(TestServer::start(*m_server));
+    QVERIFY(TestServer::start(*_server));
 }
 
 ///
@@ -66,8 +66,8 @@ void TestHistoryIntegration::initTestCase()
 ///
 void TestHistoryIntegration::cleanupTestCase()
 {
-    delete m_server;
-    m_server = nullptr;
+    delete _server;
+    _server = nullptr;
 }
 
 ///
@@ -75,8 +75,8 @@ void TestHistoryIntegration::cleanupTestCase()
 ///
 void TestHistoryIntegration::init()
 {
-    m_client = new TestClient;
-    QCOMPARE(m_client->connect(TestServer::endpointUrl(*m_server)), UA_STATUSCODE_GOOD);
+    _client = new TestClient;
+    QCOMPARE(_client->connect(TestServer::endpointUrl(*_server)), UA_STATUSCODE_GOOD);
 }
 
 ///
@@ -84,12 +84,12 @@ void TestHistoryIntegration::init()
 ///
 void TestHistoryIntegration::cleanup()
 {
-    delete m_client;
-    m_client = nullptr;
-    qDeleteAll(m_created);
-    m_created.clear();
+    delete _client;
+    _client = nullptr;
+    qDeleteAll(_created);
+    _created.clear();
 #ifdef UA_ENABLE_SUBSCRIPTIONS_EVENTS
-    m_server->setMaxHistoryEventResponseSize(1000);
+    _server->setMaxHistoryEventResponseSize(1000);
 #endif // UA_ENABLE_SUBSCRIPTIONS_EVENTS
 }
 
@@ -98,11 +98,11 @@ void TestHistoryIntegration::cleanup()
 ///
 QUaBaseDataVariable *TestHistoryIntegration::addHistorizedVariable(const QString &name)
 {
-    QUaBaseDataVariable *variable = m_server->objectsFolder()->addBaseDataVariable(name, QUaNodeId(1, name));
+    QUaBaseDataVariable *variable = _server->objectsFolder()->addBaseDataVariable(name, QUaNodeId(1, name));
     variable->setDataType(QMetaType::Int);
     variable->setHistorizing(true);
     variable->setReadHistoryAccess(true);
-    m_created << variable;
+    _created << variable;
     return variable;
 }
 
@@ -144,7 +144,7 @@ void TestHistoryIntegration::rawHistoryReturnsWrittenValues()
     writeSeries(variable, { 10, 20, 30, 40 });
     QVariantList values;
 
-    QCOMPARE(m_client->readHistoryRaw(variable->nodeId(), 0, values), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->readHistoryRaw(variable->nodeId(), 0, values), UA_STATUSCODE_GOOD);
 
     QCOMPARE(toInts(values), QList<int>({ 10, 20, 30, 40 }));
 }
@@ -158,7 +158,7 @@ void TestHistoryIntegration::requestedPageSizeIsHonoured()
     writeSeries(variable, { 1, 2, 3, 4, 5 });
     QVariantList values;
 
-    QCOMPARE(m_client->readHistoryRaw(variable->nodeId(), 2, values), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->readHistoryRaw(variable->nodeId(), 2, values), UA_STATUSCODE_GOOD);
 
     QCOMPARE(toInts(values), QList<int>({ 1, 2 }));
 }
@@ -173,7 +173,7 @@ void TestHistoryIntegration::variableWithoutHistoryAccessIsRefused()
     variable->setReadHistoryAccess(false);
     QVariantList values;
 
-    const UA_StatusCode status = m_client->readHistoryRaw(variable->nodeId(), 0, values);
+    const UA_StatusCode status = _client->readHistoryRaw(variable->nodeId(), 0, values);
 
     QVERIFY(status != UA_STATUSCODE_GOOD);
     QVERIFY(values.isEmpty());
@@ -191,11 +191,11 @@ void TestHistoryIntegration::onlyAcceptedClientWritesAreHistorized()
     });
     QVariantList values;
 
-    QCOMPARE(m_client->writeValue(variable->nodeId(), 5), UA_STATUSCODE_GOOD);
-    QCOMPARE(m_client->writeValue(variable->nodeId(), -1), UA_STATUSCODE_BADOUTOFRANGE);
-    QCOMPARE(m_client->writeValue(variable->nodeId(), 7), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->writeValue(variable->nodeId(), 5), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->writeValue(variable->nodeId(), -1), UA_STATUSCODE_BADOUTOFRANGE);
+    QCOMPARE(_client->writeValue(variable->nodeId(), 7), UA_STATUSCODE_GOOD);
 
-    QCOMPARE(m_client->readHistoryRaw(variable->nodeId(), 0, values), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->readHistoryRaw(variable->nodeId(), 0, values), UA_STATUSCODE_GOOD);
     QCOMPARE(toInts(values), QList<int>({ 5, 7 }));
 }
 
@@ -230,11 +230,11 @@ const QList<QUaBrowsePath> messageClause = { { QUaQualifiedName(0, QStringLitera
 ///
 void TestHistoryIntegration::eventHistoryReturnsTriggeredEvents()
 {
-    QUaBaseObject *emitter = addEmitterWithEvents(m_server, QStringLiteral("line"), 3);
-    m_created << emitter;
+    QUaBaseObject *emitter = addEmitterWithEvents(_server, QStringLiteral("line"), 3);
+    _created << emitter;
     QList<QVariantList> events;
 
-    QCOMPARE(m_client->readHistoryEvents(emitter->nodeId(), messageClause, 0, events), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->readHistoryEvents(emitter->nodeId(), messageClause, 0, events), UA_STATUSCODE_GOOD);
 
     QCOMPARE(events.count(), 3);
     QCOMPARE(events.first().first().value<QUaLocalizedText>().text(), QStringLiteral("shift 0"));
@@ -246,12 +246,12 @@ void TestHistoryIntegration::eventHistoryReturnsTriggeredEvents()
 ///
 void TestHistoryIntegration::serverLimitAppliesWhenClientAsksForAllEvents()
 {
-    QUaBaseObject *emitter = addEmitterWithEvents(m_server, QStringLiteral("press"), 5);
-    m_created << emitter;
-    m_server->setMaxHistoryEventResponseSize(2);
+    QUaBaseObject *emitter = addEmitterWithEvents(_server, QStringLiteral("press"), 5);
+    _created << emitter;
+    _server->setMaxHistoryEventResponseSize(2);
     QList<QVariantList> events;
 
-    QCOMPARE(m_client->readHistoryEvents(emitter->nodeId(), messageClause, 0, events), UA_STATUSCODE_GOOD);
+    QCOMPARE(_client->readHistoryEvents(emitter->nodeId(), messageClause, 0, events), UA_STATUSCODE_GOOD);
 
     QCOMPARE(events.count(), 2);
 }

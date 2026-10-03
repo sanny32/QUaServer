@@ -4,7 +4,7 @@
 #include <QSqlRecord>
 
 // map supported types
-QHash<int, QString> QUaSqliteSerializer::m_hashTypes = {
+QHash<int, QString> QUaSqliteSerializer::_hashTypes = {
 	{QMetaType::Bool           , "INTEGER"},
 	{QMetaType::Char           , "INTEGER"},
 	{QMetaType::SChar          , "INTEGER"},
@@ -38,7 +38,7 @@ QUaSqliteSerializer::QUaSqliteSerializer()
 
 QString QUaSqliteSerializer::sqliteDbName() const
 {
-	return m_strSqliteDbName;
+	return _strSqliteDbName;
 }
 
 bool QUaSqliteSerializer::setSqliteDbName(
@@ -46,7 +46,7 @@ bool QUaSqliteSerializer::setSqliteDbName(
 	QQueue<QUaLog>& logOut)
 {
 	// set internally
-	m_strSqliteDbName = strSqliteDbName;
+	_strSqliteDbName = strSqliteDbName;
 	// create and test open database handle
 	QSqlDatabase db;
 	if (!this->getOpenedDatabase(db, logOut))
@@ -62,7 +62,7 @@ bool QUaSqliteSerializer::setSqliteDbName(
 bool QUaSqliteSerializer::serializeStart(QQueue<QUaLog>& logOut)
 {
 	// cleanup
-	m_prepStmts.clear();
+	_prepStmts.clear();
 	// get database handle
 	QSqlDatabase db;
 	if (!this->getOpenedDatabase(db, logOut))
@@ -75,7 +75,7 @@ bool QUaSqliteSerializer::serializeStart(QQueue<QUaLog>& logOut)
 	{
 		logOut << QUaLog({
 			QObject::tr("Failed to begin transaction in %1 database. Sql : %2.")
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(db.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
@@ -124,7 +124,7 @@ bool QUaSqliteSerializer::serializeEnd(QQueue<QUaLog>& logOut)
 	{
 		logOut << QUaLog({
 			QObject::tr("Failed to commit transaction in %1 database. Sql : %2.")
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(db.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
@@ -134,7 +134,7 @@ bool QUaSqliteSerializer::serializeEnd(QQueue<QUaLog>& logOut)
 	// close database
 	db.close();
 	// cleanup
-	m_prepStmts.clear();
+	_prepStmts.clear();
 	return true;
 }
 
@@ -231,7 +231,7 @@ bool QUaSqliteSerializer::writeInstance(
 bool QUaSqliteSerializer::deserializeStart(QQueue<QUaLog>& logOut)
 {
 	// cleanup
-	m_prepStmts.clear();
+	_prepStmts.clear();
 	// get database handle
 	QSqlDatabase db;
 	if (!this->getOpenedDatabase(db, logOut))
@@ -253,7 +253,7 @@ bool QUaSqliteSerializer::deserializeEnd(QQueue<QUaLog>& logOut)
 	// close database
 	db.close();
 	// cleanup
-	m_prepStmts.clear();
+	_prepStmts.clear();
 	return true;
 }
 
@@ -290,15 +290,15 @@ bool QUaSqliteSerializer::getOpenedDatabase(
 )
 {
 	// add if not added
-	if (QSqlDatabase::contains(m_strSqliteDbName))
+	if (QSqlDatabase::contains(_strSqliteDbName))
 	{
-		db = QSqlDatabase::database(m_strSqliteDbName, true);
+		db = QSqlDatabase::database(_strSqliteDbName, true);
 	}
 	else
 	{
-		db = QSqlDatabase::addDatabase("QSQLITE", m_strSqliteDbName);
+		db = QSqlDatabase::addDatabase("QSQLITE", _strSqliteDbName);
 		// the database name is not the connection name
-		db.setDatabaseName(m_strSqliteDbName);
+		db.setDatabaseName(_strSqliteDbName);
 		db.open();
 	}
 	// check if opened correctly
@@ -306,7 +306,7 @@ bool QUaSqliteSerializer::getOpenedDatabase(
 	{
 		logOut << QUaLog({
 			QObject::tr("Error opening %1. Stopped (de)serialization. Sql : %2")
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(db.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
@@ -325,7 +325,7 @@ bool QUaSqliteSerializer::tableExists(
 	Q_UNUSED(logOut);
 	// save time by using cache instead of SQL
 	Q_UNUSED(db);
-	tableExists = m_prepStmts.contains(strTableName);
+	tableExists = _prepStmts.contains(strTableName);
 	return true;
 }
 
@@ -346,7 +346,7 @@ bool QUaSqliteSerializer::createNodesTable(
 	{
 		logOut << QUaLog({
 			QObject::tr("Could not create QUaNode table in %1 database. Sql : %2.")
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
@@ -358,7 +358,7 @@ bool QUaSqliteSerializer::createNodesTable(
 	{
 		logOut << QUaLog({
 			QObject::tr("Could not create nodeId index on QUaNode table in %1 database. Sql : %2.")
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
@@ -374,7 +374,7 @@ bool QUaSqliteSerializer::createNodesTable(
 		logOut << QUaLog({
 			QObject::tr("Error preparing statement %1 for %2 database. Sql : %3.")
 				.arg(strStmt)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
@@ -382,7 +382,7 @@ bool QUaSqliteSerializer::createNodesTable(
 		return false;
 	}
 	// cache prepared statement
-	m_prepStmts["QUaNode"] = std::move(query);
+	_prepStmts["QUaNode"] = std::move(query);
 	return true;
 }
 
@@ -409,7 +409,7 @@ bool QUaSqliteSerializer::createReferencesTable(
 		logOut << QUaLog({
 			QObject::tr("Could not create %1 table in %2 database. Sql : %3.")
 				.arg("QUaForwardReference")
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
@@ -421,7 +421,7 @@ bool QUaSqliteSerializer::createReferencesTable(
 	{
 		logOut << QUaLog({
 			QObject::tr("Could not create QUaForwardReference_QUaNodeId index on QUaForwardReference table in %1 database. Sql : %2.")
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
@@ -440,7 +440,7 @@ bool QUaSqliteSerializer::createReferencesTable(
 		logOut << QUaLog({
 			QObject::tr("Error preparing statement %1 for %2 database. Sql : %3.")
 				.arg(strStmt)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
@@ -448,7 +448,7 @@ bool QUaSqliteSerializer::createReferencesTable(
 		return false;
 	}
 	// cache prepared statement
-	m_prepStmts["QUaForwardReference"] = std::move(query);
+	_prepStmts["QUaForwardReference"] = std::move(query);
 	return true;
 }
 
@@ -483,7 +483,7 @@ bool QUaSqliteSerializer::createTypeTable(
 		logOut << QUaLog({
 			QObject::tr("Could not create %1 table in %2 database. Stopped serialization. Sql : %3.")
 				.arg(typeName)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
@@ -497,7 +497,7 @@ bool QUaSqliteSerializer::createTypeTable(
 		logOut << QUaLog({
 			QObject::tr("Could not create %1_QUaNodeId index on %1 table in %2 database. Stopped serialization. Sql : %3.")
 				.arg(typeName)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
@@ -525,7 +525,7 @@ bool QUaSqliteSerializer::createTypeTable(
 		logOut << QUaLog({
 			QObject::tr("Error preparing statement %1 for %2 database. Stopped serialization. Sql : %3.")
 				.arg(strStmt)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
@@ -533,7 +533,7 @@ bool QUaSqliteSerializer::createTypeTable(
 		return false;
 	}
 	// cache prepared statement
-	m_prepStmts[typeName] = std::move(query);
+	_prepStmts[typeName] = std::move(query);
 	return true;
 }
 
@@ -565,7 +565,7 @@ bool QUaSqliteSerializer::nodeIdInTypeTable(
 		logOut << QUaLog({
 			QObject::tr("Error querying %1 table in %2 database. Stopped serialization. Sql : %3.")
 				.arg(typeName)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
@@ -595,14 +595,14 @@ bool QUaSqliteSerializer::insertNewNode(
 	QQueue<QUaLog>& logOut)
 {
 	Q_ASSERT(db.isValid() && db.isOpen());
-	Q_ASSERT(m_prepStmts.contains("QUaNode"));
-	QSqlQuery& query = m_prepStmts["QUaNode"];
+	Q_ASSERT(_prepStmts.contains("QUaNode"));
+	QSqlQuery& query = _prepStmts["QUaNode"];
 	query.bindValue(0, nodeId.toXmlString());
 	if (!query.exec())
 	{
 		logOut << QUaLog({
 			QObject::tr("Could not insert new row in QUaNode table in %1 database. Sql : %2.")
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
@@ -622,10 +622,10 @@ bool QUaSqliteSerializer::insertNewInstance(
 	QQueue<QUaLog>& logOut)
 {
 	Q_ASSERT(db.isValid() && db.isOpen());
-	Q_ASSERT(m_prepStmts.contains(typeName));
+	Q_ASSERT(_prepStmts.contains(typeName));
 	QList<QString> attrNames = attrs.keys();
 	attrNames.prepend("QUaNodeId");
-	QSqlQuery& query = m_prepStmts[typeName];
+	QSqlQuery& query = _prepStmts[typeName];
 	query.bindValue(0, nodeKey);
 	for (int i = 1; i < attrNames.count(); i++)
 	{
@@ -639,7 +639,7 @@ bool QUaSqliteSerializer::insertNewInstance(
 		logOut << QUaLog({
 			QObject::tr("Could not insert new row in %1 table in %2 database. Sql : %3.")
 				.arg(typeName)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
@@ -656,8 +656,8 @@ bool QUaSqliteSerializer::addReferences(
 	QQueue<QUaLog>& logOut)
 {
 	Q_ASSERT(db.isValid() && db.isOpen());
-	Q_ASSERT(m_prepStmts.contains("QUaForwardReference"));
-	QSqlQuery& query = m_prepStmts["QUaForwardReference"];
+	Q_ASSERT(_prepStmts.contains("QUaForwardReference"));
+	QSqlQuery& query = _prepStmts["QUaForwardReference"];
 	for (auto forwRef : forwardRefs)
 	{
 		query.bindValue(0, nodeKey);
@@ -669,7 +669,7 @@ bool QUaSqliteSerializer::addReferences(
 		{
 			logOut << QUaLog({
 				QObject::tr("Could not insert new row in QUaForwardReference table in %1 database. Stopped serialization. Sql : %2.")
-					.arg(m_strSqliteDbName)
+					.arg(_strSqliteDbName)
 					.arg(query.lastError().text()),
 				QUaLogLevel::Error,
 				QUaLogCategory::Serialization
@@ -706,7 +706,7 @@ bool QUaSqliteSerializer::removeReferences(
 		{
 			logOut << QUaLog({
 				QObject::tr("Could not remove row in QUaForwardReference table in %1 database. Stopped serialization. Sql : %2.")
-					.arg(m_strSqliteDbName)
+					.arg(_strSqliteDbName)
 					.arg(query.lastError().text()),
 				QUaLogLevel::Error,
 				QUaLogCategory::Serialization
@@ -747,7 +747,7 @@ bool QUaSqliteSerializer::updateInstance(
 			QObject::tr("Could not update row with QUaNodeId = %1 in %2 table in %3 database. Stopped serialization. Sql : %4.")
 				.arg(nodeKey)
 				.arg(typeName)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
@@ -765,7 +765,7 @@ bool QUaSqliteSerializer::nodeAttributes(
 	QQueue<QUaLog>& logOut)
 {
 	Q_ASSERT(db.isValid() && db.isOpen());
-	if (!m_prepStmts.contains(typeName))
+	if (!_prepStmts.contains(typeName))
 	{
 		QSqlQuery query(db);
 		QString strStmt = QString(
@@ -785,7 +785,7 @@ bool QUaSqliteSerializer::nodeAttributes(
 			logOut << QUaLog({
 			QObject::tr("Failed to prepare statement %1 in %2 database. Stopped deserialization. Sql : %3.")
 					.arg(strStmt)
-					.arg(m_strSqliteDbName)
+					.arg(_strSqliteDbName)
 					.arg(query.lastError().text()),
 				QUaLogLevel::Error,
 				QUaLogCategory::Serialization
@@ -793,10 +793,10 @@ bool QUaSqliteSerializer::nodeAttributes(
 			return false;
 		}
 		// cache
-		m_prepStmts[typeName] = std::move(query);
+		_prepStmts[typeName] = std::move(query);
 	}
 	// bind node id
-	QSqlQuery& query = m_prepStmts[typeName];
+	QSqlQuery& query = _prepStmts[typeName];
 	query.bindValue(0, nodeId.toXmlString());
 	// exec
 	if (!query.exec())
@@ -805,7 +805,7 @@ bool QUaSqliteSerializer::nodeAttributes(
 			QObject::tr("Failed to query %1 node id on %2 table in %3 database. Stopped deserialization. Sql : %4.")
 				.arg(nodeId)
 				.arg(typeName)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
@@ -818,7 +818,7 @@ bool QUaSqliteSerializer::nodeAttributes(
 			QObject::tr("Node id %1 does not exist on %2 table in %3 database. Stopped deserialization.")
 				.arg(nodeId)
 				.arg(typeName)
-				.arg(m_strSqliteDbName),
+				.arg(_strSqliteDbName),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
 		});
@@ -846,7 +846,7 @@ bool QUaSqliteSerializer::nodeReferences(
 	QQueue<QUaLog>& logOut)
 {
 	Q_ASSERT(db.isValid() && db.isOpen());
-	if (!m_prepStmts.contains("QUaForwardReference"))
+	if (!_prepStmts.contains("QUaForwardReference"))
 	{
 		QSqlQuery query(db);
 		QString strStmt(
@@ -866,7 +866,7 @@ bool QUaSqliteSerializer::nodeReferences(
 			logOut << QUaLog({
 			QObject::tr("Failed to prepare statement %1 in %2 database. Stopped (de)serialization. Sql : %3.")
 					.arg(strStmt)
-					.arg(m_strSqliteDbName)
+					.arg(_strSqliteDbName)
 					.arg(query.lastError().text()),
 				QUaLogLevel::Error,
 				QUaLogCategory::Serialization
@@ -874,10 +874,10 @@ bool QUaSqliteSerializer::nodeReferences(
 			return false;
 		}
 		// cache
-		m_prepStmts["QUaForwardReference"] = std::move(query);
+		_prepStmts["QUaForwardReference"] = std::move(query);
 	}
 	// bind node id
-	QSqlQuery& query = m_prepStmts["QUaForwardReference"];
+	QSqlQuery& query = _prepStmts["QUaForwardReference"];
 	query.bindValue(0, nodeId.toXmlString());
 	// exec
 	if (!query.exec())
@@ -885,7 +885,7 @@ bool QUaSqliteSerializer::nodeReferences(
 		logOut << QUaLog({
 			QObject::tr("Failed to query %1 node id on QUaForwardReference table in %2 database. Stopped (de)serialization. Sql : %3.")
 				.arg(nodeId)
-				.arg(m_strSqliteDbName)
+				.arg(_strSqliteDbName)
 				.arg(query.lastError().text()),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
@@ -915,8 +915,8 @@ bool QUaSqliteSerializer::nodeReferences(
 const QString QUaSqliteSerializer::QtTypeToSqlType(const QMetaType::Type& qtType)
 {
 	Q_ASSERT_X(
-		QUaSqliteSerializer::m_hashTypes.contains(qtType), 
+		QUaSqliteSerializer::_hashTypes.contains(qtType), 
 		"QtTypeToSqlType", "Unknown type."
 	);
-	return QUaSqliteSerializer::m_hashTypes.value(qtType, "BLOB");
+	return QUaSqliteSerializer::_hashTypes.value(qtType, "BLOB");
 }

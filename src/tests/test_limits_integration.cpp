@@ -21,10 +21,10 @@ private slots:
     void limitsSurviveRestart();
 
 private:
-    QUaServer *m_server = nullptr;
-    QUaBaseDataVariable *m_first = nullptr;
-    QUaBaseDataVariable *m_second = nullptr;
-    QUaBaseDataVariable *m_third = nullptr;
+    QUaServer *_server = nullptr;
+    QUaBaseDataVariable *_first = nullptr;
+    QUaBaseDataVariable *_second = nullptr;
+    QUaBaseDataVariable *_third = nullptr;
 
     bool startWithLimits(const QUaServerLimits &limits);
     QString url() const;
@@ -35,19 +35,19 @@ private:
 ///
 void TestLimitsIntegration::init()
 {
-    m_server = new QUaServer;
-    m_first = m_server->objectsFolder()->addBaseDataVariable(QStringLiteral("first"));
-    m_second = m_server->objectsFolder()->addBaseDataVariable(QStringLiteral("second"));
-    m_third = m_server->objectsFolder()->addBaseDataVariable(QStringLiteral("third"));
-    m_first->setValue(1);
-    m_second->setValue(2);
-    m_third->setValue(3);
+    _server = new QUaServer;
+    _first = _server->objectsFolder()->addBaseDataVariable(QStringLiteral("first"));
+    _second = _server->objectsFolder()->addBaseDataVariable(QStringLiteral("second"));
+    _third = _server->objectsFolder()->addBaseDataVariable(QStringLiteral("third"));
+    _first->setValue(1);
+    _second->setValue(2);
+    _third->setValue(3);
 }
 
 void TestLimitsIntegration::cleanup()
 {
-    delete m_server;
-    m_server = nullptr;
+    delete _server;
+    _server = nullptr;
 }
 
 ///
@@ -55,17 +55,17 @@ void TestLimitsIntegration::cleanup()
 ///
 bool TestLimitsIntegration::startWithLimits(const QUaServerLimits &limits)
 {
-    return m_server->setLimits(limits) && TestServer::start(*m_server);
+    return _server->setLimits(limits) && TestServer::start(*_server);
 }
 
 QString TestLimitsIntegration::url() const
 {
-    return TestServer::endpointUrl(*m_server);
+    return TestServer::endpointUrl(*_server);
 }
 
 void TestLimitsIntegration::subscriptionsPerSessionAreLimited()
 {
-    QUaServerLimits limits = m_server->limits();
+    QUaServerLimits limits = _server->limits();
     limits.maxSubscriptionsPerSession = 1;
     QVERIFY(startWithLimits(limits));
     TestClient client;
@@ -78,7 +78,7 @@ void TestLimitsIntegration::subscriptionsPerSessionAreLimited()
 
 void TestLimitsIntegration::publishingIntervalIsRevisedIntoLimits()
 {
-    QUaServerLimits limits = m_server->limits();
+    QUaServerLimits limits = _server->limits();
     limits.minPublishingInterval = 500.0;
     limits.maxPublishingInterval = 1000.0;
     QVERIFY(startWithLimits(limits));
@@ -96,40 +96,40 @@ void TestLimitsIntegration::publishingIntervalIsRevisedIntoLimits()
 
 void TestLimitsIntegration::monitoredItemsPerSubscriptionAreLimited()
 {
-    QUaServerLimits limits = m_server->limits();
+    QUaServerLimits limits = _server->limits();
     limits.maxMonitoredItemsPerSubscription = 1;
     QVERIFY(startWithLimits(limits));
     TestClient client;
     QCOMPARE(client.connect(url()), UA_STATUSCODE_GOOD);
 
-    QCOMPARE(client.monitorValue(m_first->nodeId()), UA_STATUSCODE_GOOD);
-    QCOMPARE(client.monitorValue(m_second->nodeId()), UA_STATUSCODE_BADTOOMANYMONITOREDITEMS);
+    QCOMPARE(client.monitorValue(_first->nodeId()), UA_STATUSCODE_GOOD);
+    QCOMPARE(client.monitorValue(_second->nodeId()), UA_STATUSCODE_BADTOOMANYMONITOREDITEMS);
 }
 
 void TestLimitsIntegration::samplingIntervalIsRevisedIntoLimits()
 {
-    QUaServerLimits limits = m_server->limits();
+    QUaServerLimits limits = _server->limits();
     limits.minSamplingInterval = 200.0;
     QVERIFY(startWithLimits(limits));
     TestClient client;
     QCOMPARE(client.connect(url()), UA_STATUSCODE_GOOD);
     double revised = 0.0;
 
-    QCOMPARE(client.monitorValue(m_first->nodeId(), 10.0, revised), UA_STATUSCODE_GOOD);
+    QCOMPARE(client.monitorValue(_first->nodeId(), 10.0, revised), UA_STATUSCODE_GOOD);
 
     QCOMPARE(revised, 200.0);
 }
 
 void TestLimitsIntegration::nodesPerReadAreLimited()
 {
-    QUaServerLimits limits = m_server->limits();
+    QUaServerLimits limits = _server->limits();
     limits.maxNodesPerRead = 2;
     QVERIFY(startWithLimits(limits));
     TestClient client;
     QCOMPARE(client.connect(url()), UA_STATUSCODE_GOOD);
 
-    QCOMPARE(client.readValues({ m_first->nodeId(), m_second->nodeId() }), UA_STATUSCODE_GOOD);
-    QCOMPARE(client.readValues({ m_first->nodeId(), m_second->nodeId(), m_third->nodeId() }),
+    QCOMPARE(client.readValues({ _first->nodeId(), _second->nodeId() }), UA_STATUSCODE_GOOD);
+    QCOMPARE(client.readValues({ _first->nodeId(), _second->nodeId(), _third->nodeId() }),
              UA_STATUSCODE_BADTOOMANYOPERATIONS);
 }
 
@@ -138,15 +138,15 @@ void TestLimitsIntegration::nodesPerReadAreLimited()
 ///
 void TestLimitsIntegration::limitsSurviveRestart()
 {
-    QUaServerLimits limits = m_server->limits();
+    QUaServerLimits limits = _server->limits();
     limits.maxNodesPerRead = 1;
     QVERIFY(startWithLimits(limits));
-    m_server->stop();
-    QVERIFY(m_server->start());
+    _server->stop();
+    QVERIFY(_server->start());
     TestClient client;
     QCOMPARE(client.connect(url()), UA_STATUSCODE_GOOD);
 
-    QCOMPARE(client.readValues({ m_first->nodeId(), m_second->nodeId() }), UA_STATUSCODE_BADTOOMANYOPERATIONS);
+    QCOMPARE(client.readValues({ _first->nodeId(), _second->nodeId() }), UA_STATUSCODE_BADTOOMANYOPERATIONS);
 }
 
 QTEST_GUILESS_MAIN(TestLimitsIntegration)

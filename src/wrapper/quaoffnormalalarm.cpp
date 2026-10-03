@@ -20,20 +20,20 @@ void QUaOffNormalAlarm::setInputNode(QUaBaseVariable* inputNode)
 		return;
 	}
 	// subscribe to value changes
-	m_connections <<
-	QObject::connect(m_inputNode, &QUaBaseVariable::valueChanged, this,
+	_connections <<
+	QObject::connect(_inputNode, &QUaBaseVariable::valueChanged, this,
 	[this](const QVariant& value) {
-		if (!m_normalValue.isValid())
+		if (!_normalValue.isValid())
 		{
 			return;
 		}
-		this->setActive(value != m_normalValue);
+		this->setActive(value != _normalValue);
 	});
 }
 
 QVariant QUaOffNormalAlarm::normalValue() const
 {
-	return m_normalValue;
+	return _normalValue;
 }
 
 void QUaOffNormalAlarm::setNormalValue(const QVariant& normalValue)
@@ -42,13 +42,13 @@ void QUaOffNormalAlarm::setNormalValue(const QVariant& normalValue)
 	{
 		return;
 	}
-	m_normalValue = normalValue;
+	_normalValue = normalValue;
 	// trigger active state recalculation
-	if (!m_inputNode)
+	if (!_inputNode)
 	{
 		return;
 	}
-	emit m_inputNode->valueChanged(m_inputNode->value(), false);
+	emit _inputNode->valueChanged(_inputNode->value(), false);
 }
 
 QUaNodeId QUaOffNormalAlarm::normalState() const
