@@ -34,6 +34,27 @@ class QUaRefreshRequiredEvent;
 
 using QUaChildNodeIdCallback = std::function<QUaNodeId(const QUaNodeId&, const QUaQualifiedName&)>;
 
+///
+/// \brief Decides whether a client \a session may add a node named \a browseName of type \a typeDefinitionNodeId below \a parentNodeId.
+///
+using QUaAddNodeCallback = std::function<bool(const QUaSession* session,
+                                              const QUaNodeId& parentNodeId,
+                                              const QUaQualifiedName& browseName,
+                                              const QUaNodeId& typeDefinitionNodeId)>;
+///
+/// \brief Decides whether a client \a session may delete the node \a nodeId.
+///
+using QUaDeleteNodeCallback = std::function<bool(const QUaSession* session, const QUaNodeId& nodeId)>;
+///
+/// \brief Decides whether a client \a session may add or delete a reference of type \a referenceTypeId
+///        from \a sourceNodeId to \a targetNodeId.
+///
+using QUaReferenceCallback = std::function<bool(const QUaSession* session,
+                                                const QUaNodeId& sourceNodeId,
+                                                const QUaNodeId& referenceTypeId,
+                                                const QUaNodeId& targetNodeId,
+                                                bool isForward)>;
+
 #ifdef UA_ENABLE_ENCRYPTION
 ///
 /// \brief Maps the DER certificate a client authenticates its user with to a user name; an empty name rejects it.
@@ -384,6 +405,25 @@ public:
 	void        setUserCertificateCallback(const QUaUserCertificateCallback& callback = QUaUserCertificateCallback());
 #endif // UA_ENABLE_ENCRYPTION
 
+	// Node Management API (AddNodes, DeleteNodes, AddReferences and DeleteReferences services)
+
+	///
+	/// \brief Sets the callback that allows or denies client AddNodes requests; without one, all are allowed.
+	///
+	void setAddNodeCallback(const QUaAddNodeCallback& callback = QUaAddNodeCallback());
+	///
+	/// \brief Sets the callback that allows or denies client DeleteNodes requests; without one, all are allowed.
+	///
+	void setDeleteNodeCallback(const QUaDeleteNodeCallback& callback = QUaDeleteNodeCallback());
+	///
+	/// \brief Sets the callback that allows or denies client AddReferences requests; without one, all are allowed.
+	///
+	void setAddReferenceCallback(const QUaReferenceCallback& callback = QUaReferenceCallback());
+	///
+	/// \brief Sets the callback that allows or denies client DeleteReferences requests; without one, all are allowed.
+	///
+	void setDeleteReferenceCallback(const QUaReferenceCallback& callback = QUaReferenceCallback());
+
 	// Sessions API
 
     QList<const QUaSession*> sessions() const;
@@ -488,6 +528,10 @@ private:
     QHash<QUaNodeId, QSet<QUaQualifiedName>> m_hashMandatoryChildren;
 
 	QUaValidationCallback m_validationCallback;
+	QUaAddNodeCallback    m_addNodeCallback;
+	QUaDeleteNodeCallback m_deleteNodeCallback;
+	QUaReferenceCallback  m_addReferenceCallback;
+	QUaReferenceCallback  m_deleteReferenceCallback;
 #ifdef UA_ENABLE_ENCRYPTION
 	QUaUserCertificateCallback m_userCertificateCallback;
 	// users authenticated by certificate; kept apart from m_hashUsers, where they would get an empty password
@@ -795,14 +839,28 @@ private:
 		                                const UA_NodeId  *methodId, 
 		                                void             *methodContext);
 
-	static UA_Boolean getUserExecutableOnObject(UA_Server        *server, 
+	static UA_Boolean getUserExecutableOnObject(UA_Server        *server,
 		                                        UA_AccessControl *ac,
-		                                        const UA_NodeId  *sessionId, 
+		                                        const UA_NodeId  *sessionId,
 		                                        void             *sessionContext,
-		                                        const UA_NodeId  *methodId, 
+		                                        const UA_NodeId  *methodId,
 		                                        void             *methodContext,
-		                                        const UA_NodeId  *objectId, 
+		                                        const UA_NodeId  *objectId,
 		                                        void             *objectContext);
+
+	static UA_Boolean allowAddNode        (UA_Server *server, UA_AccessControl *ac,
+	                                       const UA_NodeId *sessionId, void *sessionContext,
+	                                       const UA_AddNodesItem *item);
+	static UA_Boolean allowDeleteNode     (UA_Server *server, UA_AccessControl *ac,
+	                                       const UA_NodeId *sessionId, void *sessionContext,
+	                                       const UA_DeleteNodesItem *item);
+	static UA_Boolean allowAddReference   (UA_Server *server, UA_AccessControl *ac,
+	                                       const UA_NodeId *sessionId, void *sessionContext,
+	                                       const UA_AddReferencesItem *item);
+	static UA_Boolean allowDeleteReference(UA_Server *server, UA_AccessControl *ac,
+	                                       const UA_NodeId *sessionId, void *sessionContext,
+	                                       const UA_DeleteReferencesItem *item);
+	const QUaSession* sessionById(const UA_NodeId *sessionId) const;
 
 	// NOTE : temporary values needed to instantiate node, used to simplify user API
 	//        passed-in in QUaServer::uaConstructor and used in QUaNode::QUaNode

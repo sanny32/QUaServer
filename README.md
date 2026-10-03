@@ -13,7 +13,7 @@ Features:
 * Validation of client writes before they are applied
 * Methods callable by clients, from callbacks, lambdas or `Q_INVOKABLE` methods
 * Custom non-hierarchical references
-* User accounts with password or X.509 certificate login, per-user access control, and session tracking
+* User accounts with password or X.509 certificate login, per-user access control, control over client node management, and session tracking
 * Server certificates, encrypted communication, trusted client certificates and security policy selection
 * Configurable session, operation, subscription and monitored item limits
 * Events, alarms and conditions

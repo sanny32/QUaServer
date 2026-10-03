@@ -266,6 +266,32 @@ The instance `custom2` also inherits by default the reimplemented access level d
 
 The same mechanism is available for the `WriteMask` of any node (`userWriteMask()` / `setUserWriteMaskCallback()`) and for the execution of methods (`userExecutable()` / `setUserExecutableCallback()`).
 
+## Node Management
+
+Clients can also change the address space with the *AddNodes*, *DeleteNodes*, *AddReferences* and *DeleteReferences* services. Nodes added by a client get a C++ instance like any other node, and a node deleted by a client deletes its C++ instance too. By default every client may do so; restrict it with callbacks that return `false` to deny a request (the client receives `BadUserAccessDenied`):
+
+```c++
+auto isAdmin = [](const QUaSession *session) {
+	return session && session->userName() == "admin";
+};
+server.setAddNodeCallback([isAdmin](const QUaSession *session, const QUaNodeId &parentNodeId,
+                                    const QUaQualifiedName &browseName, const QUaNodeId &typeDefinitionNodeId) {
+	return isAdmin(session);
+});
+server.setDeleteNodeCallback([isAdmin](const QUaSession *session, const QUaNodeId &nodeId) {
+	return isAdmin(session);
+});
+// deny all reference changes
+server.setAddReferenceCallback([](const QUaSession *, const QUaNodeId &, const QUaNodeId &, const QUaNodeId &, bool) {
+	return false;
+});
+server.setDeleteReferenceCallback([](const QUaSession *, const QUaNodeId &, const QUaNodeId &, const QUaNodeId &, bool) {
+	return false;
+});
+```
+
+Changes made with the C++ API (e.g. `addBaseObject()` or `delete`) are never checked. Since a client may delete nodes the application still points to, keep such pointers in a `QPointer` or deny `DeleteNodes`.
+
 ## Certificate Users
 
 When the library is built with `QUASERVER_ENCRYPTION` and the server has a private key (see [Encryption](07_encryption.md)), clients can also authenticate users with an X.509 certificate instead of a password. The server checks that the client owns the certificate's private key; a callback then maps the DER certificate to a user name, or rejects it by returning an empty string:

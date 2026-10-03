@@ -115,6 +115,27 @@ public:
     UA_StatusCode writeValueRange(const QUaNodeId &nodeId, const QString &indexRange, const QVariant &value);
 
     ///
+    /// \brief Adds a BaseObjectType object named \a browseName with the string NodeId \a browseName in namespace 1,
+    ///        organized by \a parentId.
+    ///
+    UA_StatusCode addObject(const QUaNodeId &parentId, const QString &browseName);
+
+    ///
+    /// \brief Deletes the node \a nodeId together with the references pointing to it.
+    ///
+    UA_StatusCode deleteNode(const QUaNodeId &nodeId);
+
+    ///
+    /// \brief Adds a forward reference of type \a referenceTypeId from \a sourceId to the object \a targetId.
+    ///
+    UA_StatusCode addReference(const QUaNodeId &sourceId, const QUaNodeId &referenceTypeId, const QUaNodeId &targetId);
+
+    ///
+    /// \brief Deletes the forward reference of type \a referenceTypeId from \a sourceId to \a targetId, in both directions.
+    ///
+    UA_StatusCode deleteReference(const QUaNodeId &sourceId, const QUaNodeId &referenceTypeId, const QUaNodeId &targetId);
+
+    ///
     /// \brief Calls the method \a methodId of \a objectId with \a inputs and stores its results in \a outputs.
     ///
     UA_StatusCode call(const QUaNodeId &objectId,

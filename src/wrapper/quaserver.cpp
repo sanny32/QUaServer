@@ -1178,6 +1178,125 @@ UA_Boolean QUaServer::getUserExecutableOnObject(UA_Server        *server,
 	return true;
 }
 
+///
+/// \brief Returns the client session \a sessionId, or nullptr when it is unknown.
+///
+const QUaSession* QUaServer::sessionById(const UA_NodeId* sessionId) const
+{
+	return sessionId ? m_hashSessions.value(*sessionId, nullptr) : nullptr;
+}
+
+///
+/// \brief [STATIC] Asks the add node callback, if any, whether a client may add \a item.
+///
+UA_Boolean QUaServer::allowAddNode(UA_Server *server, UA_AccessControl *ac,
+                                   const UA_NodeId *sessionId, void *sessionContext,
+                                   const UA_AddNodesItem *item)
+{
+	Q_UNUSED(ac);
+	Q_UNUSED(sessionContext);
+	QUaServer *srv = QUaServer::getServerNodeContext(server);
+	if (!srv->m_addNodeCallback)
+	{
+		return true;
+	}
+	return srv->m_addNodeCallback(srv->sessionById(sessionId),
+	                              QUaNodeId(item->parentNodeId.nodeId),
+	                              QUaQualifiedName(item->browseName),
+	                              QUaNodeId(item->typeDefinition.nodeId));
+}
+
+///
+/// \brief [STATIC] Asks the delete node callback, if any, whether a client may delete \a item.
+///
+UA_Boolean QUaServer::allowDeleteNode(UA_Server *server, UA_AccessControl *ac,
+                                      const UA_NodeId *sessionId, void *sessionContext,
+                                      const UA_DeleteNodesItem *item)
+{
+	Q_UNUSED(ac);
+	Q_UNUSED(sessionContext);
+	QUaServer *srv = QUaServer::getServerNodeContext(server);
+	if (!srv->m_deleteNodeCallback)
+	{
+		return true;
+	}
+	return srv->m_deleteNodeCallback(srv->sessionById(sessionId), QUaNodeId(item->nodeId));
+}
+
+///
+/// \brief [STATIC] Asks the add reference callback, if any, whether a client may add \a item.
+///
+UA_Boolean QUaServer::allowAddReference(UA_Server *server, UA_AccessControl *ac,
+                                        const UA_NodeId *sessionId, void *sessionContext,
+                                        const UA_AddReferencesItem *item)
+{
+	Q_UNUSED(ac);
+	Q_UNUSED(sessionContext);
+	QUaServer *srv = QUaServer::getServerNodeContext(server);
+	if (!srv->m_addReferenceCallback)
+	{
+		return true;
+	}
+	return srv->m_addReferenceCallback(srv->sessionById(sessionId),
+	                                   QUaNodeId(item->sourceNodeId),
+	                                   QUaNodeId(item->referenceTypeId),
+	                                   QUaNodeId(item->targetNodeId.nodeId),
+	                                   item->isForward);
+}
+
+///
+/// \brief [STATIC] Asks the delete reference callback, if any, whether a client may delete \a item.
+///
+UA_Boolean QUaServer::allowDeleteReference(UA_Server *server, UA_AccessControl *ac,
+                                           const UA_NodeId *sessionId, void *sessionContext,
+                                           const UA_DeleteReferencesItem *item)
+{
+	Q_UNUSED(ac);
+	Q_UNUSED(sessionContext);
+	QUaServer *srv = QUaServer::getServerNodeContext(server);
+	if (!srv->m_deleteReferenceCallback)
+	{
+		return true;
+	}
+	return srv->m_deleteReferenceCallback(srv->sessionById(sessionId),
+	                                      QUaNodeId(item->sourceNodeId),
+	                                      QUaNodeId(item->referenceTypeId),
+	                                      QUaNodeId(item->targetNodeId.nodeId),
+	                                      item->isForward);
+}
+
+///
+/// \brief Sets the callback that allows or denies client AddNodes requests; without one, all are allowed.
+///
+void QUaServer::setAddNodeCallback(const QUaAddNodeCallback& callback)
+{
+	m_addNodeCallback = callback;
+}
+
+///
+/// \brief Sets the callback that allows or denies client DeleteNodes requests; without one, all are allowed.
+///
+void QUaServer::setDeleteNodeCallback(const QUaDeleteNodeCallback& callback)
+{
+	m_deleteNodeCallback = callback;
+}
+
+///
+/// \brief Sets the callback that allows or denies client AddReferences requests; without one, all are allowed.
+///
+void QUaServer::setAddReferenceCallback(const QUaReferenceCallback& callback)
+{
+	m_addReferenceCallback = callback;
+}
+
+///
+/// \brief Sets the callback that allows or denies client DeleteReferences requests; without one, all are allowed.
+///
+void QUaServer::setDeleteReferenceCallback(const QUaReferenceCallback& callback)
+{
+	m_deleteReferenceCallback = callback;
+}
+
 QUaServer::QUaServer(QObject* parent/* = 0*/)
 	: QObject(parent)
 {
@@ -1555,11 +1674,10 @@ void QUaServer::setupConfigCallbacks()
 	config->accessControl.getUserExecutable         = &QUaServer::getUserExecutable;
 	config->accessControl.getUserExecutableOnObject = &QUaServer::getUserExecutableOnObject;
 
-	// TODO : implement rest of callbacks
-	//        allowAddNode_default
-	//        allowAddReference_default
-	//        allowDeleteNode_default
-	//        allowDeleteReference_default
+	config->accessControl.allowAddNode              = &QUaServer::allowAddNode;
+	config->accessControl.allowDeleteNode           = &QUaServer::allowDeleteNode;
+	config->accessControl.allowAddReference         = &QUaServer::allowAddReference;
+	config->accessControl.allowDeleteReference      = &QUaServer::allowDeleteReference;
 
 	// notifications used to track clients and monitored items
 	config->secureChannelNotificationCallback = &QUaServer::secureChannelNotificationCallback;

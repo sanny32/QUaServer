@@ -317,6 +317,73 @@ UA_StatusCode TestClient::writeValueRange(const QUaNodeId &nodeId, const QString
 }
 
 ///
+/// \brief Adds a BaseObjectType object named \a browseName with the string NodeId \a browseName in namespace 1,
+///        organized by \a parentId.
+///
+UA_StatusCode TestClient::addObject(const QUaNodeId &parentId, const QString &browseName)
+{
+    const UaNodeIdGuard parent(parentId);
+    const UaNodeIdGuard requested(QUaNodeId(1, browseName));
+    const QByteArray name = browseName.toUtf8();
+    UA_ObjectAttributes attributes = UA_ObjectAttributes_default;
+    attributes.displayName = UA_LOCALIZEDTEXT(const_cast<char *>(""), const_cast<char *>(name.constData()));
+    UA_StatusCode status = UA_STATUSCODE_GOOD;
+    runInWorker([&] {
+        status = UA_Client_addObjectNode(m_client, requested.get(), parent.get(),
+                                         UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
+                                         UA_QUALIFIEDNAME(1, const_cast<char *>(name.constData())),
+                                         UA_NODEID_NUMERIC(0, UA_NS0ID_BASEOBJECTTYPE), attributes, nullptr);
+    });
+    return status;
+}
+
+///
+/// \brief Deletes the node \a nodeId together with the references pointing to it.
+///
+UA_StatusCode TestClient::deleteNode(const QUaNodeId &nodeId)
+{
+    const UaNodeIdGuard id(nodeId);
+    UA_StatusCode status = UA_STATUSCODE_GOOD;
+    runInWorker([&] { status = UA_Client_deleteNode(m_client, id.get(), true); });
+    return status;
+}
+
+///
+/// \brief Adds a forward reference of type \a referenceTypeId from \a sourceId to the object \a targetId.
+///
+UA_StatusCode TestClient::addReference(const QUaNodeId &sourceId, const QUaNodeId &referenceTypeId, const QUaNodeId &targetId)
+{
+    const UaNodeIdGuard source(sourceId);
+    const UaNodeIdGuard referenceType(referenceTypeId);
+    const UaNodeIdGuard target(targetId);
+    UA_ExpandedNodeId expandedTarget = UA_EXPANDEDNODEID_NULL;
+    expandedTarget.nodeId = target.get();
+    UA_StatusCode status = UA_STATUSCODE_GOOD;
+    runInWorker([&] {
+        status = UA_Client_addReference(m_client, source.get(), referenceType.get(), true,
+                                        UA_STRING_NULL, expandedTarget, UA_NODECLASS_OBJECT);
+    });
+    return status;
+}
+
+///
+/// \brief Deletes the forward reference of type \a referenceTypeId from \a sourceId to \a targetId, in both directions.
+///
+UA_StatusCode TestClient::deleteReference(const QUaNodeId &sourceId, const QUaNodeId &referenceTypeId, const QUaNodeId &targetId)
+{
+    const UaNodeIdGuard source(sourceId);
+    const UaNodeIdGuard referenceType(referenceTypeId);
+    const UaNodeIdGuard target(targetId);
+    UA_ExpandedNodeId expandedTarget = UA_EXPANDEDNODEID_NULL;
+    expandedTarget.nodeId = target.get();
+    UA_StatusCode status = UA_STATUSCODE_GOOD;
+    runInWorker([&] {
+        status = UA_Client_deleteReference(m_client, source.get(), referenceType.get(), true, expandedTarget, true);
+    });
+    return status;
+}
+
+///
 /// \brief Calls the method \a methodId of \a objectId with \a inputs and stores its results in \a outputs.
 ///
 UA_StatusCode TestClient::call(const QUaNodeId &objectId,
