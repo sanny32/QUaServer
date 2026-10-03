@@ -1,5 +1,6 @@
 # QUaServer
 
+[![Test CI](https://github.com/sanny32/QUaServer/actions/workflows/test-ci.yml/badge.svg)](https://github.com/sanny32/QUaServer/actions/workflows/test-ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A [Qt](https://www.qt.io/) based C++ library that wraps the [open62541](https://open62541.org/) library and provides an object-oriented API for OPC UA servers.

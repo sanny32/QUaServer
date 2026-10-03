@@ -1,7 +1,9 @@
 #ifndef QUASERVER_H
 #define QUASERVER_H
 
+#include <functional>
 #include <type_traits>
+#include <utility>
 
 #include <QTimer>
 #include <QSequentialIterable>

@@ -1,0 +1,81 @@
+name: Test CI
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - 'src/**'
+      - 'examples/**'
+      - '.github/workflows/test-ci.yml'
+      - '!**/*.md'
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Tests (${{ matrix.os }}, Qt ${{ matrix.qt }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            qt: '6.9.3'
+
+          - os: windows-latest
+            qt: '6.9.3'
+            # Installed into <Qt root>/Tools/OpenSSLv3, where the build finds it on its own
+            qt_tools: 'tools_opensslv3_x64'
+
+          - os: macos-26
+            qt: '6.9.3'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libssl-dev
+
+      - name: Install Ninja (Windows)
+        if: runner.os == 'Windows'
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
+      - name: Set up MSVC environment (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install macOS build dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew install ninja openssl@3
+          echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@3)" >> "$GITHUB_ENV"
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ matrix.qt }}
+          tools: ${{ matrix.qt_tools }}
+          cache: true
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DQUASERVER_ENCRYPTION=ON
+          -DQUASERVER_ALARMS_CONDITIONS=ON
+          -DQUASERVER_HISTORIZING=ON
+          -DQUASERVER_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure -L quaserver
