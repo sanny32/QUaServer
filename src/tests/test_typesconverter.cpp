@@ -26,6 +26,7 @@ private slots:
     void nodeIdStringConversions();
     void typeIndexOfBuiltinAndUnknownTypes();
     void arrayTypeHelpers();
+    void localizedTextListStringRoundTrip();
 };
 
 ///
@@ -269,6 +270,23 @@ void TestTypesConverter::arrayTypeHelpers()
     QVERIFY(!QUaTypesConverter::isQTypeArray(QMetaType::fromType<quint16>()));
     QCOMPARE(QUaTypesConverter::getQArrayType(QMetaType::fromType<QList<quint16>>()), QMetaType::UShort);
     QVERIFY(QUaTypesConverter::canConvertQVariantList(QVariantList({ 1, 2 })));
+}
+
+///
+/// \brief A localized text list converts to a '\a'-separated string and back.
+///
+void TestTypesConverter::localizedTextListStringRoundTrip()
+{
+    const QList<QUaLocalizedText> list = {
+        QUaLocalizedText(QStringLiteral("en"), QStringLiteral("One")),
+        QUaLocalizedText(QStringLiteral("de"), QStringLiteral("Zwei"))
+    };
+
+    const QString text = QVariant::fromValue(list).toString();
+    QCOMPARE(text.count(QLatin1Char('\a')), 1);
+
+    const QList<QUaLocalizedText> restored = QVariant(text).value<QList<QUaLocalizedText>>();
+    QCOMPARE(restored, list);
 }
 
 QTEST_GUILESS_MAIN(TestTypesConverter)

@@ -1215,10 +1215,10 @@ void registerCustomTypes()
 	// node id list
 	Q_ASSERT(qMetaTypeId<QList<QUaLocalizedText>>() >= QMetaType::User);
 	QMetaType::registerConverter<QList<QUaLocalizedText>, QString>([](QList<QUaLocalizedText> listLocalizedText) {
-		return listToString<QUaLocalizedText>(listLocalizedText, QLatin1String((char *)'\a'));
+		return listToString<QUaLocalizedText>(listLocalizedText, QLatin1String("\a"));
 	});
 	QMetaType::registerConverter<QString, QList<QUaLocalizedText>>([](QString strLocalizedTextList) {
-		return stringToList<QUaLocalizedText>(strLocalizedTextList, QLatin1String((char*)'\a'));
+		return stringToList<QUaLocalizedText>(strLocalizedTextList, QLatin1String("\a"));
 	});
 	// exclusive limit transition
 	Q_ASSERT(qMetaTypeId<QUaExclusiveLimitState>() >= QMetaType::User);

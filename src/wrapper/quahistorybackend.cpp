@@ -451,11 +451,11 @@ UA_HistoryDataBackend QUaHistoryBackend::CreateUaBackend()
 			UA_DataValue retVal;
 			if (range.dimensionsSize > 0)
 			{
-				UA_DataValue_backend_copyRange(QUaHistoryBackend::dataPointToValue(iterIni), retVal, range);
+				UA_DataValue_backend_copyRange(QUaHistoryBackend::dataPointToValue(&*iterIni), retVal, range);
 			}
 			else
 			{
-				retVal = QUaHistoryBackend::dataPointToValue(iterIni);
+				retVal = QUaHistoryBackend::dataPointToValue(&*iterIni);
 			}
 			(!reverse) ? iterIni++ : iterIni--;
 			return retVal;
@@ -506,7 +506,7 @@ UA_HistoryDataBackend QUaHistoryBackend::CreateUaBackend()
 		}
 		QUaHistoryBackend::processServerLog(srv, logOut);
 		// TODO : find better way to store the instance of the returned address
-		static auto retVal = QUaHistoryBackend::dataPointToValue(points.begin());
+		static auto retVal = QUaHistoryBackend::dataPointToValue(points.constData());
 		return &retVal;
 	};
 

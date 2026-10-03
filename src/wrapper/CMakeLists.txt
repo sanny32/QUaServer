@@ -113,6 +113,9 @@ if(WIN32)
     target_link_libraries(QUaServer PRIVATE ws2_32)
 endif()
 
+# Qt enables strict QList iterators everywhere except Windows; match that so MSVC builds catch the same errors
+target_compile_definitions(QUaServer PRIVATE QT_STRICT_QLIST_ITERATORS)
+
 if(MSVC)
     # macro redefinition warnings coming from open62541 headers
     target_compile_options(QUaServer PUBLIC /wd4005)
