@@ -3,7 +3,7 @@
 
 #include <QUaCustomDataTypes>
 
-typedef qint64 QUaEnumKey;
+using QUaEnumKey = qint64;
 struct QUaEnumEntry
 {
     QUaLocalizedText displayName;
@@ -14,7 +14,7 @@ inline bool operator==(const QUaEnumEntry& lhs, const QUaEnumEntry& rhs)
 {
     return lhs.displayName == rhs.displayName && lhs.description == rhs.description;
 }
-typedef QMap<QUaEnumKey, QUaEnumEntry> QUaEnumMap;
-typedef QMapIterator<QUaEnumKey, QUaEnumEntry> QUaEnumMapIter;
+using QUaEnumMap = QMap<QUaEnumKey, QUaEnumEntry>;
+using QUaEnumMapIter = QMapIterator<QUaEnumKey, QUaEnumEntry>;
 
 #endif // QUAENUM_H

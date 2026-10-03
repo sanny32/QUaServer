@@ -137,10 +137,10 @@ Q_ENUM_NS(ChangeVerb)
 size_t qHash(const ChangeVerb& key, size_t seed = 0);
 }
 
-typedef QUa::LogLevel    QUaLogLevel;
-typedef QUa::LogCategory QUaLogCategory;
-typedef QUa::Status      QUaStatus;
-typedef QUa::ChangeVerb  QUaChangeVerb;
+using QUaLogLevel = QUa::LogLevel;
+using QUaLogCategory = QUa::LogCategory;
+using QUaStatus = QUa::Status;
+using QUaChangeVerb = QUa::ChangeVerb;
 
 struct QUaLog
 {
@@ -414,7 +414,7 @@ private:
 
 Q_DECLARE_METATYPE(QUaStatusCode);
 
-typedef QUa::NodeIdType QUaNodeIdType;
+using QUaNodeIdType = QUa::NodeIdType;
 
 class QUaNodeId
 {
@@ -616,7 +616,7 @@ public:
     static QUaQualifiedName fromXmlString(const QString& strXmlQualName);
     static QUaQualifiedName fromUaQualifiedName(const UA_QualifiedName& uaQualName);
 
-    typedef QList<QUaQualifiedName> QUaBrowsePath;
+    using QUaBrowsePath = QList<QUaQualifiedName>;
 
     static QUaBrowsePath saoToBrowsePath(const UA_SimpleAttributeOperand* sao);
 
@@ -659,7 +659,7 @@ inline QDataStream& operator>>(QDataStream& inStream, QUaQualifiedName& outQualN
     return inStream;
 }
 
-typedef QList<QUaQualifiedName> QUaBrowsePath;
+using QUaBrowsePath = QList<QUaQualifiedName>;
 
 inline size_t qHash(const QUaBrowsePath& key)
 {
@@ -744,7 +744,7 @@ public:
 private:
     static QMetaEnum m_metaEnumVerb;
 };
-typedef QList<QUaChangeStructureDataType> QUaChangesList;
+using QUaChangesList = QList<QUaChangeStructureDataType>;
 
 inline bool operator==(const QUaChangeStructureDataType& lhs, const QUaChangeStructureDataType& rhs)
 {
@@ -967,7 +967,7 @@ public:
     static QByteArray toByteArray(const QUaEventHistoryQueryData& inQueryData);
     static QUaEventHistoryQueryData fromByteArray(const QByteArray& byteArray);
 
-    typedef QHash<QUaNodeId, QUaEventHistoryQueryData> QUaEventHistoryContinuationPoint;
+    using QUaEventHistoryContinuationPoint = QHash<QUaNodeId, QUaEventHistoryQueryData>;
 
     static QByteArray ContinuationToByteArray(const QUaEventHistoryContinuationPoint& inContinuation);
     static QUaEventHistoryContinuationPoint ContinuationFromByteArray(const QByteArray& byteArray);
@@ -983,7 +983,7 @@ private:
     friend QDataStream& operator>>(QDataStream& inStream, QUaEventHistoryQueryData& outQueryData);
 };
 
-typedef QHash<QUaNodeId, QUaEventHistoryQueryData> QUaEventHistoryContinuationPoint;
+using QUaEventHistoryContinuationPoint = QHash<QUaNodeId, QUaEventHistoryQueryData>;
 
 inline QDataStream& operator<<(QDataStream& outStream, const QUaEventHistoryQueryData& inQueryData)
 {

@@ -127,18 +127,18 @@ private:
 		quint32   status;
 	};
 	// NOTE : use a map to store the data points of a single node, ordered by time
-	typedef QMap<QDateTime, DataPoint> DataPointTable;
+	using DataPointTable = QMap<QDateTime, DataPoint>;
 	QHash<QUaNodeId, DataPointTable> m_database;
 
 	// event history support
 #ifdef UA_ENABLE_SUBSCRIPTIONS_EVENTS
-	typedef QHash<uint        /*EventKey*/, QUaHistoryEventPoint> QUaEventTypeTable;
-	typedef QHash<QUaNodeId /*TypeNodeId*/, QUaEventTypeTable   > QUaEventTypeDatabase;
+	using QUaEventTypeTable = QHash<uint        /*EventKey*/, QUaHistoryEventPoint>;
+	using QUaEventTypeDatabase = QHash<QUaNodeId /*TypeNodeId*/, QUaEventTypeTable   >;
 	QUaEventTypeDatabase m_eventTypeDatabase;
 
-	typedef QMultiMap <QDateTime, uint     /*EventKey*/> QUaEventEmitterTable;
-	typedef QHash     <QUaNodeId /*TypeNodeId*/, QUaEventEmitterTable > QUaEventTypeIndex;
-	typedef QHash     <QUaNodeId  /*EmitterId*/, QUaEventTypeIndex    > QUaEventEmitterDatabase;
+	using QUaEventEmitterTable = QMultiMap <QDateTime, uint     /*EventKey*/>;
+	using QUaEventTypeIndex = QHash     <QUaNodeId /*TypeNodeId*/, QUaEventEmitterTable >;
+	using QUaEventEmitterDatabase = QHash     <QUaNodeId  /*EmitterId*/, QUaEventTypeIndex    >;
 	QUaEventEmitterDatabase m_eventEmitterDatabase;
 #endif // UA_ENABLE_SUBSCRIPTIONS_EVENTS
 

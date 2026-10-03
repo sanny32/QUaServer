@@ -22,6 +22,14 @@ public:
     QUaBaseDataVariable *speed() { return browseChild<QUaBaseDataVariable>(QStringLiteral("speed")); }
 };
 
+class PumpRegistry : public QObject
+{
+public:
+    void add(Pump *pump) { pumps << pump; }
+
+    QList<Pump *> pumps;
+};
+
 class TestAddressSpace : public QObject
 {
     Q_OBJECT
@@ -51,6 +59,7 @@ private slots:
     void customTypeInstantiatesPropertyChildren();
     void customTypeTracksInstances();
     void instanceCreatedCallbackFires();
+    void instanceCreatedMemberCallbackFires();
     void referencesCanBeAddedAndRemoved();
     void cloneCopiesTypeAndValues();
     void duplicateBrowseNameIsRejected();
@@ -414,6 +423,16 @@ void TestAddressSpace::instanceCreatedCallbackFires()
     Pump *pump = objects()->addChild<Pump>(QStringLiteral("pump"));
 
     QTRY_COMPARE(created, QList<Pump *>({ pump }));
+}
+
+void TestAddressSpace::instanceCreatedMemberCallbackFires()
+{
+    PumpRegistry registry;
+    m_server->instanceCreated<Pump>(&registry, &PumpRegistry::add);
+
+    Pump *pump = objects()->addChild<Pump>(QStringLiteral("pump"));
+
+    QTRY_COMPARE(registry.pumps, QList<Pump *>({ pump }));
 }
 
 ///

@@ -191,7 +191,7 @@ private:
 		quint32   status;
 	};
 	// NOTE : use a map to store the data points of a single node, ordered by time
-	typedef QMap<QDateTime, DataPoint> DataPointBlock;
+	using DataPointBlock = QMap<QDateTime, DataPoint>;
 	// data prepared statements cache
 	struct DataPreparedStatements {
 		QSqlQuery writeHistoryData;

@@ -875,7 +875,7 @@ UA_StatusCode QUaNode::addOptionalVariableField(
 	UA_NodeId optionalVariable = { originNode->namespaceIndex, UA_NODEIDTYPE_NUMERIC, {0} };
 	retval = UA_Server_addVariableNode(server, optionalVariable, *originNode,
 		referenceToParent, *fieldName, typeNodeId,
-		vAttr, NULL, outOptionalVariable);
+		vAttr, nullptr, outOptionalVariable);
 	Q_ASSERT(retval == UA_STATUSCODE_GOOD);
 	UA_NodeId_clear(&typeNodeId);
     UA_VariableAttributes_clear(&vAttr);
@@ -920,7 +920,7 @@ UA_StatusCode QUaNode::addOptionalObjectField(
 	UA_NodeId optionalObject = { originNode->namespaceIndex, UA_NODEIDTYPE_NUMERIC, {0} };
 	retval = UA_Server_addObjectNode(server, optionalObject, *originNode,
 		referenceToParent, *fieldName, typeNodeId,
-		oAttr, NULL, outOptionalObject);
+		oAttr, nullptr, outOptionalObject);
 
 	UA_NodeId_clear(&typeNodeId);
     UA_ObjectAttributes_clear(&oAttr);

@@ -12,7 +12,7 @@ template <typename T>
 struct container_traits<QList<T>> : std::true_type
 {
 	using inner_type = T;
-	static const QUaTypesConverter::ArrayType arrType = QUaTypesConverter::ArrayType::QList;
+	static constexpr QUaTypesConverter::ArrayType arrType = QUaTypesConverter::ArrayType::QList;
 };
 
 
@@ -215,12 +215,6 @@ protected:
 	void setDataTypeOptionSet(const UA_NodeId &optionSetTypeNodeId);
 #endif
     QMetaType::Type dataTypeInternal() const;
-    // if T scalar
-    template<typename T>
-    T valueInternal(std::false_type) const;
-    // if T array
-    template<typename T>
-    T valueInternal(std::true_type) const;
 	// internal
 	QVariant getValueInternal(
 		const QUaTypesConverter::ArrayType& arrType = QUaTypesConverter::ArrayType::QList
@@ -232,23 +226,17 @@ protected:
 		const QDateTime     &serverTimestamp = QDateTime()
 	);
 };
-// generic version scalar or array
 template<typename T>
 inline T QUaBaseVariable::value() const
 {
-    return this->template valueInternal<T>(is_qvector_traits<T>());
-}
-// if scalar
-template<typename T>
-inline T QUaBaseVariable::valueInternal(std::false_type) const
-{
-    return this->getValueInternal().template value<T>();
-}
-// if array
-template<typename T>
-inline T QUaBaseVariable::valueInternal(std::true_type) const
-{
-    return this->getValueInternal(QUaTypesConverter::ArrayType::QVector).template value<T>();
+    if constexpr (is_qvector_traits<T>::value)
+    {
+        return this->getValueInternal(QUaTypesConverter::ArrayType::QVector).template value<T>();
+    }
+    else
+    {
+        return this->getValueInternal().template value<T>();
+    }
 }
 
 template<typename T>

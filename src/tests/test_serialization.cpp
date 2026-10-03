@@ -34,11 +34,18 @@ public:
     QHash<QUaNodeId, Node> nodes;
     bool started = false;
     bool ended = false;
+    bool deserializeStarted = false;
+    bool deserializeEnded = false;
     bool failReads = false;
+    bool failStart = false;
 
     bool serializeStart(QQueue<QUaLog> &logOut)
     {
         Q_UNUSED(logOut);
+        if (failStart)
+        {
+            return false;
+        }
         nodes.clear();
         started = true;
         return true;
@@ -62,6 +69,20 @@ public:
         return true;
     }
 
+    bool deserializeStart(QQueue<QUaLog> &logOut)
+    {
+        Q_UNUSED(logOut);
+        deserializeStarted = true;
+        return true;
+    }
+
+    bool deserializeEnd(QQueue<QUaLog> &logOut)
+    {
+        Q_UNUSED(logOut);
+        deserializeEnded = true;
+        return true;
+    }
+
     bool readInstance(const QUaNodeId &nodeId,
                       const QString &typeName,
                       QMap<QString, QVariant> &attrs,
@@ -81,12 +102,38 @@ public:
     }
 };
 
+///
+/// \brief Serializer that implements only the required writeInstance(), none of the optional hooks.
+///
+class MinimalSerializer
+{
+public:
+    int written = 0;
+
+    bool writeInstance(const QUaNodeId &nodeId,
+                       const QString &typeName,
+                       const QMap<QString, QVariant> &attrs,
+                       const QList<QUaForwardReference> &forwardRefs,
+                       QQueue<QUaLog> &logOut)
+    {
+        Q_UNUSED(nodeId);
+        Q_UNUSED(typeName);
+        Q_UNUSED(attrs);
+        Q_UNUSED(forwardRefs);
+        Q_UNUSED(logOut);
+        ++written;
+        return true;
+    }
+};
+
 class TestSerialization : public QObject
 {
     Q_OBJECT
 
 private slots:
     void serializeWritesWholeSubtree();
+    void serializerWithoutHooksWorks();
+    void failingSerializeStartAborts();
     void roundTripRestoresNodesAndValues();
     void roundTripRestoresCustomReferences();
     void failedReadIsReported();
@@ -133,6 +180,32 @@ void TestSerialization::serializeWritesWholeSubtree()
     QCOMPARE(serializer.nodes.value(QUaNodeId(1, QStringLiteral("plant.sensor"))).typeName, QStringLiteral("Sensor"));
 }
 
+void TestSerialization::serializerWithoutHooksWorks()
+{
+    QUaServer server;
+    QUaFolderObject *plant = buildPlant(server);
+    MinimalSerializer serializer;
+    QQueue<QUaLog> logOut;
+
+    QVERIFY(plant->serialize(serializer, logOut));
+
+    QVERIFY(serializer.written >= 3);
+}
+
+void TestSerialization::failingSerializeStartAborts()
+{
+    QUaServer server;
+    QUaFolderObject *plant = buildPlant(server);
+    MemorySerializer serializer;
+    serializer.failStart = true;
+    QQueue<QUaLog> logOut;
+
+    QVERIFY(!plant->serialize(serializer, logOut));
+
+    QVERIFY(serializer.nodes.isEmpty());
+    QVERIFY(!serializer.ended);
+}
+
 ///
 /// \brief Deserializing into an empty server recreates the tree with its values and access.
 ///
@@ -152,6 +225,8 @@ void TestSerialization::roundTripRestoresNodesAndValues()
                                                                      QUaNodeId(1, QStringLiteral("plant")));
     QVERIFY(plant->deserialize(serializer, logOut));
 
+    QVERIFY(serializer.deserializeStarted);
+    QVERIFY(serializer.deserializeEnded);
     auto sensor = target.nodeById<Sensor>(QUaNodeId(1, QStringLiteral("plant.sensor")));
     auto setpoint = target.nodeById<QUaBaseDataVariable>(QUaNodeId(1, QStringLiteral("plant.setpoint")));
     QVERIFY(sensor);

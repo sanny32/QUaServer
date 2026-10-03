@@ -39,7 +39,7 @@ UA_StatusCode QUaServer::addEnumValues(UA_Server * server, UA_NodeId * parent, c
                                         UA_QUALIFIEDNAME (0, (char*)"EnumValues"),
                                         UA_NODEID_NUMERIC(0, UA_NS0ID_PROPERTYTYPE), 
                                         attr, 
-                                        NULL, 
+                                        nullptr, 
                                         &enumValuesNodeId);
 	Q_ASSERT(retVal == UA_STATUSCODE_GOOD);
 	// make mandatory
@@ -92,8 +92,8 @@ void QUaServer::registerEnum(const QString& strEnumName, const QUaEnumMap& enumM
 		UA_NODEID_NUMERIC(0, UA_NS0ID_HASSUBTYPE),
 		UA_QUALIFIEDNAME(1, charEnumName),
 		ddaatt,
-		NULL,
-		NULL);
+		nullptr,
+		nullptr);
 	Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	// create vector of enum values
 	QVector<QOpcUaEnumValue> vectEnumValues;

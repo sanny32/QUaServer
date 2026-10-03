@@ -89,229 +89,235 @@ namespace QUaTypesConverter {
 	template<typename T>
 	UA_NodeId uaTypeNodeIdFromCpp()
 	{
-		if (std::is_same<T, QVariant>::value)
+		if constexpr (std::is_same_v<T, QVariant>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATATYPE);
 		}
-		else if (std::is_same<T, bool>::value)
+		else if constexpr (std::is_same_v<T, bool>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_BOOLEAN);
 		}
-		else if (std::is_same<T, char>::value)
+		else if constexpr (std::is_same_v<T, char>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_SBYTE);
 		}
-		else if (std::is_same<T, uchar>::value)
+		else if constexpr (std::is_same_v<T, uchar>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_BYTE);
 		}
-		else if (std::is_same<T, qint16>::value)
+		else if constexpr (std::is_same_v<T, qint16>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_INT16);
 		}
-		else if (std::is_same<T, quint16>::value)
+		else if constexpr (std::is_same_v<T, quint16>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_UINT16);
 		}
-		else if (std::is_same<T, int>::value)
+		else if constexpr (std::is_same_v<T, int>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_INT32);
 		}
-		else if (std::is_same<T, qint32>::value)
+		else if constexpr (std::is_same_v<T, qint32>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_INT32);
 		}
-		else if (std::is_same<T, quint32>::value)
+		else if constexpr (std::is_same_v<T, quint32>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_UINT32);
 		}
-		else if (std::is_same<T, int64_t>::value)
+		else if constexpr (std::is_same_v<T, int64_t>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_INT64);
 		}
-		else if (std::is_same<T, uint64_t>::value)
+		else if constexpr (std::is_same_v<T, uint64_t>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_UINT64);
 		}
-		else if (std::is_same<T, float>::value)
+		else if constexpr (std::is_same_v<T, float>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_FLOAT);
 		}
-		else if (std::is_same<T, double>::value)
+		else if constexpr (std::is_same_v<T, double>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_DOUBLE);
 		}
-		else if (std::is_same<T, QString>::value || std::is_same<T, const char *>::value)
+		else if constexpr (std::is_same_v<T, QString> || std::is_same_v<T, const char *>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_STRING);
 		}
-		else if (std::is_same<T, QDateTime>::value)
+		else if constexpr (std::is_same_v<T, QDateTime>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_DATETIME);
 		}
-		else if (std::is_same<T, QUuid>::value)
+		else if constexpr (std::is_same_v<T, QUuid>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_GUID);
 		}
-		else if (std::is_same<T, QByteArray>::value)
+		else if constexpr (std::is_same_v<T, QByteArray>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_BYTESTRING);
 		}
-		else if (std::is_same<T, QUaNodeId>::value)
+		else if constexpr (std::is_same_v<T, QUaNodeId>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_NODEID);
 		}
-		else if (std::is_same<T, QUaStatusCode>::value)
+		else if constexpr (std::is_same_v<T, QUaStatusCode>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_STATUSCODE);
 		}
-		else if (std::is_same<T, QUaQualifiedName>::value)
+		else if constexpr (std::is_same_v<T, QUaQualifiedName>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_QUALIFIEDNAME);
 		}
-		else if (std::is_same<T, QUaLocalizedText>::value)
+		else if constexpr (std::is_same_v<T, QUaLocalizedText>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_LOCALIZEDTEXT);
 		}
 		// TODO : image
-		//else if (std::is_same<T, QImage>::value)
+		//else if constexpr (std::is_same_v<T, QImage>)
 		//{
 		//	return UA_NODEID_NUMERIC(0, UA_NS0ID_IMAGE);
 		//}
 #ifdef UA_GENERATED_NAMESPACE_ZERO_FULL
-		else if (std::is_same<T, QUaOptionSet>::value)
+		else if constexpr (std::is_same_v<T, QUaOptionSet>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_OPTIONSET);
 		}
 #endif // UA_GENERATED_NAMESPACE_ZERO_FULL
 #ifdef UA_ENABLE_SUBSCRIPTIONS_EVENTS
-		else if (std::is_same<T, QTimeZone>::value)
+		else if constexpr (std::is_same_v<T, QTimeZone>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_TIMEZONEDATATYPE);
 		}
-		else if (std::is_same<T, QUaChangeStructureDataType>::value)
+		else if constexpr (std::is_same_v<T, QUaChangeStructureDataType>)
 		{
 			return UA_NODEID_NUMERIC(0, UA_NS0ID_MODELCHANGESTRUCTUREDATATYPE);
 		}
 #endif
-		Q_ASSERT_X(false, "uaTypeNodeIdFromCpp", "Unsupported type");
-		return UA_NodeId();
+		else
+		{
+			Q_ASSERT_X(false, "uaTypeNodeIdFromCpp", "Unsupported type");
+			return UA_NodeId();
+		}
 	}
 
 	template<typename T>
 	QMetaType::Type qtTypeFromCpp()
 	{
-		if (std::is_same<T, QVariant>::value)
+		if constexpr (std::is_same_v<T, QVariant>)
 		{
 			return QMetaType::UnknownType;
 		}
-		else if (std::is_same<T, bool>::value)
+		else if constexpr (std::is_same_v<T, bool>)
 		{
 			return QMetaType::Bool;
 		}
-		else if (std::is_same<T, char>::value)
+		else if constexpr (std::is_same_v<T, char>)
 		{
 			return QMetaType::Char;
 		}
-		else if (std::is_same<T, uchar>::value)
+		else if constexpr (std::is_same_v<T, uchar>)
 		{
 			return QMetaType::UChar;
 		}
-		else if (std::is_same<T, qint16>::value)
+		else if constexpr (std::is_same_v<T, qint16>)
 		{
 			return QMetaType::Short;
 		}
-		else if (std::is_same<T, quint16>::value)
+		else if constexpr (std::is_same_v<T, quint16>)
 		{
 			return QMetaType::UShort;
 		}
-		else if (std::is_same<T, int>::value)
+		else if constexpr (std::is_same_v<T, int>)
 		{
 			return QMetaType::Int;
 		}
-		else if (std::is_same<T, qint32>::value)
+		else if constexpr (std::is_same_v<T, qint32>)
 		{
 			return QMetaType::Int;
 		}
-		else if (std::is_same<T, quint32>::value)
+		else if constexpr (std::is_same_v<T, quint32>)
 		{
 			return QMetaType::UInt;
 		}
-		else if (std::is_same<T, int64_t>::value)
+		else if constexpr (std::is_same_v<T, int64_t>)
 		{
 			return QMetaType::LongLong;
 		}
-		else if (std::is_same<T, uint64_t>::value)
+		else if constexpr (std::is_same_v<T, uint64_t>)
 		{
 			return QMetaType::ULongLong;
 		}
-		else if (std::is_same<T, float>::value)
+		else if constexpr (std::is_same_v<T, float>)
 		{
 			return QMetaType::Float;
 		}
-		else if (std::is_same<T, double>::value)
+		else if constexpr (std::is_same_v<T, double>)
 		{
 			return QMetaType::Double;
 		}
-		else if (std::is_same<T, QString>::value)
+		else if constexpr (std::is_same_v<T, QString>)
 		{
 			return QMetaType::QString;
 		}
-		else if (std::is_same<T, QDateTime>::value)
+		else if constexpr (std::is_same_v<T, QDateTime>)
 		{
 			return QMetaType::QDateTime;
 		}
-		else if (std::is_same<T, QUuid>::value)
+		else if constexpr (std::is_same_v<T, QUuid>)
 		{
 			return QMetaType::QUuid;
 		}
-		else if (std::is_same<T, QByteArray>::value)
+		else if constexpr (std::is_same_v<T, QByteArray>)
 		{
 			return QMetaType::QByteArray;
 		}
-		else if (std::is_same<T, QVariantList>::value)
+		else if constexpr (std::is_same_v<T, QVariantList>)
 		{
 			return QMetaType::QVariantList;
 		}
-		else if (std::is_same<T, QUaNodeId>::value)
+		else if constexpr (std::is_same_v<T, QUaNodeId>)
 		{
 			return QMetaType_NodeId;
 		}
-		else if (std::is_same<T, QUaStatusCode>::value)
+		else if constexpr (std::is_same_v<T, QUaStatusCode>)
 		{
 			return QMetaType_StatusCode;
 		}
-		else if (std::is_same<T, QUaQualifiedName>::value)
+		else if constexpr (std::is_same_v<T, QUaQualifiedName>)
 		{
 			return QMetaType_QualifiedName;
 		}
-		else if (std::is_same<T, QUaLocalizedText>::value)
+		else if constexpr (std::is_same_v<T, QUaLocalizedText>)
 		{
 			return QMetaType_LocalizedText;
 		}
 		// TODO : image
-		//else if (std::is_same<T, QImage>::value)
+		//else if constexpr (std::is_same_v<T, QImage>)
 		//{
 		//	return QMetaType_Image;
 		//}
 #ifdef UA_GENERATED_NAMESPACE_ZERO_FULL
-		else if (std::is_same<T, QUaOptionSet>::value)
+		else if constexpr (std::is_same_v<T, QUaOptionSet>)
 		{
 			return QMetaType_OptionSet;
 		}
 #endif // UA_GENERATED_NAMESPACE_ZERO_FULL
 #ifdef UA_ENABLE_SUBSCRIPTIONS_EVENTS
-		else if (std::is_same<T, QTimeZone>::value)
+		else if constexpr (std::is_same_v<T, QTimeZone>)
 		{
 			return QMetaType_TimeZone;
 		}
-		else if (std::is_same<T, QUaChangeStructureDataType>::value)
+		else if constexpr (std::is_same_v<T, QUaChangeStructureDataType>)
 		{
 			return QMetaType_ChangeStructureDataType;
 		}
 #endif
-		Q_ASSERT_X(false, "qtTypeFromCpp", "Unsupported type");
-		return QMetaType::UnknownType;
+		else
+		{
+			Q_ASSERT_X(false, "qtTypeFromCpp", "Unsupported type");
+			return QMetaType::UnknownType;
+		}
 	}
 
 	void registerCustomTypes();

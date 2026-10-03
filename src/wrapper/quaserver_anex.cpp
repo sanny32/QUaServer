@@ -202,7 +202,7 @@ QUaServer_Anex::UA_Server_triggerEvent_Modified(
     bd.includeSubtypes = true;
     bd.nodeClassMask   = UA_NODECLASS_OBJECT;
     bd.resultMask      = UA_BROWSERESULTMASK_NONE;
-    UA_ExpandedNodeId* emitNodes = NULL;
+    UA_ExpandedNodeId* emitNodes = nullptr;
     size_t emitNodesSize = 0;
     retval = UA_Server_browseRecursive(server, &bd, &emitNodesSize, &emitNodes);
     if (retval != UA_STATUSCODE_GOOD) {

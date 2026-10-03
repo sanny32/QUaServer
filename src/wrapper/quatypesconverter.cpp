@@ -381,7 +381,7 @@ UA_Variant uaVariantFromQVariantScalar<UA_Variant, QVariant>(const QVariant & va
 {
 	Q_ASSERT(type == &UA_TYPES[UA_TYPES_VARIANT]);
 	Q_UNUSED(var);
-	return { NULL, UA_VARIANT_DATA, 0, NULL, 0, NULL };
+	return { nullptr, UA_VARIANT_DATA, 0, nullptr, 0, nullptr };
 }
 
 template<typename TARGETTYPE, typename QTTYPE>
@@ -581,7 +581,7 @@ UA_Variant uaVariantFromQVariantArray(const QVariant & var, const UA_DataType * 
     UA_Variant_setArray(&retVar, arr, static_cast<size_t>(iter.size()), type);
 #ifdef UA_ENABLE_SUBSCRIPTIONS_EVENTS
 	// NOTE : UAExpert requires list of changes to be an array (not matrix)
-	if (!std::is_same<QTTYPE, QUaChangeStructureDataType>::value)
+	if constexpr (!std::is_same_v<QTTYPE, QUaChangeStructureDataType>)
 	{
 #endif
 	// NOTE : need to disable code below if using rank and arrayDim to set size and shape of data

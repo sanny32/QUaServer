@@ -8,13 +8,13 @@
 #endif
 #include <winsock2.h>
 #include <ws2tcpip.h>
-typedef SOCKET quaSocket;
+using quaSocket = SOCKET;
 #else
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-typedef int quaSocket;
+using quaSocket = int;
 #endif
 
 #include "quaserver_anex.h"
@@ -684,7 +684,7 @@ UA_StatusCode QUaServer::activateSession(UA_Server                    * server,
 	srv->m_hashSessions[*sessionId]->m_strUserName = strUserName;
 	// NOTE : QUaServer::newSession is called when the session activated notification arrives
 	/* No userdata atm */
-	*sessionContext = NULL;
+	*sessionContext = nullptr;
 	return UA_STATUSCODE_GOOD;
 }
 
@@ -785,7 +785,7 @@ static bool quaGetPeerAddress(const UA_UInt64 &connectionId, QString &strAddress
 	}
 	char remote_name[NI_MAXHOST];
 	if (getnameinfo(reinterpret_cast<sockaddr*>(&address), address_len,
-		remote_name, sizeof(remote_name), NULL, 0, NI_NUMERICHOST) != 0)
+		remote_name, sizeof(remote_name), nullptr, 0, NI_NUMERICHOST) != 0)
 	{
 		return false;
 	}
@@ -1249,13 +1249,13 @@ void QUaServer::resetConfig()
 		policy->clear(policy);
 	}
 	UA_free(config->securityPolicies);
-	config->securityPolicies = NULL;
+	config->securityPolicies = nullptr;
 	config->securityPoliciesSize = 0;
 	/* Endoints */
 	for (size_t i = 0; i < config->endpointsSize; ++i)
 		UA_EndpointDescription_clear(&config->endpoints[i]);
 	UA_free(config->endpoints);
-	config->endpoints = NULL;
+	config->endpoints = nullptr;
 	config->endpointsSize = 0;
 	/* Certificate Validation */
 	if (config->secureChannelPKI.clear)

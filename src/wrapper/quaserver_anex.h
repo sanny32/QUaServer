@@ -24,7 +24,7 @@ class QUaServer_Anex
     friend class QUaConditionBranch;
 #endif // UA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS
 
-    typedef std::function<QVariant(const QUaBrowsePath&)> QUaSaoCallback;
+    using QUaSaoCallback = std::function<QVariant(const QUaBrowsePath&)>;
 
     // Trigger the event instance eventNodeId with origin as source node.
     // Also stores the event in the history backend if historizing is enabled.

@@ -34,7 +34,7 @@ struct QUaHasMethodSerializeStart
 
 template <typename T>
 struct QUaHasMethodSerializeStart<T,
-	typename std::enable_if<std::is_same<decltype(&T::serializeStart), bool(T::*)(QQueue<QUaLog>&)>::value>::type>
+	std::enable_if_t<std::is_same_v<decltype(&T::serializeStart), bool(T::*)(QQueue<QUaLog>&)>>>
 	: std::true_type
 {};
 
@@ -46,7 +46,7 @@ struct QUaHasMethodSerializeEnd
 
 template <typename T>
 struct QUaHasMethodSerializeEnd<T,
-	typename std::enable_if<std::is_same<decltype(&T::serializeEnd), bool(T::*)(QQueue<QUaLog>&)>::value>::type>
+	std::enable_if_t<std::is_same_v<decltype(&T::serializeEnd), bool(T::*)(QQueue<QUaLog>&)>>>
 	: std::true_type
 {};
 
@@ -58,7 +58,7 @@ struct QUaHasMethodDeserializeStart
 
 template <typename T>
 struct QUaHasMethodDeserializeStart<T,
-	typename std::enable_if<std::is_same<decltype(&T::deserializeStart), bool(T::*)(QQueue<QUaLog>&)>::value>::type>
+	std::enable_if_t<std::is_same_v<decltype(&T::deserializeStart), bool(T::*)(QQueue<QUaLog>&)>>>
 	: std::true_type
 {};
 
@@ -70,7 +70,7 @@ struct QUaHasMethodDeserializeEnd
 
 template <typename T>
 struct QUaHasMethodDeserializeEnd<T,
-	typename std::enable_if<std::is_same<decltype(&T::deserializeEnd), bool(T::*)(QQueue<QUaLog>&)>::value>::type>
+	std::enable_if_t<std::is_same_v<decltype(&T::deserializeEnd), bool(T::*)(QQueue<QUaLog>&)>>>
 	: std::true_type
 {};
 
@@ -344,8 +344,8 @@ private:
 	//        decided to make key QString because use of QUaQualifiedName is more expensive for hash
 	//        puposes. This might be an issue if there are two fields with same name but different
 	//        namespace
-	typedef QHash<QUaBrowsePath, QUaDataType> QUaEventFieldMetaData;
-	typedef QHash<QUaBrowsePath, QUaDataType>::iterator QUaEventFieldMetaDataIter;
+	using QUaEventFieldMetaData = QHash<QUaBrowsePath, QUaDataType>;
+	using QUaEventFieldMetaDataIter = QHash<QUaBrowsePath, QUaDataType>::iterator;
 	static QUaEventFieldMetaData getTypeVars(
 		const QUaNodeId& typeNodeId,
 		UA_Server* server
@@ -409,20 +409,10 @@ private:
 	bool serializeInternal(T& serializer, QQueue<QUaLog>& logOut);
 
 	template<typename T>
-	typename std::enable_if<QUaHasMethodSerializeStart<T>::value, bool>::type
-	serializeStart(T& serializer, QQueue<QUaLog>& logOut);
+	bool serializeStart(T& serializer, QQueue<QUaLog>& logOut);
 
 	template<typename T>
-	typename std::enable_if<!QUaHasMethodSerializeStart<T>::value, bool>::type
-	serializeStart(T& serializer, QQueue<QUaLog>& logOut);
-
-	template<typename T>
-	typename std::enable_if<QUaHasMethodSerializeEnd<T>::value, bool>::type
-	serializeEnd(T& serializer, QQueue<QUaLog>& logOut);
-
-	template<typename T>
-	typename std::enable_if<!QUaHasMethodSerializeEnd<T>::value, bool>::type
-	serializeEnd(T& serializer, QQueue<QUaLog>& logOut);
+	bool serializeEnd(T& serializer, QQueue<QUaLog>& logOut);
 
 	template<typename T>
 	bool deserializeInternal(T& deserializer, 
@@ -434,20 +424,10 @@ private:
 	void deserializeAttrs(const QMap<QString, QVariant>& attrs, QQueue<QUaLog>& logOut);
 
 	template<typename T>
-	typename std::enable_if<QUaHasMethodDeserializeStart<T>::value, bool>::type
-	deserializeStart(T& serializer, QQueue<QUaLog>& logOut);
+	bool deserializeStart(T& serializer, QQueue<QUaLog>& logOut);
 
 	template<typename T>
-	typename std::enable_if<!QUaHasMethodDeserializeStart<T>::value, bool>::type
-	deserializeStart(T& serializer, QQueue<QUaLog>& logOut);
-
-	template<typename T>
-	typename std::enable_if<QUaHasMethodDeserializeEnd<T>::value, bool>::type
-	deserializeEnd(T& deserializer, QQueue<QUaLog>& logOut);
-
-	template<typename T>
-	typename std::enable_if<!QUaHasMethodDeserializeEnd<T>::value, bool>::type
-	deserializeEnd(T& deserializer, QQueue<QUaLog>& logOut);
+	bool deserializeEnd(T& deserializer, QQueue<QUaLog>& logOut);
 
 	std::function<QUaWriteMask(const QString&)> m_userWriteMaskCallback;
 	std::function<QUaAccessLevel(const QString&)> m_userAccessLevelCallback;

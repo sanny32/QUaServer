@@ -38,7 +38,7 @@ UA_StatusCode QUaServer::addOptionSetValues(UA_Server* server, UA_NodeId* parent
                                         UA_QUALIFIEDNAME (0, (char*)"OptionSetValues"),
                                         UA_NODEID_NUMERIC(0, UA_NS0ID_PROPERTYTYPE), 
                                         attr, 
-                                        NULL, 
+                                        nullptr, 
                                         &optionSetValuesNodeId);
 	Q_ASSERT(retVal == UA_STATUSCODE_GOOD);
 	// make mandatory
@@ -91,8 +91,8 @@ void QUaServer::registerOptionSet(const QString& strOptionSetName, const QUaOpti
 		UA_NODEID_NUMERIC(0, UA_NS0ID_HASSUBTYPE),
 		UA_QUALIFIEDNAME(1, charOptionSetName),
 		ddaatt,
-		NULL,
-		NULL);
+		nullptr,
+		nullptr);
 	Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	// create vector of bit values (names)
 	auto bits = optionSetMap.keys();

@@ -30,6 +30,10 @@ private slots:
     void methodRejectsWrongArguments_data();
     void methodRejectsWrongArguments();
     void voidMethodRuns();
+    void methodReceivesArgumentsInOrder();
+    void voidMethodReceivesArgumentsInOrder();
+    void functionPointerMethodRuns();
+    void methodTakesAndReturnsLists();
 
 private:
     QUaServer *m_server = nullptr;
@@ -313,6 +317,93 @@ void TestServicesIntegration::voidMethodRuns()
 
     QVERIFY(outputs.isEmpty());
     QCOMPARE(lastReason, QStringLiteral("maintenance"));
+}
+
+///
+/// \brief Regression: each client input reaches the parameter at the same position, whatever the argument evaluation order.
+///
+void TestServicesIntegration::methodReceivesArgumentsInOrder()
+{
+    QUaBaseObject *device = objects()->addBaseObject(QStringLiteral("device"));
+    m_created << device;
+    const QUaNodeId methodId(1, QStringLiteral("device.describe"));
+    device->addMethod(QStringLiteral("describe"), [](QString name, int count, double scale) {
+        return QStringLiteral("%1:%2:%3").arg(name).arg(count).arg(scale);
+    }, methodId);
+    QVariantList outputs;
+
+    QCOMPARE(m_client->call(device->nodeId(), methodId, { QStringLiteral("pump"), 3, 0.5 }, outputs), UA_STATUSCODE_GOOD);
+
+    QCOMPARE(outputs.count(), 1);
+    QCOMPARE(outputs.first().toString(), QStringLiteral("pump:3:0.5"));
+}
+
+void TestServicesIntegration::voidMethodReceivesArgumentsInOrder()
+{
+    QUaBaseObject *device = objects()->addBaseObject(QStringLiteral("device"));
+    m_created << device;
+    const QUaNodeId methodId(1, QStringLiteral("device.configure"));
+    QString lastName;
+    int lastCount = 0;
+    device->addMethod(QStringLiteral("configure"), [&lastName, &lastCount](QString name, int count) {
+        lastName = name;
+        lastCount = count;
+    }, methodId);
+    QVariantList outputs;
+
+    QCOMPARE(m_client->call(device->nodeId(), methodId, { QStringLiteral("valve"), 7 }, outputs), UA_STATUSCODE_GOOD);
+
+    QVERIFY(outputs.isEmpty());
+    QCOMPARE(lastName, QStringLiteral("valve"));
+    QCOMPARE(lastCount, 7);
+}
+
+namespace {
+
+int subtract(int minuend, int subtrahend)
+{
+    return minuend - subtrahend;
+}
+
+} // namespace
+
+void TestServicesIntegration::functionPointerMethodRuns()
+{
+    QUaBaseObject *calculator = objects()->addBaseObject(QStringLiteral("calculator"));
+    m_created << calculator;
+    const QUaNodeId methodId(1, QStringLiteral("calculator.subtract"));
+    calculator->addMethod(QStringLiteral("subtract"), &subtract, methodId);
+    QVariantList outputs;
+
+    QCOMPARE(m_client->call(calculator->nodeId(), methodId, { 10, 4 }, outputs), UA_STATUSCODE_GOOD);
+
+    QCOMPARE(outputs.count(), 1);
+    QCOMPARE(outputs.first().toInt(), 6);
+}
+
+///
+/// \brief List parameters and results travel as one-dimensional arrays.
+///
+void TestServicesIntegration::methodTakesAndReturnsLists()
+{
+    QUaBaseObject *calculator = objects()->addBaseObject(QStringLiteral("calculator"));
+    m_created << calculator;
+    const QUaNodeId methodId(1, QStringLiteral("calculator.scale"));
+    calculator->addMethod(QStringLiteral("scale"), [](QList<int> values, int factor) {
+        QList<int> scaled;
+        for (int value : values)
+        {
+            scaled << value * factor;
+        }
+        return scaled;
+    }, methodId);
+    QVariantList outputs;
+
+    QCOMPARE(m_client->call(calculator->nodeId(), methodId, { QVariant::fromValue(QList<int>{ 1, 2, 3 }), 10 }, outputs),
+             UA_STATUSCODE_GOOD);
+
+    QCOMPARE(outputs.count(), 1);
+    QCOMPARE(outputs.first().value<QList<int>>(), QList<int>({ 10, 20, 30 }));
 }
 
 QTEST_GUILESS_MAIN(TestServicesIntegration)
