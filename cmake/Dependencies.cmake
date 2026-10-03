@@ -88,6 +88,8 @@ quaserver_set_cache(UA_ENABLE_SUBSCRIPTIONS_EVENTS            ${QUASERVER_EVENTS
 quaserver_set_cache(UA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS ${QUASERVER_ALARMS_CONDITIONS} BOOL)
 quaserver_set_cache(UA_ENABLE_HISTORIZING                     ${QUASERVER_HISTORIZING}       BOOL)
 
+# QUaServer::loadNodeSet() decodes variable values with UA_decodeXml
+quaserver_set_cache(UA_ENABLE_XML_ENCODING   ON  BOOL)
 quaserver_set_cache(UA_ENABLE_AMALGAMATION   OFF BOOL)
 quaserver_set_cache(UA_ENABLE_PUBSUB         OFF BOOL)
 quaserver_set_cache(UA_BUILD_EXAMPLES        OFF BOOL)

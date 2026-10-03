@@ -6,6 +6,7 @@
 #include <utility>
 
 #include <QTimer>
+#include <QIODevice>
 #include <QSequentialIterable>
 
 #include <QUaTypesConverter>
@@ -105,8 +106,27 @@ struct QUaServerLimits
 };
 Q_DECLARE_METATYPE(QUaServerLimits)
 
+///
+/// \brief Outcome of QUaServer::loadNodeSet().
+///
+struct QUaNodeSetResult
+{
+	/// Why the NodeSet could not be loaded, empty on success; nothing is added to the address space then.
+	QString errorString;
+	/// Nodes added to the address space, in the order they were added.
+	QList<QUaNodeId> addedNodes;
+	/// Nodes, references and values that were skipped while the rest of the NodeSet was loaded.
+	QStringList warnings;
+
+	///
+	/// \brief Tells whether the NodeSet was loaded, possibly with warnings.
+	///
+	bool isOk() const;
+};
+
 class QUaServer : public QObject
 {
+	friend class QUaNodeSetLoader;
 	friend class QUaNode;
 	friend class QUaBaseVariable;
 	friend class QUaBaseObject;
@@ -297,6 +317,24 @@ public:
     void setChildNodeIdCallback(const M& callback);
     // allow to un set the callback, i.e. QUaChildNodeIdCallback(nullptr)
     void setChildNodeIdCallback(const QUaChildNodeIdCallback& callback);
+
+	// NodeSet API
+
+	///
+	/// \brief Adds the nodes of a NodeSet2 XML file to the address space, mapping its namespaces to the server ones.
+	///        Objects and variables get a C++ instance of the closest registered type; nodes that already exist are
+	///        skipped.
+	/// \return The added nodes and warnings, or an error when the file cannot be read or parsed.
+	///
+	QUaNodeSetResult loadNodeSet(const QString& fileName);
+	///
+	/// \brief Same as loadNodeSet(const QString&), reading the NodeSet2 XML from an open \a device.
+	///
+	QUaNodeSetResult loadNodeSet(QIODevice* device);
+	///
+	/// \brief Returns the namespace URIs; the position of a URI is its namespace index.
+	///
+	QStringList namespaces() const;
 
 	// register enum in order to use it as data type
 	template<typename T>
@@ -638,6 +676,7 @@ private:
 #endif // UA_GENERATED_NAMESPACE_ZERO_FULL
 	// lifecycle
     void registerTypeLifeCycle(const UA_NodeId &typeNodeId, const QMetaObject &metaObject);
+    void bindNodeSetType(const UA_NodeId &typeNodeId);
     void registerTypeDefaults (const UA_NodeId &typeNodeId, const QMetaObject &metaObject);
 	// meta
 	void registerMetaEnums      (const QMetaObject &metaObject);

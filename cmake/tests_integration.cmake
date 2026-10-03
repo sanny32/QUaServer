@@ -4,12 +4,16 @@ function(quaserver_configure_integration_tests)
     quaserver_add_integration_test(quaserver_tests_endpoints_integration test_endpoints_integration.cpp)
     quaserver_add_integration_test(quaserver_tests_limits_integration test_limits_integration.cpp)
     quaserver_add_integration_test(quaserver_tests_nodemanagement_integration test_nodemanagement_integration.cpp)
+    quaserver_add_integration_test(quaserver_tests_nodeset_integration test_nodeset_integration.cpp)
+    target_compile_definitions(quaserver_tests_nodeset_integration PRIVATE
+        QUASERVER_TEST_NODESET_DIR="${PROJECT_SOURCE_DIR}/src/tests/nodesets")
     set(locked_tests
         quaserver_tests_sessions_integration
         quaserver_tests_services_integration
         quaserver_tests_endpoints_integration
         quaserver_tests_limits_integration
-        quaserver_tests_nodemanagement_integration)
+        quaserver_tests_nodemanagement_integration
+        quaserver_tests_nodeset_integration)
 
     if(QUASERVER_EVENTS)
         quaserver_add_integration_test(quaserver_tests_events_integration test_events_integration.cpp)

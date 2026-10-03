@@ -55,8 +55,11 @@ using quaSocket = int;
 #include <QUaOptionSetVariable>
 #endif
 
+#include <QFile>
 #include <QMetaProperty>
 #include <QTimer>
+
+#include "quanodesetloader.h"
 
 #ifdef UA_ENABLE_ENCRYPTION
 namespace {
@@ -404,14 +407,7 @@ UA_StatusCode QUaServer::uaConstructor(
 	if (parentContext && UA_NodeId_equal(&topBoundParentNodeId, &directParentNodeId))
 	{
 		auto browseName = QUaNode::getBrowseName(*nodeId, server->_server);
-		newInstance->setParent(parentContext);
-		newInstance->setObjectName(browseName);
-		Q_ASSERT(!parentContext->browseChild(browseName));
-		size_t key = qHash(browseName);
-		parentContext->_browseCache[key] = newInstance;
-		QObject::connect(newInstance, &QObject::destroyed, parentContext, [parentContext, key]() {
-			parentContext->_browseCache.remove(key);
-		});	
+		parentContext->bindChild(newInstance, browseName);
 		// emit child added to parent
 		emit parentContext->childAdded(newInstance);
 	}
@@ -2463,6 +2459,97 @@ bool QUaServerLimits::operator!=(const QUaServerLimits& other) const
 void QUaServer::setChildNodeIdCallback(const QUaChildNodeIdCallback& callback)
 {
 	_childNodeIdCallback = callback;
+}
+
+///
+/// \brief Tells whether the NodeSet was loaded, possibly with warnings.
+///
+bool QUaNodeSetResult::isOk() const
+{
+	return errorString.isEmpty();
+}
+
+///
+/// \brief Adds the nodes of a NodeSet2 XML file to the address space, mapping its namespaces to the server ones.
+///        Objects and variables get a C++ instance of the closest registered type; nodes that already exist are
+///        skipped.
+/// \return The added nodes and warnings, or an error when the file cannot be read or parsed.
+///
+QUaNodeSetResult QUaServer::loadNodeSet(const QString& fileName)
+{
+	QFile file(fileName);
+	if (!file.open(QIODevice::ReadOnly))
+	{
+		QUaNodeSetResult result;
+		result.errorString = QStringLiteral("Cannot open %1: %2").arg(fileName, file.errorString());
+		return result;
+	}
+	return this->loadNodeSet(&file);
+}
+
+///
+/// \brief Same as loadNodeSet(const QString&), reading the NodeSet2 XML from an open \a device.
+///
+QUaNodeSetResult QUaServer::loadNodeSet(QIODevice* device)
+{
+	QUaNodeSetLoader loader(this);
+	return loader.load(device);
+}
+
+///
+/// \brief Returns the namespace URIs; the position of a URI is its namespace index.
+///
+QStringList QUaServer::namespaces() const
+{
+	QStringList uris;
+	UA_String uri;
+	while (UA_Server_getNamespaceByIndex(_server, static_cast<size_t>(uris.count()), &uri) == UA_STATUSCODE_GOOD)
+	{
+		uris << QUaTypesConverter::uaStringToQString(uri);
+		UA_String_clear(&uri);
+	}
+	return uris;
+}
+
+///
+/// \brief Gives instances of a type loaded from a NodeSet the C++ class of its closest registered supertype,
+///        unless that supertype is abstract. Its children, mandatory or not, are bound by the QUaNode constructor.
+///
+void QUaServer::bindNodeSetType(const UA_NodeId& typeNodeId)
+{
+	if (_hashConstructors.contains(typeNodeId))
+	{
+		return;
+	}
+	QString strClassName;
+	UA_NodeId superTypeNodeId = QUaNode::superTypeDefinitionNodeId(typeNodeId, _server);
+	while (!UA_NodeId_isNull(&superTypeNodeId))
+	{
+		for (auto it = _mapTypes.cbegin(); it != _mapTypes.cend(); ++it)
+		{
+			if (UA_NodeId_equal(&it.value(), &superTypeNodeId))
+			{
+				strClassName = it.key();
+				break;
+			}
+		}
+		if (!strClassName.isEmpty())
+		{
+			break;
+		}
+		UA_NodeId nextNodeId = QUaNode::superTypeDefinitionNodeId(superTypeNodeId, _server);
+		UA_NodeId_clear(&superTypeNodeId);
+		superTypeNodeId = nextNodeId;
+	}
+	const bool isInstantiable = !strClassName.isEmpty() && _hashConstructors.contains(superTypeNodeId);
+	UA_NodeId_clear(&superTypeNodeId);
+	if (!isInstantiable)
+	{
+		return;
+	}
+	_hashMandatoryChildren[typeNodeId] = QSet<QUaQualifiedName>();
+	UA_Server_setNodeContext(_server, typeNodeId, static_cast<void*>(this));
+	this->registerTypeLifeCycle(typeNodeId, _hashMetaObjects.value(strClassName));
 }
 
 void QUaServer::registerTypeInternal(

@@ -326,10 +326,14 @@ private:
 	// TODO : consider removing after testing new open62541 tree implementation
 	QHash<uint, QUaNode*> _browseCache;
 
+	void bindChild(QUaNode* child, const QUaQualifiedName& browseName);
+
 	// Static Helpers
 
 	// NOTE : need to cleanup result after calling this method
 	static UA_NodeId getParentNodeId(const UA_NodeId& childNodeId, UA_Server* server);
+	static UA_NodeId getFirstInverseReferenceSource(const UA_NodeId& nodeId, const UA_NodeId& referenceTypeId,
+	                                                UA_Server* server);
 	// NOTE : need to cleanup result after calling this method
 	static QList<UA_NodeId> getChildrenNodeIds(
 		const UA_NodeId& parentNodeId, 

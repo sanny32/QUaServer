@@ -10,6 +10,7 @@ Part of the flexibility of the *open62541* server API is traded for ease of use:
 Features:
 
 * Objects, variables, properties and folders, with custom object and variable types
+* Loading of information models from NodeSet2 XML files, such as the OPC UA companion specifications
 * Validation of client writes before they are applied
 * Methods callable by clients, from callbacks, lambdas or `Q_INVOKABLE` methods
 * Custom non-hierarchical references

@@ -613,6 +613,7 @@ CMakeUserPresets.json
 /src/wrapper/pch_open62541.h.c
 *.sqlite
 *.xml
+!*.NodeSet2.xml
 
 *.gch
 /examples/01_basics/01_basics

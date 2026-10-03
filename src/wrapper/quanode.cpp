@@ -181,16 +181,8 @@ QUaNode::QUaNode(
 		// get node context (C++ instance)
 		auto nodeInstance = QUaNode::getNodeContext(childNodeId, server->_server);
 		Q_CHECK_PTR(nodeInstance);
-		// assign C++ parent
-		nodeInstance->setParent(this);
-		nodeInstance->setObjectName(browseName);
-		Q_ASSERT(!this->browseChild(browseName));
-		size_t key = qHash(browseName);
-		_browseCache[key] = nodeInstance;
-		QObject::connect(nodeInstance, &QObject::destroyed, this, [this, key]() {
-			_browseCache.remove(key);
-		});
-		// [NOTE] writing a pointer value to a Q_PROPERTY did not work, 
+		this->bindChild(nodeInstance, browseName);
+		// [NOTE] writing a pointer value to a Q_PROPERTY did not work,
 		//        eventhough there appear to be some success cases on the internet
 		//        so in the end we have to query children by object name
 	} // for each prop
@@ -206,23 +198,43 @@ QUaNode::QUaNode(
 		// get node context (C++ instance)
 		auto nodeInstance = QUaNode::getNodeContext(childNodeId, server->_server);
 		Q_CHECK_PTR(nodeInstance);
-		// assign C++ parent
-		nodeInstance->setParent(this);
-		nodeInstance->setObjectName(browseName);
-		Q_ASSERT(!this->browseChild(browseName));
-		size_t key = qHash(browseName);
-		_browseCache[key] = nodeInstance;
-		QObject::connect(nodeInstance, &QObject::destroyed, this, [this, key]() {
-			_browseCache.remove(key);
-		});
+		this->bindChild(nodeInstance, browseName);
 	}
-	// if assert below fails, review filter in QUaNode::getChildrenNodeIds
-	Q_ASSERT_X(mapChildren.count() == 0, "QUaNode::QUaNode", "Children not bound properly.");
+	// nodes loaded from a NodeSet are constructed before their parent, with any children of their own
+	for (auto it = mapChildren.cbegin(); it != mapChildren.cend(); ++it)
+	{
+		auto nodeInstance = QUaNode::getNodeContext(it.value(), server->_server);
+		if (!nodeInstance || nodeInstance->parent())
+		{
+			continue;
+		}
+		UA_NodeId childParentNodeId = QUaNode::getParentNodeId(it.value(), server->_server);
+		if (UA_NodeId_equal(&childParentNodeId, &nodeId))
+		{
+			this->bindChild(nodeInstance, it.key());
+		}
+		UA_NodeId_clear(&childParentNodeId);
+	}
 	// cleanup
 	for (auto & childNodeId : chidrenNodeIds)
 	{
 		UA_NodeId_clear(&childNodeId);
 	}
+}
+
+///
+/// \brief Makes \a child a Qt child reachable through browseChild() by \a browseName.
+///
+void QUaNode::bindChild(QUaNode* child, const QUaQualifiedName& browseName)
+{
+	child->setParent(this);
+	child->setObjectName(browseName);
+	Q_ASSERT(!this->browseChild(browseName));
+	size_t key = qHash(browseName);
+	_browseCache[key] = child;
+	QObject::connect(child, &QObject::destroyed, this, [this, key]() {
+		_browseCache.remove(key);
+	});
 }
 
 QUaNode::~QUaNode()
@@ -1096,14 +1108,7 @@ QUaNode * QUaNode::instantiateOptionalChild(
 	newInstance->_nodeId = outOptionalNode; // NOTE : ownership transferred
 	// need to set parent and browse name
 	auto browseName = QUaQualifiedName(childName);
-	newInstance->setParent(parent);
-	newInstance->setObjectName(browseName);
-	Q_ASSERT(!parent->browseChild(browseName));
-	size_t key = qHash(browseName);
-	parent->_browseCache[key] = newInstance;
-	QObject::connect(newInstance, &QObject::destroyed, parent, [parent, key]() {
-		parent->_browseCache.remove(key);
-	});
+	parent->bindChild(newInstance, browseName);
 	// emit child added to parent
 	emit parent->childAdded(newInstance);
 	// success
@@ -1669,48 +1674,46 @@ QString QUaNode::className() const
 	return QString::fromUtf8(this->metaObject()->className());
 }
 
-// NOTE : need to cleanup result after calling this method
+///
+/// \brief Returns the source of the first inverse reference of \a referenceTypeId or its subtypes, null when none.
+///        The result must be cleared.
+///
+UA_NodeId QUaNode::getFirstInverseReferenceSource(const UA_NodeId& nodeId, const UA_NodeId& referenceTypeId,
+                                                  UA_Server* server)
+{
+	UA_BrowseDescription bDesc;
+	UA_BrowseDescription_init(&bDesc);
+	bDesc.nodeId          = nodeId;
+	bDesc.referenceTypeId = referenceTypeId;
+	bDesc.browseDirection = UA_BROWSEDIRECTION_INVERSE;
+	bDesc.includeSubtypes = true;
+	bDesc.resultMask      = UA_BROWSERESULTMASK_NONE;
+	UA_BrowseResult bRes = UA_Server_browse(server, 0, &bDesc);
+	Q_ASSERT(bRes.statusCode == UA_STATUSCODE_GOOD);
+	UA_NodeId sourceNodeId = UA_NODEID_NULL;
+	if (bRes.referencesSize > 0)
+	{
+		UA_NodeId_copy(&bRes.references[0].nodeId.nodeId, &sourceNodeId);
+	}
+	UA_BrowseResult_clear(&bRes);
+	return sourceNodeId;
+}
+
+///
+/// \brief Returns the parent of a node: the source of a HasChild reference (e.g. HasComponent), else of any other
+///        hierarchical reference such as Organizes. Nodes may have several parents, as methods shared by the instances
+///        of a type or nodes of a NodeSet; the first one is returned. The result must be cleared.
+///
 UA_NodeId QUaNode::getParentNodeId(const UA_NodeId & childNodeId, UA_Server * server)
 {
-	UA_BrowseDescription * bDesc = UA_BrowseDescription_new();
-	UA_NodeId_copy(&childNodeId, &bDesc->nodeId); // from child
-	bDesc->browseDirection = UA_BROWSEDIRECTION_INVERSE; //  look upwards
-	bDesc->includeSubtypes = true;
-	bDesc->resultMask      = UA_BROWSERESULTMASK_BROWSENAME | UA_BROWSERESULTMASK_DISPLAYNAME;
-	// browse
-	UA_BrowseResult bRes = UA_Server_browse(server, 0, bDesc);
-	Q_ASSERT(bRes.statusCode == UA_STATUSCODE_GOOD);
-	QList<UA_NodeId> listParents;
-	while (bRes.referencesSize > 0)
+	UA_NodeId parentNodeId = QUaNode::getFirstInverseReferenceSource(
+		childNodeId, UA_NODEID_NUMERIC(0, UA_NS0ID_HASCHILD), server);
+	if (UA_NodeId_isNull(&parentNodeId))
 	{
-		for (size_t i = 0; i < bRes.referencesSize; i++)
-		{
-			UA_ReferenceDescription rDesc = bRes.references[i];
-			// NOTE : it seems cleanup below also deletes the strings of string nodeIds which creates a bug
-			//        this means we need to cleanup the result everytime we call QUaNode::getParentNodeId
-			//UA_NodeId nodeId = rDesc.nodeId.nodeId;
-			UA_NodeId nodeId;
-			UA_NodeId_copy(&rDesc.nodeId.nodeId, &nodeId);
-			listParents.append(nodeId);
-		}
-        UA_BrowseResult_clear(&bRes);
-        bRes = UA_Server_browseNext(server, true, &bRes.continuationPoint);
+		parentNodeId = QUaNode::getFirstInverseReferenceSource(
+			childNodeId, UA_NODEID_NUMERIC(0, UA_NS0ID_HIERARCHICALREFERENCES), server);
 	}
-	// cleanup
-    UA_BrowseDescription_clear(bDesc);
-	UA_BrowseDescription_delete(bDesc);
-    UA_BrowseResult_clear(&bRes);
-	// check if method
-	UA_NodeClass outNodeClass;
-	UA_Server_readNodeClass(server, childNodeId, &outNodeClass);
-	// NOTE : seems methods added to subtype have references to all instances created of the subtype
-	// TODO : fix, when https://github.com/open62541/open62541/pull/1812 is fixed
-	Q_ASSERT_X(
-		(listParents.count() <= 1 && outNodeClass != UA_NODECLASS_METHOD) ||
-		(listParents.count() >= 1 && outNodeClass == UA_NODECLASS_METHOD),
-		"QUaServer::getParentNodeId", "Child code it not supposed to have more than one parent.");
-	// return
-	return listParents.count() > 0 ? listParents.at(0) : UA_NODEID_NULL;
+	return parentNodeId;
 }
 
 // NOTE : need to cleanup result after calling this method

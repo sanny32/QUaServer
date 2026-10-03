@@ -15,6 +15,7 @@ Each chapter builds on the previous ones and has a matching example in [`example
 | 9 | [Serialization](09_serialization.md) | Save and restore the address space | [09_serialization](../examples/09_serialization/main.cpp) | |
 | 10 | [Historizing](10_historizing.md) | Store and serve historical data and events | [10_historizing](../examples/10_historizing/main.cpp) | `QUASERVER_HISTORIZING` |
 | 11 | [Alarms](11_alarms.md) | Alarms and conditions | [11_alarms_conditions](../examples/11_alarms_conditions/main.cpp) | `QUASERVER_ALARMS_CONDITIONS` |
+| 12 | [NodeSets](12_nodesets.md) | Load information models from NodeSet2 XML files | [12_nodesets](../examples/12_nodesets/main.cpp) | |
 
 Reference:
 

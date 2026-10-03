@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://quaserver.test/devices/</Uri>
+    <Uri>http://quaserver.test/other/</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://quaserver.test/devices/" Version="1.0.0" PublicationDate="2026-10-01T00:00:00Z">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.03" />
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="Int32">i=6</Alias>
+    <Alias Alias="Double">i=11</Alias>
+    <Alias Alias="String">i=12</Alias>
+    <Alias Alias="Organizes">i=35</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+  </Aliases>
+  <UAReferenceType NodeId="ns=1;i=4001" BrowseName="1:Feeds">
+    <DisplayName>Feeds</DisplayName>
+    <InverseName>FedBy</InverseName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
+    </References>
+  </UAReferenceType>
+  <UADataType NodeId="ns=1;i=5001" BrowseName="1:Mode">
+    <DisplayName>Mode</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+    </References>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=2001" BrowseName="1:Device1">
+    <DisplayName Locale="en">Device 1</DisplayName>
+    <DisplayName Locale="de">Gerät 1</DisplayName>
+    <Description>First device</Description>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1001</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=3001</Reference>
+      <Reference ReferenceType="ns=1;i=4001">ns=1;i=2003</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=2002" BrowseName="1:Temperature" DataType="Double" AccessLevel="3" UserAccessLevel="3">
+    <DisplayName>Temperature</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=2001</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+    </References>
+    <Value>
+      <uax:Double>21.5</uax:Double>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=3001" BrowseName="1:Text" DataType="String" AccessLevel="3" UserAccessLevel="3">
+    <DisplayName>Text</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+    </References>
+    <Value>
+      <uax:String>hello &amp; &lt;world&gt;</uax:String>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=6001" BrowseName="1:Reset">
+    <DisplayName>Reset</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=2001</Reference>
+    </References>
+  </UAMethod>
+  <UAObject NodeId="ns=1;i=2003" BrowseName="1:Device2">
+    <DisplayName>Device 2</DisplayName>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1001</Reference>
+    </References>
+  </UAObject>
+  <UAObjectType NodeId="ns=1;i=1001" BrowseName="1:DeviceType">
+    <DisplayName>DeviceType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=1002</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=1003</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=1002" BrowseName="1:Temperature" DataType="Double" ParentNodeId="ns=1;i=1001">
+    <DisplayName>Temperature</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=1003" BrowseName="1:Serial" DataType="String" ParentNodeId="ns=1;i=1001">
+    <DisplayName>Serial</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Array" BrowseName="1:Array" DataType="Int32" ValueRank="1" ArrayDimensions="3">
+    <DisplayName>Array</DisplayName>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+    </References>
+    <Value>
+      <uax:ListOfInt32>
+        <uax:Int32>1</uax:Int32>
+        <uax:Int32>2</uax:Int32>
+        <uax:Int32>3</uax:Int32>
+      </uax:ListOfInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=7001" BrowseName="1:Folder">
+    <DisplayName>Folder</DisplayName>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="Organizes">ns=2;i=1</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=1" BrowseName="2:Other">
+    <DisplayName>Other</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+    </References>
+  </UAObject>
+</UANodeSet>

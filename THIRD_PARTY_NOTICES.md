@@ -72,6 +72,11 @@ License: OPC Foundation MIT License 1.00, provided in
 
 Source: https://github.com/OPCFoundation/UA-Nodeset/tree/257db9ad98ee7ba4b67d3500b54bfc9d744a36af/Schema
 
+The tests also load `src/tests/nodesets/Opc.Ua.Di.NodeSet2.xml`, the OPC UA DI
+information model, under the same license. It is not built into any binary.
+
+Source: https://github.com/OPCFoundation/UA-Nodeset/blob/4b79bcfaaa44929d8b50158d25b2f57d86aed5e8/DI/Opc.Ua.Di.NodeSet2.xml
+
 ## OpenSSL
 
 Version: OpenSSL 3.x. Used only when encryption is enabled

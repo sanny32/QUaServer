@@ -10,6 +10,7 @@ set(QUASERVER_SOURCES
     quacustomdatatypes.cpp
     quaenum.cpp
     quatypesconverter.cpp
+    quanodesetloader.cpp
 )
 
 set(QUASERVER_HEADERS
@@ -25,6 +26,7 @@ set(QUASERVER_HEADERS
     quacustomdatatypes.h
     quaenum.h
     quatypesconverter.h
+    quanodesetloader.h
     QUaServer
     QUaNode
     QUaBaseVariable
