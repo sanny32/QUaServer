@@ -114,6 +114,27 @@
       </uax:ListOfInt32>
     </Value>
   </UAVariable>
+  <UAVariable NodeId="ns=1;s=Grid" BrowseName="1:Grid" DataType="Int32" ValueRank="2" ArrayDimensions="2,2">
+    <DisplayName>Grid</DisplayName>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+    </References>
+    <Value>
+      <uax:Matrix>
+        <uax:Dimensions>
+          <uax:Int32>2</uax:Int32>
+          <uax:Int32>2</uax:Int32>
+        </uax:Dimensions>
+        <uax:Elements>
+          <uax:Int32>1</uax:Int32>
+          <uax:Int32>2</uax:Int32>
+          <uax:Int32>3</uax:Int32>
+          <uax:Int32>4</uax:Int32>
+        </uax:Elements>
+      </uax:Matrix>
+    </Value>
+  </UAVariable>
   <UAObject NodeId="ns=1;i=7001" BrowseName="1:Folder">
     <DisplayName>Folder</DisplayName>
     <References>

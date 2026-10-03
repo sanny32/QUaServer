@@ -17,6 +17,12 @@ private slots:
     void byteArrayMapsToByteString();
     void listRoundTrip();
     void arrayCanBeReadAsVector();
+    void matrixIsEncodedRowMajor();
+    void matrixRoundTrip();
+    void threeDimensionalArrayRoundTrip();
+    void nonRectangularNestingIsNotMatrix_data();
+    void nonRectangularNestingIsNotMatrix();
+    void inconsistentArrayDimensionsAreReadFlat();
     void emptyVariantIsEmpty();
     void invalidDateTimeIsNullUaDateTime();
     void extremeUaDateTimeIsInvalid_data();
@@ -149,6 +155,104 @@ void TestTypesConverter::arrayCanBeReadAsVector()
 
     QVERIFY(QUaTypesConverter::isQTypeArray(asVector.metaType()));
     QCOMPARE(asVector.value<QVector<double>>(), QVector<double>({ 0.5, 1.5 }));
+}
+
+///
+/// \brief A list of rows is one OPC UA array with the ArrayDimensions of the rows, the last index varying fastest.
+///
+void TestTypesConverter::matrixIsEncodedRowMajor()
+{
+    const QVariantList rows = { QVariant::fromValue(QList<int>{ 1, 2, 3 }), QVariant::fromValue(QList<int>{ 4, 5, 6 }) };
+
+    UA_Variant uaValue = QUaTypesConverter::uaVariantFromQVariant(rows);
+    const QList<int> data(static_cast<UA_Int32 *>(uaValue.data), static_cast<UA_Int32 *>(uaValue.data) + uaValue.arrayLength);
+    const QVector<quint32> dimensions(uaValue.arrayDimensions, uaValue.arrayDimensions + uaValue.arrayDimensionsSize);
+    const UA_DataType *type = uaValue.type;
+    UA_Variant_clear(&uaValue);
+
+    QCOMPARE(type, &UA_TYPES[UA_TYPES_INT32]);
+    QCOMPARE(data, QList<int>({ 1, 2, 3, 4, 5, 6 }));
+    QCOMPARE(dimensions, QVector<quint32>({ 2, 3 }));
+}
+
+///
+/// \brief A matrix is read back as a QVariantList of rows, each row of the type one-dimensional arrays are read as.
+///
+void TestTypesConverter::matrixRoundTrip()
+{
+    const QVariantList rows = { QVariantList{ 0.5, 1.5 }, QVariantList{ 2.5, 3.5 }, QVariantList{ 4.5, 5.5 } };
+
+    UA_Variant uaValue = QUaTypesConverter::uaVariantFromQVariant(rows);
+    const QVariant back = QUaTypesConverter::uaVariantToQVariant(uaValue);
+    const QVariant backAsVectors = QUaTypesConverter::uaVariantToQVariant(uaValue, QUaTypesConverter::ArrayType::QVector);
+    UA_Variant_clear(&uaValue);
+
+    const QVariantList backRows = back.value<QVariantList>();
+    QCOMPARE(backRows.count(), 3);
+    QCOMPARE(backRows.at(0).value<QList<double>>(), QList<double>({ 0.5, 1.5 }));
+    QCOMPARE(backRows.at(2).value<QList<double>>(), QList<double>({ 4.5, 5.5 }));
+    QCOMPARE(backAsVectors.value<QVariantList>().at(1).value<QVector<double>>(), QVector<double>({ 2.5, 3.5 }));
+}
+
+void TestTypesConverter::threeDimensionalArrayRoundTrip()
+{
+    QVariantList cube;
+    for (int i = 0; i < 2; i++)
+    {
+        QVariantList plane;
+        for (int j = 0; j < 3; j++)
+        {
+            plane << QVariant::fromValue(QStringList{ QStringLiteral("%1%2a").arg(i).arg(j), QStringLiteral("%1%2b").arg(i).arg(j) });
+        }
+        cube << QVariant(plane);
+    }
+
+    UA_Variant uaValue = QUaTypesConverter::uaVariantFromQVariant(cube);
+    const QVector<quint32> dimensions(uaValue.arrayDimensions, uaValue.arrayDimensions + uaValue.arrayDimensionsSize);
+    const QVariant back = QUaTypesConverter::uaVariantToQVariant(uaValue);
+    UA_Variant_clear(&uaValue);
+
+    QCOMPARE(dimensions, QVector<quint32>({ 2, 3, 2 }));
+    const QVariantList secondPlane = back.value<QVariantList>().at(1).value<QVariantList>();
+    QCOMPARE(secondPlane.count(), 3);
+    QCOMPARE(secondPlane.at(2).value<QStringList>(), QStringList({ QStringLiteral("12a"), QStringLiteral("12b") }));
+}
+
+void TestTypesConverter::nonRectangularNestingIsNotMatrix_data()
+{
+    QTest::addColumn<QVariant>("value");
+
+    QTest::newRow("scalar") << QVariant(1);
+    QTest::newRow("string") << QVariant(QStringLiteral("abc"));
+    QTest::newRow("one dimension") << QVariant(QVariantList{ 1, 2 });
+    QTest::newRow("ragged rows") << QVariant(QVariantList{ QVariantList{ 1, 2 }, QVariantList{ 3 } });
+    QTest::newRow("mixed depth") << QVariant(QVariantList{ QVariantList{ 1, 2 }, 3 });
+    QTest::newRow("empty rows") << QVariant(QVariantList{ QVariantList{}, QVariantList{} });
+}
+
+void TestTypesConverter::nonRectangularNestingIsNotMatrix()
+{
+    QFETCH(QVariant, value);
+    QVariantList values;
+    QVector<quint32> dimensions;
+
+    QVERIFY(!QUaTypesConverter::flattenMatrix(value, values, dimensions));
+    QVERIFY(values.isEmpty());
+    QVERIFY(dimensions.isEmpty());
+}
+
+///
+/// \brief ArrayDimensions that do not describe the array length cannot shape it, so the flat array is returned.
+///
+void TestTypesConverter::inconsistentArrayDimensionsAreReadFlat()
+{
+    UA_Variant uaValue = QUaTypesConverter::uaVariantFromQVariant(QVariant::fromValue(QList<int>{ 1, 2, 3 }));
+    QUaTypesConverter::setVariantArrayDimensions(uaValue, { 2, 2 });
+
+    const QVariant back = QUaTypesConverter::uaVariantToQVariant(uaValue);
+    UA_Variant_clear(&uaValue);
+
+    QCOMPARE(back.value<QList<int>>(), QList<int>({ 1, 2, 3 }));
 }
 
 ///

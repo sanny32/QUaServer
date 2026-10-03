@@ -102,7 +102,7 @@ QUaNodeId TestNodeSetIntegration::devicesNodeId(quint32 numericId) const
 ///
 void TestNodeSetIntegration::loadsNodesInDependencyOrder()
 {
-    QCOMPARE(m_result.addedNodes.count(), 13);
+    QCOMPARE(m_result.addedNodes.count(), 14);
     const int typeIndex = m_result.addedNodes.indexOf(this->devicesNodeId(1001));
     const int instanceIndex = m_result.addedNodes.indexOf(this->devicesNodeId(2001));
     const int childIndex = m_result.addedNodes.indexOf(this->devicesNodeId(3001));
@@ -169,6 +169,14 @@ void TestNodeSetIntegration::decodesValues()
     QCOMPARE(array->value().value<QVariantList>(), (QVariantList{ 1, 2, 3 }));
     QCOMPARE(array->valueRank(), 1);
     QCOMPARE(array->arrayDimensions(), (QVector<quint32>{ 3 }));
+
+    auto *grid = m_server->nodeById<QUaBaseDataVariable>(QUaNodeId(this->devicesNamespace(), QStringLiteral("Grid")));
+    QVERIFY(grid);
+    QCOMPARE(grid->valueRank(), 2);
+    QCOMPARE(grid->arrayDimensions(), (QVector<quint32>{ 2, 2 }));
+    const QVariantList rows = grid->value().value<QVariantList>();
+    QCOMPARE(rows.count(), 2);
+    QCOMPARE(rows.at(1).value<QList<int>>(), QList<int>({ 3, 4 }));
 }
 
 void TestNodeSetIntegration::clientsReadAndWriteLoadedVariables()

@@ -1565,6 +1565,13 @@ void QUaNode::deserializeAttrs(
 		"Deserialized browseName does not match instance browseName"
 	);
 	listAttrsNotInProps.removeOne( QStringLiteral("browseName") );
+	// open62541 accepts a ValueRank above one (a multi-dimensional array) only while the variable has no value
+	auto variable = qobject_cast<QUaBaseVariable*>(this);
+	const QVariant valueRank = attrs.value(QStringLiteral("valueRank"));
+	if (variable && valueRank.toInt() > 1)
+	{
+		variable->setValueRank(valueRank.toInt());
+	}
 	// list meta props
 	auto metaObject = this->metaObject();
 	int  propCount  = metaObject->propertyCount();

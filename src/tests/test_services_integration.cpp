@@ -47,6 +47,8 @@ private slots:
     void writeValidatorReceivesWritingSession();
     void writeValidatorIgnoresLocalWrites();
     void writeValidatorChecksWholeValueOfRangeWrite();
+    void clientsReadAndWriteMatrices();
+    void writeValidatorChecksWholeMatrixOfRangeWrite();
     void writeValidatorKeepsReadCallbackAndSubscriptions();
     void removingWriteValidatorKeepsValue();
     void userAccessLevelIsCheckedPerUser();
@@ -355,6 +357,53 @@ void TestServicesIntegration::writeValidatorChecksWholeValueOfRangeWrite()
 
     QCOMPARE(seen.toList(), (QVariantList{ 10, 25, 30 }));
     QCOMPARE(variable->value().toList(), (QVariantList{ 10, 25, 30 }));
+}
+
+///
+/// \brief Matrices cross the network with their ArrayDimensions, so both ends see the rows.
+///
+void TestServicesIntegration::clientsReadAndWriteMatrices()
+{
+    QUaBaseDataVariable *variable = addVariable(QStringLiteral("matrix"));
+    variable->setWriteAccess(true);
+    variable->setValue(QVariantList{ QVariantList{ 1, 2, 3 }, QVariantList{ 4, 5, 6 } });
+    QSignalSpy spy(variable, &QUaBaseVariable::valueChanged);
+    QVariant value;
+
+    QCOMPARE(_client->readValue(variable->nodeId(), value), UA_STATUSCODE_GOOD);
+    QCOMPARE(value.value<QVariantList>().at(1).value<QList<int>>(), QList<int>({ 4, 5, 6 }));
+    QCOMPARE(_client->writeValue(variable->nodeId(), QVariantList{ QVariantList{ 7, 8 }, QVariantList{ 9, 10 } }),
+             UA_STATUSCODE_GOOD);
+
+    QTRY_COMPARE(spy.count(), 1);
+    const QVariantList written = spy.first().at(0).value<QVariantList>();
+    QCOMPARE(written.count(), 2);
+    QCOMPARE(written.at(1).value<QList<int>>(), QList<int>({ 9, 10 }));
+}
+
+///
+/// \brief A partial write of a matrix is validated as the whole matrix it produces.
+///
+void TestServicesIntegration::writeValidatorChecksWholeMatrixOfRangeWrite()
+{
+    QUaBaseDataVariable *variable = addVariable(QStringLiteral("matrixLevels"));
+    variable->setWriteAccess(true);
+    variable->setValue(QVariantList{ QVariantList{ 1, 2, 3 }, QVariantList{ 4, 5, 6 } });
+    QVariant seen;
+    variable->setWriteValidator([&seen](const QVariant &value, const QUaSession *) {
+        seen = value;
+        return QUaStatusCode(QUaStatus::Good);
+    });
+
+    QCOMPARE(_client->writeValueRange(variable->nodeId(), QStringLiteral("1,0:1"),
+                                      QVariantList{ QVariantList{ 7, 8 } }),
+             UA_STATUSCODE_GOOD);
+
+    const QVariantList rows = seen.value<QVariantList>();
+    QCOMPARE(rows.count(), 2);
+    QCOMPARE(rows.at(0).value<QList<int>>(), QList<int>({ 1, 2, 3 }));
+    QCOMPARE(rows.at(1).value<QList<int>>(), QList<int>({ 7, 8, 6 }));
+    QCOMPARE(variable->value().value<QVariantList>().at(1).value<QList<int>>(), QList<int>({ 7, 8, 6 }));
 }
 
 void TestServicesIntegration::writeValidatorKeepsReadCallbackAndSubscriptions()

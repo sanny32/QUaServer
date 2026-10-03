@@ -83,6 +83,15 @@ int main(int argc, char *argv[])
         qDebug() << str;
     }
 
+	// a list of equally long rows is a matrix
+	auto matrix = objsFolder->addBaseDataVariable("matrix");
+	matrix->setValueRank(2);
+	matrix->setValue(QVariantList{
+		QVariantList{ 1.5, 2.5, 3.5 },
+		QVariantList{ 4.5, 5.5, 6.5 }
+	});
+	qDebug() << "matrix row 1:" << matrix->value().value<QVariantList>().at(1).value<QList<double>>();
+
 	// temperature sensor model
 
 	QUaFolderObject * sensorsFolder = objsFolder->addFolderObject("Sensors");

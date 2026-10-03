@@ -136,6 +136,7 @@ private slots:
     void failingSerializeStartAborts();
     void roundTripRestoresNodesAndValues();
     void roundTripRestoresCustomReferences();
+    void roundTripRestoresMatrices();
     void failedReadIsReported();
 };
 
@@ -234,6 +235,37 @@ void TestSerialization::roundTripRestoresNodesAndValues()
     QCOMPARE(sensor->reading()->value<double>(), 21.5);
     QCOMPARE(setpoint->value<int>(), 40);
     QVERIFY(setpoint->writeAccess());
+}
+
+///
+/// \brief A matrix variable is restored with its shape and its ValueRank, which open62541 only accepts before
+///        the value is written.
+///
+void TestSerialization::roundTripRestoresMatrices()
+{
+    MemorySerializer serializer;
+    QQueue<QUaLog> logOut;
+    {
+        QUaServer source;
+        QUaFolderObject *plant = buildPlant(source);
+        QUaBaseDataVariable *matrix = plant->addBaseDataVariable(QStringLiteral("matrix"),
+                                                                 QUaNodeId(1, QStringLiteral("plant.matrix")));
+        matrix->setValueRank(2);
+        matrix->setValue(QVariantList{ QVariantList{ 1, 2, 3 }, QVariantList{ 4, 5, 6 } });
+        QVERIFY(plant->serialize(serializer, logOut));
+    }
+
+    QUaServer target;
+    QUaFolderObject *plant = target.objectsFolder()->addFolderObject(QStringLiteral("plant"),
+                                                                     QUaNodeId(1, QStringLiteral("plant")));
+    QVERIFY(plant->deserialize(serializer, logOut));
+
+    auto matrix = target.nodeById<QUaBaseDataVariable>(QUaNodeId(1, QStringLiteral("plant.matrix")));
+    QVERIFY(matrix);
+    QCOMPARE(matrix->valueRank(), 2);
+    const QVariantList rows = matrix->value().value<QVariantList>();
+    QCOMPARE(rows.count(), 2);
+    QCOMPARE(rows.at(1).value<QList<int>>(), QList<int>({ 4, 5, 6 }));
 }
 
 ///

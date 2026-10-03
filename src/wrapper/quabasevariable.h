@@ -128,14 +128,16 @@ public:
 #ifdef UA_GENERATED_NAMESPACE_ZERO_FULL
 	bool              setDataTypeOptionSet(const QString& strOptionSetName);
 #endif
-	// Read-only, values set automatically when calling setValue
 	// NOTE : includes arrayDimensionsSize
 	qint32            valueRank() const;
 	void              setValueRank(const qint32& valueRank);
-	QVector<quint32>  arrayDimensions() const; 
-	/*
-	void              setArrayDimensions(const quint32 &size); // const QVector<quint32> &arrayDimenstions
-	*/
+	QVector<quint32>  arrayDimensions() const;
+	///
+	/// \brief Sets the ArrayDimensions attribute, the maximum length of each dimension, 0 meaning any length.
+	///        Set the ValueRank to the number of dimensions first; the current value must fit them.
+	/// \return False, leaving the attribute unchanged, when the dimensions do not match the ValueRank or the value.
+	///
+	bool              setArrayDimensions(const QVector<quint32>& arrayDimensions);
 	// Indicates how the Value of a Variable can be accessed (read/write) and if it contains current and/or historic data.
 	quint8            accessLevel() const;
 	void              setAccessLevel(const quint8 &accessLevel);

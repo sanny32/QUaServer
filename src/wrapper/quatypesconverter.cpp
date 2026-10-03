@@ -4,6 +4,7 @@
 // Adapted from qopen62541valueconverter.{h,cpp} of Qt OPC UA 6.9.
 
 #include "quatypesconverter.h"
+#include <algorithm>
 #include <cstring>
 #include <limits>
 
@@ -258,6 +259,96 @@ bool canConvertQVariantList(const QVariant &value)
 				(typeId != QMetaType::QByteArray);
 }
 
+///
+/// \brief Appends the leaves of one level of nested sequences to \a values, checking that the nesting is rectangular.
+/// \param leafDepth Depth of the leaves, -1 until the first leaf is reached.
+///
+static bool flattenMatrixLevel(const QVariant &value, int depth, int &leafDepth,
+                               QVariantList &values, QVector<quint32> &dimensions)
+{
+	if (!canConvertQVariantList(value))
+	{
+		if (leafDepth < 0)
+		{
+			leafDepth = depth;
+		}
+		values << value;
+		return depth == leafDepth;
+	}
+	if (leafDepth >= 0 && depth >= leafDepth)
+	{
+		return false;
+	}
+	auto iter = value.value<QSequentialIterable>();
+	const quint32 size = static_cast<quint32>(iter.size());
+	if (size == 0)
+	{
+		return false;
+	}
+	if (depth == dimensions.size())
+	{
+		dimensions << size;
+	}
+	else if (dimensions.at(depth) != size)
+	{
+		return false;
+	}
+	for (const QVariant &item : iter)
+	{
+		if (!flattenMatrixLevel(item, depth + 1, leafDepth, values, dimensions))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+///
+/// \brief Flattens nested sequences of equal lengths, e.g. a QVariantList of rows, into \a values in the row-major
+///        order OPC UA encodes multi-dimensional arrays with.
+/// \return False, for plain arrays, scalars and ragged or empty nestings, which are not multi-dimensional arrays.
+///
+bool flattenMatrix(const QVariant &value, QVariantList &values, QVector<quint32> &dimensions)
+{
+	values.clear();
+	dimensions.clear();
+	if (!canConvertQVariantList(value))
+	{
+		return false;
+	}
+	auto iter = value.value<QSequentialIterable>();
+	if (iter.size() == 0 || !canConvertQVariantList(iter.at(0)))
+	{
+		return false;
+	}
+	int leafDepth = -1;
+	if (!flattenMatrixLevel(value, 0, leafDepth, values, dimensions))
+	{
+		values.clear();
+		dimensions.clear();
+		return false;
+	}
+	return true;
+}
+
+///
+/// \brief Replaces the ArrayDimensions of an array \a variant, which give the shape of a multi-dimensional array.
+///
+void setVariantArrayDimensions(UA_Variant &variant, const QVector<quint32> &dimensions)
+{
+	UA_Array_delete(variant.arrayDimensions, variant.arrayDimensionsSize, &UA_TYPES[UA_TYPES_UINT32]);
+	variant.arrayDimensions     = nullptr;
+	variant.arrayDimensionsSize = 0;
+	if (dimensions.isEmpty())
+	{
+		return;
+	}
+	variant.arrayDimensions = static_cast<UA_UInt32 *>(
+		UA_Array_new(static_cast<size_t>(dimensions.size()), &UA_TYPES[UA_TYPES_UINT32]));
+	std::copy(dimensions.cbegin(), dimensions.cend(), variant.arrayDimensions);
+	variant.arrayDimensionsSize = static_cast<size_t>(dimensions.size());
+}
+
 UA_NodeId uaTypeNodeIdFromQType(const QMetaType::Type & type)
 {
 	return QUaDataType::nodeIdByQType(type);
@@ -281,7 +372,23 @@ UA_Variant uaVariantFromQVariant(const QVariant & var
 		UA_Variant_init(&var);
 		return var;
 	}
-	// TODO : support multidimentional arrays
+	QVariantList     matrixValues;
+	QVector<quint32> matrixDimensions;
+	if (flattenMatrix(var, matrixValues, matrixDimensions))
+	{
+		UA_Variant matrix = uaVariantFromQVariant(QVariant(matrixValues)
+#ifdef UA_GENERATED_NAMESPACE_ZERO_FULL
+#ifndef OPEN62541_ISSUE3934_RESOLVED
+			, optDataType
+#endif // !OPEN62541_ISSUE3934_RESOLVED
+#endif // UA_GENERATED_NAMESPACE_ZERO_FULL
+		);
+		if (!UA_Variant_isEmpty(&matrix))
+		{
+			setVariantArrayDimensions(matrix, matrixDimensions);
+		}
+		return matrix;
+	}
 	QMetaType::Type qtType;
 	const UA_DataType * uaType = nullptr;
 	// fix qt type if array
@@ -686,16 +793,66 @@ UA_UInt32 uaTypeIndex(const UA_DataType * uaType)
 	return UA_TYPES_COUNT;
 }
 
+///
+/// \brief Converts the part of a multi-dimensional array starting at \a offset: the last dimension becomes an array
+///        as one-dimensional arrays are converted, and every other dimension a QVariantList of the next one.
+///
+static QVariant uaMatrixLevelToQVariant(const UA_Variant &matrix, size_t dimension, size_t offset,
+                                        const ArrayType &arrType)
+{
+	const size_t length = matrix.arrayDimensions[dimension];
+	if (dimension == matrix.arrayDimensionsSize - 1)
+	{
+		UA_Variant row;
+		UA_Variant_init(&row);
+		row.type        = matrix.type;
+		row.arrayLength = length;
+		row.data        = static_cast<UA_Byte *>(matrix.data) + offset * matrix.type->memSize;
+		return uaVariantToQVariantArray(row, arrType);
+	}
+	size_t stride = 1;
+	for (size_t i = dimension + 1; i < matrix.arrayDimensionsSize; i++)
+	{
+		stride *= matrix.arrayDimensions[i];
+	}
+	QVariantList list;
+	for (size_t i = 0; i < length; i++)
+	{
+		list << uaMatrixLevelToQVariant(matrix, dimension + 1, offset + i * stride, arrType);
+	}
+	return list;
+}
+
+///
+/// \brief Converts a multi-dimensional array to nested QVariantLists, or to a flat array when its ArrayDimensions
+///        do not match its length.
+///
+static QVariant uaMatrixToQVariant(const UA_Variant &matrix, const ArrayType &arrType)
+{
+	size_t length = 1;
+	for (size_t i = 0; i < matrix.arrayDimensionsSize; i++)
+	{
+		length *= matrix.arrayDimensions[i];
+	}
+	if (length != matrix.arrayLength || length == 0)
+	{
+		return uaVariantToQVariantArray(matrix, arrType);
+	}
+	return uaMatrixLevelToQVariant(matrix, 0, 0, arrType);
+}
+
 QVariant uaVariantToQVariant(const UA_Variant & uaVariant, const ArrayType& arrType /*= ArrayType::QList*/)
 {
-	// TODO : support multidimentional arrays
-
 	if (uaVariant.type == nullptr) {
 		return QVariant();
 	}
 	// first check if array
 	if (!UA_Variant_isScalar(&uaVariant))
 	{
+		if (uaVariant.arrayDimensionsSize > 1)
+		{
+			return uaMatrixToQVariant(uaVariant, arrType);
+		}
 		return uaVariantToQVariantArray(uaVariant, arrType);
 	}
 	// handle scalar

@@ -152,6 +152,7 @@ void              setDataType(const QMetaType::Type &dataType);
 qint32            valueRank() const;
 void              setValueRank(const qint32 &valueRank);
 QVector<quint32>  arrayDimensions() const; 
+bool              setArrayDimensions(const QVector<quint32> &arrayDimensions);
 
 quint8            accessLevel() const;
 void              setAccessLevel(const quint8 &accessLevel);
@@ -196,6 +197,30 @@ QMetaType::QDateTime
 QMetaType::QUuid
 QMetaType::QByteArray
 ```
+
+### Multi-dimensional Arrays
+
+A list of rows of equal length, each a list of values, is a two-dimensional array (a matrix); deeper nestings add dimensions. It is sent to clients as one array with its *ArrayDimensions*, and read back the same way, each row as a `QList<T>` of the element type:
+
+```c++
+QUaBaseDataVariable * varMatrix = objsFolder->addBaseDataVariable("my_matrix");
+varMatrix->setValue(QVariantList{
+	QVariantList{ 1.0, 2.0, 3.0 },
+	QVariantList{ 4.0, 5.0, 6.0 }
+});
+// read row 1
+QList<double> row = varMatrix->value().value<QVariantList>().at(1).value<QList<double>>();
+```
+
+Rows of different lengths are not a matrix. By default variables accept values of any shape. To declare the shape to clients, set the `valueRank` to the number of dimensions **before the first value**, since *open62541* does not accept a `valueRank` above one once the variable holds an array, then optionally the maximum length of each dimension, `0` meaning any length:
+
+```c++
+varMatrix->setValueRank(2);
+varMatrix->setArrayDimensions({ 2, 0 }); // two rows of any length
+varMatrix->setValue(rows);
+```
+
+`setArrayDimensions()` returns `false` when the dimensions do not match the `valueRank` or the current value. Clients may write part of a matrix with an index range such as `1,0:1` (row 1, columns 0 and 1).
 
 The `setAccessLevel()` method allows to set a bit mask to define the overall variable read and write access. Nevertheless, the `QUaBaseVariable` API provides a couple of helper methods that allow to define the access more easily without needing to deal with bit masks:
 

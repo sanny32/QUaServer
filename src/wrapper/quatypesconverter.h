@@ -31,6 +31,8 @@ namespace QUaTypesConverter {
 	QMetaType::Type getQArrayType(const QByteArray &typeName);
 	bool            isSupportedQType(const QMetaType::Type &type);
 	bool            canConvertQVariantList(const QVariant &value);
+	bool            flattenMatrix(const QVariant &value, QVariantList &values, QVector<quint32> &dimensions);
+	void            setVariantArrayDimensions(UA_Variant &variant, const QVector<quint32> &dimensions);
 
 	// ua from c++
 	template<typename T>

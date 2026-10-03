@@ -50,6 +50,9 @@ private slots:
     void forcedDataTypeConvertsValue();
     void arrayValueUsesElementType();
     void arrayRankIsExplicit();
+    void matrixValueKeepsItsShape();
+    void matrixKeepsElementTypeOfVariable();
+    void arrayDimensionsFollowValueRank();
     void valueChangedReportsLocalChange();
     void statusAndTimestampsAreStored();
     void readCallbackSuppliesValue();
@@ -276,6 +279,55 @@ void TestAddressSpace::arrayRankIsExplicit()
     QCOMPARE(QUaBaseVariable::GetValueRankFromQVariant(QVariant(1)), UA_VALUERANK_SCALAR);
     QCOMPARE(QUaBaseVariable::GetValueRankFromQVariant(QVariant()), UA_VALUERANK_ANY);
     QVERIFY(QUaBaseVariable::GetArrayDimensionsFromQVariant(QVariant(1)).isEmpty());
+}
+
+void TestAddressSpace::matrixValueKeepsItsShape()
+{
+    QUaBaseDataVariable *variable = objects()->addBaseDataVariable(QStringLiteral("matrix"));
+    const QVariantList rows = { QVariantList{ 1.0, 2.0, 3.0 }, QVariantList{ 4.0, 5.0, 6.0 } };
+
+    variable->setValue(rows);
+
+    QCOMPARE(variable->dataType(), QMetaType::Double);
+    const QVariantList value = variable->value().value<QVariantList>();
+    QCOMPARE(value.count(), 2);
+    QCOMPARE(value.at(1).value<QList<double>>(), QList<double>({ 4.0, 5.0, 6.0 }));
+    QCOMPARE(QUaBaseVariable::GetValueRankFromQVariant(rows), 2);
+    QCOMPARE(QUaBaseVariable::GetArrayDimensionsFromQVariant(rows), QVector<quint32>({ 2, 3 }));
+}
+
+///
+/// \brief Matrix elements convertible to the current data type keep it, as one-dimensional arrays do.
+///
+void TestAddressSpace::matrixKeepsElementTypeOfVariable()
+{
+    QUaBaseDataVariable *variable = objects()->addBaseDataVariable(QStringLiteral("matrix"));
+    variable->setValue(0.5);
+
+    variable->setValue(QVariantList{ QVariantList{ 1, 2 }, QVariantList{ 3, 4 } });
+
+    QCOMPARE(variable->dataType(), QMetaType::Double);
+    QCOMPARE(variable->value().value<QVariantList>().at(1).value<QList<double>>(), QList<double>({ 3.0, 4.0 }));
+}
+
+///
+/// \brief The ValueRank is set before the value: open62541 takes an array value without ArrayDimensions attribute
+///        for a one-dimensional one when the ValueRank changes.
+///
+void TestAddressSpace::arrayDimensionsFollowValueRank()
+{
+    QUaBaseDataVariable *variable = objects()->addBaseDataVariable(QStringLiteral("matrix"));
+
+    QVERIFY(!variable->setArrayDimensions({ 2, 3 }));
+    variable->setValueRank(2);
+    QVERIFY(!variable->setArrayDimensions({ 2 }));
+    QVERIFY(variable->setArrayDimensions({ 2, 0 }));
+    variable->setValue(QVariantList{ QVariantList{ 1, 2, 3 }, QVariantList{ 4, 5, 6 } });
+    QVERIFY(!variable->setArrayDimensions({ 1, 3 }));
+
+    QCOMPARE(variable->value().value<QVariantList>().count(), 2);
+    QCOMPARE(variable->valueRank(), 2);
+    QCOMPARE(variable->arrayDimensions(), QVector<quint32>({ 2, 0 }));
 }
 
 ///

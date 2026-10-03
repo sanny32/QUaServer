@@ -382,14 +382,21 @@ void QUaBaseVariable::setValue(
 	// get modifiable copies
 	auto newValue = value;
 	auto newType  = newTypeConst;
+	// a multi-dimensional array is typed and converted as its flat elements, then given back its shape
+	QVariantList     matrixValues;
+	QVector<quint32> matrixDimensions;
+	if (QUaTypesConverter::flattenMatrix(value, matrixValues, matrixDimensions))
+	{
+		newValue = matrixValues;
+	}
 
 	// if new type not forced, then figure out new type from input
 	if (newType == QMetaType::UnknownType)
 	{
-		bool isArray = QUaTypesConverter::canConvertQVariantList(value);
+		bool isArray = QUaTypesConverter::canConvertQVariantList(newValue);
 		if (isArray)
 		{
-			auto iter = value.value<QSequentialIterable>();
+			auto iter = newValue.value<QSequentialIterable>();
 			if (iter.size() > 0)
 			{
 				QVariant innerVar = iter.at(0);
@@ -413,7 +420,7 @@ void QUaBaseVariable::setValue(
 			{
 				// can convert to old type
 				QVariant innerVar;
-				auto iter = value.value<QSequentialIterable>();
+				auto iter = newValue.value<QSequentialIterable>();
 				if (iter.size()>0) innerVar = iter.at(0);
 				else { innerVar = QVariant( QMetaType(newType) ); }
 
@@ -480,6 +487,10 @@ void QUaBaseVariable::setValue(
 #else
 	auto uaVar = QUaTypesConverter::uaVariantFromQVariant(newValue);
 #endif
+	if (!matrixDimensions.isEmpty() && !UA_Variant_isEmpty(&uaVar))
+	{
+		QUaTypesConverter::setVariantArrayDimensions(uaVar, matrixDimensions);
+	}
 
 	// mask as internal write to avoid emitting valueChange signal on QUaBaseVariable::onWrite
 	_bInternalWrite = true;
@@ -1024,6 +1035,11 @@ qint32 QUaBaseVariable::valueRank() const
 void QUaBaseVariable::setValueRank(const qint32& valueRank){
 	Q_CHECK_PTR(_qUaServer);
 	Q_ASSERT(!UA_NodeId_isNull(&_nodeId));
+	// open62541 rejects even an unchanged ValueRank above one once the variable holds a multi-dimensional array
+	if (valueRank == this->valueRank())
+	{
+		return;
+	}
 	auto st = UA_Server_writeValueRank(_qUaServer->_server, _nodeId, valueRank);
 	Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	Q_UNUSED(st);
@@ -1053,15 +1069,23 @@ QVector<quint32> QUaBaseVariable::arrayDimensions() const
 	return retArr;
 }
 
-/*
-void QUaBaseVariable::setArrayDimensions(const quint32 &size) // const QVector<quint32> &arrayDimenstions
+///
+/// \brief Sets the ArrayDimensions attribute, the maximum length of each dimension, 0 meaning any length.
+///        Set the ValueRank to the number of dimensions first; the current value must fit them.
+/// \return False, leaving the attribute unchanged, when the dimensions do not match the ValueRank or the value.
+///
+bool QUaBaseVariable::setArrayDimensions(const QVector<quint32>& arrayDimensions)
 {
+	Q_CHECK_PTR(_qUaServer);
+	Q_ASSERT(!UA_NodeId_isNull(&_nodeId));
+	QVector<UA_UInt32> dimensions(arrayDimensions.cbegin(), arrayDimensions.cend());
 	UA_Variant uaArrayDimensions;
-	UA_UInt32 arrayDims[1] = { size };
-	UA_Variant_setArray(&uaArrayDimensions, arrayDims, 1, &UA_TYPES[UA_TYPES_UINT32]);
-	UA_Server_writeArrayDimensions(_qUaServer->_server, _nodeId, uaArrayDimensions);
+	UA_Variant_init(&uaArrayDimensions);
+	uaArrayDimensions.type        = &UA_TYPES[UA_TYPES_UINT32];
+	uaArrayDimensions.arrayLength = static_cast<size_t>(dimensions.size());
+	uaArrayDimensions.data        = dimensions.isEmpty() ? UA_EMPTY_ARRAY_SENTINEL : dimensions.data();
+	return UA_Server_writeArrayDimensions(_qUaServer->_server, _nodeId, uaArrayDimensions) == UA_STATUSCODE_GOOD;
 }
-*/
 
 quint8 QUaBaseVariable::accessLevel() const
 {
@@ -1258,7 +1282,13 @@ qint32 QUaBaseVariable::GetValueRankFromQVariant(const QVariant & varValue)
 	{
 		return UA_VALUERANK_ANY;
 	}
-	else if (QUaTypesConverter::canConvertQVariantList(varValue))
+	QVariantList     matrixValues;
+	QVector<quint32> matrixDimensions;
+	if (QUaTypesConverter::flattenMatrix(varValue, matrixValues, matrixDimensions))
+	{
+		return static_cast<qint32>(matrixDimensions.size());
+	}
+	if (QUaTypesConverter::canConvertQVariantList(varValue))
 	{
 		return UA_VALUERANK_ONE_DIMENSION;
 	}
@@ -1269,6 +1299,12 @@ qint32 QUaBaseVariable::GetValueRankFromQVariant(const QVariant & varValue)
 // [STATIC]
 QVector<quint32> QUaBaseVariable::GetArrayDimensionsFromQVariant(const QVariant & varValue)
 {
+	QVariantList     matrixValues;
+	QVector<quint32> matrixDimensions;
+	if (QUaTypesConverter::flattenMatrix(varValue, matrixValues, matrixDimensions))
+	{
+		return matrixDimensions;
+	}
 	if (QUaTypesConverter::canConvertQVariantList(varValue))
 	{
 		auto iter = varValue.value<QSequentialIterable>();
