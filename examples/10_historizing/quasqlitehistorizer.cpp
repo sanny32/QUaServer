@@ -411,25 +411,10 @@ QDateTime QUaSqliteHistorizer::findTimestamp(
 	}
 	Q_ASSERT(db.isValid() && db.isOpen());
 	// get correct query
-	QSqlQuery query;
-	switch (match)
-	{
-	case QUaHistoryBackend::TimeMatch::ClosestFromAbove:
-	{
-		query = m_dataPrepStmts[nodeId].findTimestampAbove;
-	}
-	break;
-	case QUaHistoryBackend::TimeMatch::ClosestFromBelow:
-	{
-		query = m_dataPrepStmts[nodeId].findTimestampBelow;
-	}
-	break;
-	default:
-	{
-		Q_ASSERT(false);
-	}
-	break;
-	}
+	auto& stmts = m_dataPrepStmts[nodeId];
+	QSqlQuery& query = match == QUaHistoryBackend::TimeMatch::ClosestFromAbove ?
+		stmts.findTimestampAbove :
+		stmts.findTimestampBelow;
 	// set reference time
 	query.bindValue(0, timestamp.toMSecsSinceEpoch());
 	if (!query.exec())
@@ -504,17 +489,14 @@ quint64 QUaSqliteHistorizer::numDataPointsInRange(
 		return 0;
 	}
 	Q_ASSERT(db.isValid() && db.isOpen());
-	QSqlQuery query;
+	auto& stmts = m_dataPrepStmts[nodeId];
+	QSqlQuery& query = timeEnd.isValid() ?
+		stmts.numDataPointsInRangeEndValid :
+		stmts.numDataPointsInRangeEndInvalid;
+	query.bindValue(0, timeStart.toMSecsSinceEpoch());
 	if (timeEnd.isValid())
 	{
-		query = m_dataPrepStmts[nodeId].numDataPointsInRangeEndValid;
-		query.bindValue(0, timeStart.toMSecsSinceEpoch());
 		query.bindValue(1, timeEnd.toMSecsSinceEpoch());
-	}
-	else
-	{
-		query = m_dataPrepStmts[nodeId].numDataPointsInRangeEndInvalid;
-		query.bindValue(0, timeStart.toMSecsSinceEpoch());
 	}
 	if (!query.exec())
 	{
@@ -1365,7 +1347,7 @@ bool QUaSqliteHistorizer::tableDataByNodeIdExists(
 	QQueue<QUaLog>& logOut)
 {
 	// save time by using cache instead of SQL
-	if (m_dataPrepStmts.contains(nodeId))
+	if (m_dataPrepStmts.count(nodeId) > 0)
 	{
 		tableExists = true;
 		return true;
@@ -1444,7 +1426,7 @@ bool QUaSqliteHistorizer::insertDataPoint(
 	QQueue<QUaLog>& logOut)
 {
 	Q_ASSERT(db.isValid() && db.isOpen());
-	Q_ASSERT(m_dataPrepStmts.contains(nodeId));
+	Q_ASSERT(m_dataPrepStmts.count(nodeId) > 0);
 	QSqlQuery& query = m_dataPrepStmts[nodeId].writeHistoryData;
 	query.bindValue(0, dataPoint.timestamp.toMSecsSinceEpoch());
 	query.bindValue(1, dataPoint.value);
@@ -1480,7 +1462,7 @@ bool QUaSqliteHistorizer::dataPrepareAllStmts(
 	{
 		return false;
 	}
-	m_dataPrepStmts[nodeId].writeHistoryData = query;
+	m_dataPrepStmts[nodeId].writeHistoryData = std::exchange(query, QSqlQuery(db));
 	// prepared statement for first timestamp
 	strStmt = QString(
 		"SELECT "
@@ -1496,7 +1478,7 @@ bool QUaSqliteHistorizer::dataPrepareAllStmts(
 	{
 		return false;
 	}
-	m_dataPrepStmts[nodeId].firstTimestamp = query;
+	m_dataPrepStmts[nodeId].firstTimestamp = std::exchange(query, QSqlQuery(db));
 	// prepared statement for last timestamp
 	strStmt = QString(
 		"SELECT "
@@ -1512,7 +1494,7 @@ bool QUaSqliteHistorizer::dataPrepareAllStmts(
 	{
 		return false;
 	}
-	m_dataPrepStmts[nodeId].lastTimestamp = query;
+	m_dataPrepStmts[nodeId].lastTimestamp = std::exchange(query, QSqlQuery(db));
 	// prepared statement for has timestamp
 	strStmt = QString(
 		"SELECT "
@@ -1526,7 +1508,7 @@ bool QUaSqliteHistorizer::dataPrepareAllStmts(
 	{
 		return false;
 	}
-	m_dataPrepStmts[nodeId].hasTimestamp = query;
+	m_dataPrepStmts[nodeId].hasTimestamp = std::exchange(query, QSqlQuery(db));
 	// prepared statement for find timestamp from above
 	strStmt = QString(
 		"SELECT "
@@ -1544,7 +1526,7 @@ bool QUaSqliteHistorizer::dataPrepareAllStmts(
 	{
 		return false;
 	}
-	m_dataPrepStmts[nodeId].findTimestampAbove = query;
+	m_dataPrepStmts[nodeId].findTimestampAbove = std::exchange(query, QSqlQuery(db));
 	// prepared statement for find timestamp from below
 	strStmt = QString(
 		"SELECT "
@@ -1562,7 +1544,7 @@ bool QUaSqliteHistorizer::dataPrepareAllStmts(
 	{
 		return false;
 	}
-	m_dataPrepStmts[nodeId].findTimestampBelow = query;
+	m_dataPrepStmts[nodeId].findTimestampBelow = std::exchange(query, QSqlQuery(db));
 	// prepared statement for num points in range when end time is valid
 	strStmt = QString(
 		"SELECT "
@@ -1580,7 +1562,7 @@ bool QUaSqliteHistorizer::dataPrepareAllStmts(
 	{
 		return false;
 	}
-	m_dataPrepStmts[nodeId].numDataPointsInRangeEndValid = query;
+	m_dataPrepStmts[nodeId].numDataPointsInRangeEndValid = std::exchange(query, QSqlQuery(db));
 	// prepared statement for num points in range when end time is invalid
 	strStmt = QString(
 		"SELECT "
@@ -1596,7 +1578,7 @@ bool QUaSqliteHistorizer::dataPrepareAllStmts(
 	{
 		return false;
 	}
-	m_dataPrepStmts[nodeId].numDataPointsInRangeEndInvalid = query;
+	m_dataPrepStmts[nodeId].numDataPointsInRangeEndInvalid = std::exchange(query, QSqlQuery(db));
 	// prepared statement for reading data points
 	strStmt = QString(
 		"SELECT "
@@ -1616,7 +1598,7 @@ bool QUaSqliteHistorizer::dataPrepareAllStmts(
 	{
 		return false;
 	}
-	m_dataPrepStmts[nodeId].readHistoryData = query;
+	m_dataPrepStmts[nodeId].readHistoryData = std::move(query);
 	// success
 	return true;
 }
@@ -1674,11 +1656,7 @@ bool QUaSqliteHistorizer::handleTransactions(
 
 QMetaType::Type QUaSqliteHistorizer::QVariantToQtType(const QVariant& value)
 {
-	return static_cast<QMetaType::Type>(
-        value.type() < static_cast<QVariant::Type>(1024) ?
-		value.type() :
-        static_cast<QVariant::Type>(value.userType())
-	);
+	return static_cast<QMetaType::Type>(value.typeId());
 }
 
 const QString QUaSqliteHistorizer::QtTypeToSqlType(const QMetaType::Type& qtType)
@@ -1686,7 +1664,7 @@ const QString QUaSqliteHistorizer::QtTypeToSqlType(const QMetaType::Type& qtType
 
 	if (!QUaSqliteHistorizer::m_hashTypes.contains(qtType))
 	{
-		qWarning() << "[UNKNOWN TYPE]" << QMetaType::typeName(qtType);
+		qWarning() << "[UNKNOWN TYPE]" << QMetaType(qtType).name();
 		Q_ASSERT_X(false, "QUaSqliteHistorizer::QtTypeToSqlType", "Unknown type.");
 	}
 	return QUaSqliteHistorizer::m_hashTypes.value(qtType, "BLOB");
@@ -1820,7 +1798,7 @@ bool QUaSqliteHistorizer::eventTypePrepareStmt(
 	{
 		return false;
 	}
-	m_eventTypePrepStmts[eventTypeNodeId] = query;
+	m_eventTypePrepStmts[eventTypeNodeId] = std::move(query);
 	return true;
 }
 
@@ -1832,7 +1810,7 @@ bool QUaSqliteHistorizer::tableEventTypeNameExists(
 	QQueue<QUaLog>& logOut)
 {
 	// save time by using cache instead of SQL
-	if (m_eventTypeNamePrepStmt.contains(QUaSqliteHistorizer::eventTypesTable))
+	if (m_eventTypeNamePrepStmt.count(QUaSqliteHistorizer::eventTypesTable) > 0)
 	{
 		tableExists = true;
 		return true;
@@ -1914,7 +1892,7 @@ bool QUaSqliteHistorizer::eventTypeNamePrepareStmt(
 	{
 		return false;
 	}
-	m_eventTypeNamePrepStmt[QUaSqliteHistorizer::eventTypesTable].insertEventTypeName = query;
+	m_eventTypeNamePrepStmt[QUaSqliteHistorizer::eventTypesTable].insertEventTypeName = std::exchange(query, QSqlQuery(db));
 	// prepared statement select exsiting
 	strStmt = QString(
 		"SELECT "
@@ -1928,7 +1906,7 @@ bool QUaSqliteHistorizer::eventTypeNamePrepareStmt(
 	{
 		return false;
 	}
-	m_eventTypeNamePrepStmt[QUaSqliteHistorizer::eventTypesTable].selectEventTypeName = query;
+	m_eventTypeNamePrepStmt[QUaSqliteHistorizer::eventTypesTable].selectEventTypeName = std::move(query);
 	return true;
 }
 
@@ -2025,7 +2003,7 @@ bool QUaSqliteHistorizer::emitterPrepareStmt(
 	{
 		return false;
 	}
-	m_emitterPrepStmts[emitterNodeId] = query;
+	m_emitterPrepStmts[emitterNodeId] = std::move(query);
 	return true;
 }
 
@@ -2084,7 +2062,7 @@ bool QUaSqliteHistorizer::selectOrInsertEventTypeName(
 	QQueue<QUaLog>& logOut)
 {
 	Q_ASSERT(db.isValid() && db.isOpen());
-	Q_ASSERT(m_eventTypeNamePrepStmt.contains(QUaSqliteHistorizer::eventTypesTable));
+	Q_ASSERT(m_eventTypeNamePrepStmt.count(QUaSqliteHistorizer::eventTypesTable) > 0);
 	// first try to find with select
 	QSqlQuery& querySelect = m_eventTypeNamePrepStmt[QUaSqliteHistorizer::eventTypesTable].selectEventTypeName;
 	//  bind values

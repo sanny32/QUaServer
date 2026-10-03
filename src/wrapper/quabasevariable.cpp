@@ -758,12 +758,12 @@ void QUaBaseVariable::setDataTypeOptionSet(const UA_NodeId& optionSetTypeNodeId)
 	{
 		auto iter = oldValue.value<QSequentialIterable>();
 		// get first value if any
-		QVariant varFirst = iter.size() > 0 ? iter.at(0) : QVariant((QVariant::Type)QMetaType::ULongLong);
+		QVariant varFirst = iter.size() > 0 ? iter.at(0) : QVariant(QMetaType(QMetaType::ULongLong));
 		// overwrite old value
 		oldValue = varFirst;
 	}
 	// handle scalar
-	if (oldValue.canConvert(QMetaType::ULongLong))
+	if (oldValue.canConvert(QMetaType(QMetaType::ULongLong)))
 	{
 		// convert in place
 		oldValue = QVariant::fromValue(QUaOptionSet(oldValue.toULongLong()));
@@ -771,7 +771,7 @@ void QUaBaseVariable::setDataTypeOptionSet(const UA_NodeId& optionSetTypeNodeId)
 	else
 	{
 		// else set default value for type
-		oldValue = QVariant((QVariant::Type)QMetaType_OptionSet);
+		oldValue = QVariant(QMetaType(QMetaType_OptionSet));
 	}
 	// set converted or default value
 #ifndef OPEN62541_ISSUE3934_RESOLVED

@@ -73,11 +73,7 @@ void QUaHistoryBackend::processServerLog(
 
 QMetaType::Type QUaHistoryBackend::QVariantToQtType(const QVariant& value)
 {
-	return static_cast<QMetaType::Type>(
-        value.type() < static_cast<QVariant::Type>(QMetaType::User) ?
-		value.type() :
-        static_cast<QVariant::Type>(value.userType())
-	);
+	return static_cast<QMetaType::Type>(value.typeId());
 }
 
 void QUaHistoryBackend::fixOutputVariantType(
@@ -95,20 +91,20 @@ void QUaHistoryBackend::fixOutputVariantType(
 		return;
 	}
 	// special cases
-	if (metaType == QMetaType::QDateTime && value.canConvert(QMetaType::ULongLong))
+	if (metaType == QMetaType::QDateTime && value.canConvert(QMetaType(QMetaType::ULongLong)))
 	{
 		qulonglong iTime = value.toULongLong();
 		value = QDateTime::fromMSecsSinceEpoch(iTime, QTimeZone::UTC);  // NOTE : expensive if spec not defined
 		return;
 	}
-	if (metaType == QMetaType_StatusCode && value.canConvert(QMetaType::UInt))
+	if (metaType == QMetaType_StatusCode && value.canConvert(QMetaType(QMetaType::UInt)))
 	{
 		uint iStatusCode = value.toUInt();
 		value = QVariant::fromValue(static_cast<QUaStatusCode>(iStatusCode));
 		return;
 	}
 	// generic case
-	if (!value.canConvert(metaType))
+	if (!value.canConvert(QMetaType(metaType)))
 	{
 		//qWarning() << "[OLD TYPE]" << QMetaType::typeName(oldType);  
 		//qWarning() << "[NEW TYPE]" << QMetaType::typeName(metaType); 
@@ -116,7 +112,7 @@ void QUaHistoryBackend::fixOutputVariantType(
 		return;
 	}
 	// NOTE : expensive to convert QString to QUaNodeId
-	value.convert(metaType); 
+	value.convert(QMetaType(metaType));
 }
 
 UA_HistoryDataBackend QUaHistoryBackend::CreateUaBackend()

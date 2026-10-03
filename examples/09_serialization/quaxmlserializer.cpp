@@ -29,16 +29,14 @@ bool QUaXmlSerializer::fromByteArray(
 	QQueue<QUaLog>& logOut)
 {
 	// load from xml
-	int line, col;
-	QString strXmlError;
-	m_doc.setContent(xmlData, &strXmlError, &line, &col);
-	if (!strXmlError.isEmpty())
+	const QDomDocument::ParseResult result = m_doc.setContent(xmlData);
+	if (!result)
 	{
 		logOut << QUaLog({
 			QObject::tr("Invalid XML in Line %1 Column %2 Error %3")
-				.arg(line)
-				.arg(col)
-				.arg(strXmlError),
+				.arg(result.errorLine)
+				.arg(result.errorColumn)
+				.arg(result.errorMessage),
 			QUaLogLevel::Error,
 			QUaLogCategory::Serialization
 		});
@@ -300,7 +298,7 @@ void QUaXmlSerializer::writeAttribute(
 	const QVariant& varValue
 )
 {
-	auto type = static_cast<QMetaType::Type>(varValue.type());
+	auto type = static_cast<QMetaType::Type>(varValue.typeId());
 	if (type == QMetaType::UChar)
 	{
 		node.setAttribute(strName, QString("%1").arg(varValue.toUInt()));

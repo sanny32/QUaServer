@@ -277,9 +277,9 @@ void TestServicesIntegration::methodRejectsWrongArguments_data()
 {
     QTest::addColumn<QVariantList>("inputs");
 
-    QTest::newRow("missing") << QVariantList({ 1 });
-    QTest::newRow("too many") << QVariantList({ 1, 2, 3 });
-    QTest::newRow("wrong type") << QVariantList({ 1, QStringLiteral("two") });
+    QTest::newRow("missing") << QVariantList{ 1 };
+    QTest::newRow("too many") << QVariantList{ 1, 2, 3 };
+    QTest::newRow("wrong type") << QVariantList{ 1, QStringLiteral("two") };
 }
 
 ///

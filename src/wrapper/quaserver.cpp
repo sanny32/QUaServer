@@ -2177,7 +2177,7 @@ void QUaServer::registerTypeDefaults(const UA_NodeId& typeNodeId, const QMetaObj
 	// get all ua methods
 	auto methodsNodeIds = QUaNode::getMethodsNodeIds(typeNodeId, m_server);
 	// try to match ua methods with qt meta methods (by browse name)
-	for (const auto & methodNodeId : qAsConst(methodsNodeIds))
+	for (const auto & methodNodeId : std::as_const(methodsNodeIds))
 	{
 		// ignore if not mandatory or optional
 		if (!QUaNode::hasMandatoryModellingRule(methodNodeId, m_server) &&

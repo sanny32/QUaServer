@@ -51,7 +51,7 @@ bool QUaInMemoryHistorizer::removeHistoryData(
 	Q_ASSERT(table.contains(timeEnd) || !timeEnd.isValid());
 	// get total range to remove
 	auto iterIni = table.find(timeStart);
-	auto iterEnd = timeEnd.isValid() ? table.find(timeEnd) + 1 : table.end();
+	auto iterEnd = timeEnd.isValid() ? std::next(table.find(timeEnd)) : table.end();
 	// remove range
 	for (auto it = iterIni; it != iterEnd; it++)
 	{
@@ -141,10 +141,10 @@ QDateTime QUaInMemoryHistorizer::findTimestamp(
 	{
 		// return closest key from above or last one if out of range
 		if (table.contains(timestamp) &&
-			table.constFind(timestamp) + 1 != table.end())
+			std::next(table.constFind(timestamp)) != table.end())
 		{
 			// return next key if available
-			auto iter = table.find(timestamp) + 1;
+			auto iter = std::next(table.find(timestamp));
 			time = iter.key();
 		}
 		else
@@ -163,7 +163,7 @@ QDateTime QUaInMemoryHistorizer::findTimestamp(
 			table.constFind(timestamp) != table.begin())
 		{
 			// return previous key if available
-			auto iter = table.find(timestamp) - 1;
+			auto iter = std::prev(table.find(timestamp));
 			time = iter.key();
 		}
 		else
@@ -230,7 +230,7 @@ quint64 QUaInMemoryHistorizer::numDataPointsInRange(
 	Q_ASSERT(table.contains(timeEnd) || !timeEnd.isValid());
 	return static_cast<quint64>(std::distance(
 		table.find(timeStart),
-		timeEnd.isValid() ? table.find(timeEnd) + 1 : table.end()
+		timeEnd.isValid() ? std::next(table.find(timeEnd)) : table.end()
 	));
 }
 
@@ -258,7 +258,7 @@ QVector<QUaHistoryDataPoint> QUaInMemoryHistorizer::readHistoryData(
 	// get total range to read
 	auto iterIni = table.find(timeStart);
 	// apply offset
-	iterIni += numPointsOffset;
+	std::advance(iterIni, numPointsOffset);
 	// resize return value accordingly
 	points.resize(numPointsToRead);
 	// copy return data points
@@ -387,10 +387,10 @@ QDateTime QUaInMemoryHistorizer::findTimestampEventOfType(
 	case QUaHistoryBackend::TimeMatch::ClosestFromAbove:
 	{
 		if (table.contains(timestamp) &&
-			table.constFind(timestamp) + 1 != table.end())
+			std::next(table.constFind(timestamp)) != table.end())
 		{
 			// return next key if available
-			auto iter = table.find(timestamp) + 1;
+			auto iter = std::next(table.find(timestamp));
 			time = iter.key();
 		}
 		else
@@ -407,7 +407,7 @@ QDateTime QUaInMemoryHistorizer::findTimestampEventOfType(
 			table.constFind(timestamp) != table.begin())
 		{
 			// return previous key if available
-			auto iter = table.find(timestamp) - 1;
+			auto iter = std::prev(table.find(timestamp));
 			time = iter.key();
 		}
 		else
@@ -484,9 +484,9 @@ quint64 QUaInMemoryHistorizer::numEventsOfTypeInRange(
 	auto iterStart = table.find(timeStart);
 	quint64 distance = static_cast<quint64>(std::distance(
 		iterStart,
-		timeEnd.isValid() ? table.find(timeEnd) + 1 : table.end()
+		timeEnd.isValid() ? std::next(table.find(timeEnd)) : table.end()
 	));
-	auto iterEnd = iterStart + distance;
+	auto iterEnd = std::next(iterStart, distance);
 	while (timeEnd.isValid() && iterEnd != table.end() && iterEnd.key() == timeEnd) {
 		distance++;
 		iterEnd++;
@@ -553,7 +553,7 @@ QVector<QUaHistoryEventPoint> QUaInMemoryHistorizer::readHistoryEventsOfType(
 		return points;
 	}
 	// get starting point to read
-	auto iterIni = table.find(timeStart) + numPointsOffset;
+	auto iterIni = std::next(table.find(timeStart), numPointsOffset);
 	// resize return value accordingly
 	points.resize(numPointsToRead);
 	// copy return data points

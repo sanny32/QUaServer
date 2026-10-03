@@ -382,7 +382,7 @@ bool QUaSqliteSerializer::createNodesTable(
 		return false;
 	}
 	// cache prepared statement
-	m_prepStmts["QUaNode"] = query;
+	m_prepStmts["QUaNode"] = std::move(query);
 	return true;
 }
 
@@ -448,7 +448,7 @@ bool QUaSqliteSerializer::createReferencesTable(
 		return false;
 	}
 	// cache prepared statement
-	m_prepStmts["QUaForwardReference"] = query;
+	m_prepStmts["QUaForwardReference"] = std::move(query);
 	return true;
 }
 
@@ -472,10 +472,7 @@ bool QUaSqliteSerializer::createTypeTable(
 		strStmt += QString("[%1] %2, ") // NOT NULL
 			.arg(attrName)
 			.arg(QUaSqliteSerializer::QtTypeToSqlType(
-				static_cast<QMetaType::Type>(
-					attrs[attrName].type() < 1024 ? 
-					attrs[attrName].type() :
-					attrs[attrName].userType())
+				static_cast<QMetaType::Type>(attrs[attrName].typeId())
 			));
 	}
 	strStmt += "FOREIGN KEY ([QUaNodeId]) REFERENCES \"QUaNode\" ([QUaNodeId]) "
@@ -536,7 +533,7 @@ bool QUaSqliteSerializer::createTypeTable(
 		return false;
 	}
 	// cache prepared statement
-	m_prepStmts[typeName] = query;
+	m_prepStmts[typeName] = std::move(query);
 	return true;
 }
 
@@ -796,7 +793,7 @@ bool QUaSqliteSerializer::nodeAttributes(
 			return false;
 		}
 		// cache
-		m_prepStmts[typeName] = query;
+		m_prepStmts[typeName] = std::move(query);
 	}
 	// bind node id
 	QSqlQuery& query = m_prepStmts[typeName];
@@ -877,7 +874,7 @@ bool QUaSqliteSerializer::nodeReferences(
 			return false;
 		}
 		// cache
-		m_prepStmts["QUaForwardReference"] = query;
+		m_prepStmts["QUaForwardReference"] = std::move(query);
 	}
 	// bind node id
 	QSqlQuery& query = m_prepStmts["QUaForwardReference"];

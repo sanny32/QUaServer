@@ -77,7 +77,7 @@ struct QUaInMemorySerializer
 			QString browse2 = QUaQualifiedName::reduceXml(server->nodeById(nodeId2)->nodeBrowsePath());
 			return browse1 < browse2;
 		});
-		for (const auto & nodeId : qAsConst(listNodeIds))
+		for (const auto & nodeId : std::as_const(listNodeIds))
 		{
 			QUaNode* node = server->nodeById(nodeId);
 			QString browse = QUaQualifiedName::reduceXml(node->nodeBrowsePath());
@@ -141,7 +141,7 @@ QUaNode::QUaNode(
 	}
 	// create hash of nodeId's by browse name, which must match Qt's metaprops
 	QHash<QUaQualifiedName, UA_NodeId> mapChildren;
-	for (const auto &childNodeId : qAsConst(chidrenNodeIds))
+	for (const auto &childNodeId : std::as_const(chidrenNodeIds))
 	{
 		// read browse name
 		QUaQualifiedName browseName = QUaNode::getBrowseName(childNodeId, server->m_server);
@@ -1317,7 +1317,7 @@ bool QUaNode::hasOptionalMethod(const QUaQualifiedName& methodName) const
 {
 	// get all ua methods of INSTANCE
 	auto methodsNodeIds = QUaNode::getMethodsNodeIds(m_nodeId, m_qUaServer->m_server);
-	for (const auto & methNodeId : qAsConst(methodsNodeIds))
+	for (const auto & methNodeId : std::as_const(methodsNodeIds))
 	{
 		// ignore if not optional
 		if (!QUaNode::hasOptionalModellingRule(methNodeId, m_qUaServer->m_server))
@@ -1359,7 +1359,7 @@ bool QUaNode::addOptionalMethod(const QUaQualifiedName& methodName)
 		{
 		// get all ua methods of TYPE
 		auto methodsNodeIds = QUaNode::getMethodsNodeIds(typeNodeId, m_qUaServer->m_server);
-		for (const auto & methNodeId : qAsConst(methodsNodeIds))
+		for (const auto & methNodeId : std::as_const(methodsNodeIds))
 		{
 			// ignore if not optional
 			if (!QUaNode::hasOptionalModellingRule(methNodeId, m_qUaServer->m_server))
@@ -1424,7 +1424,7 @@ bool QUaNode::removeOptionalMethod(const QUaQualifiedName& methodName)
 	// get all ua methods of TYPE
 	auto methodsNodeIds = QUaNode::getMethodsNodeIds(typeNodeId, m_qUaServer->m_server);
 	UA_NodeId methodNodeId = UA_NODEID_NULL;
-	for (const auto & methNodeId : qAsConst(methodsNodeIds))
+	for (const auto & methNodeId : std::as_const(methodsNodeIds))
 	{
 		// ignore if not optional
 		if (!QUaNode::hasOptionalModellingRule(methNodeId, m_qUaServer->m_server))
@@ -1825,7 +1825,7 @@ QUaNode::QUaEventFieldMetaData QUaNode::getTypeVars(
 			server,
 			UA_NODECLASS_VARIABLE
 		);
-		for (const auto & varNodeId : qAsConst(varsNodeIds))
+		for (const auto & varNodeId : std::as_const(varsNodeIds))
 		{
 			// only children that have a modelling rule
 			UA_NodeId modellingRule = QUaNode::getModellingRule(varNodeId, server);

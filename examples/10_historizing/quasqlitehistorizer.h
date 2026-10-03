@@ -7,6 +7,7 @@
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QTimer>
+#include <map>
 
 class QUaSqliteHistorizer
 {
@@ -199,7 +200,7 @@ private:
 		QSqlQuery numDataPointsInRangeEndInvalid;
 		QSqlQuery readHistoryData;
 	};
-	QHash<QUaNodeId, DataPreparedStatements> m_dataPrepStmts;
+	std::map<QUaNodeId, DataPreparedStatements> m_dataPrepStmts;
 	// prepare statement to insert history data points
 	bool dataPrepareAllStmts(
 		QSqlDatabase& db,
@@ -259,7 +260,7 @@ private:
 		QSqlQuery insertEventTypeName;
 		QSqlQuery selectEventTypeName;
 	};
-	QHash<QString, EventTypeNamePreparedStatements> m_eventTypeNamePrepStmt;
+	std::map<QString, EventTypeNamePreparedStatements> m_eventTypeNamePrepStmt;
 	static QString eventTypesTable;
 	// check emitter node id table exists
 	bool tableEmitterByNodeIdExists(

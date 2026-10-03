@@ -1001,7 +1001,7 @@ inline bool QUaNode::deserialize(T& deserializer, QQueue<QUaLog> &logOut)
     const auto srcNodes = nonHierRefs.keys();
     for (const auto srcNode : srcNodes)
     {
-        for (const auto &nonHierRef : qAsConst(nonHierRefs[srcNode]))
+        for (const auto &nonHierRef : std::as_const(nonHierRefs[srcNode]))
         {
             auto targetNode = this->server()->nodeById(nonHierRef.targetNodeId);
             if (targetNode)
@@ -1079,7 +1079,7 @@ inline bool QUaNode::deserializeInternal(
     // get existing children list to match hierachical forward references
     auto existingChildren = this->browseChildren();
     QHash<QUaQualifiedName, QList<QUaNode*>> mapExistingChildrenBrowseName;
-    for (auto child : qAsConst(existingChildren))
+    for (auto child : std::as_const(existingChildren))
     {
         mapExistingChildrenBrowseName[child->browseName()] << child;
     }
