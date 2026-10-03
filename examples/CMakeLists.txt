@@ -13,6 +13,7 @@ function(quaserver_add_example name)
     )
     target_include_directories(${name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(${name} PRIVATE QUaServer::QUaServer)
+    quaserver_deploy_openssl_runtime(${name})
 
     if(ARG_QT)
         find_package(Qt6 REQUIRED COMPONENTS ${ARG_QT})

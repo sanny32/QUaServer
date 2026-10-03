@@ -25,6 +25,13 @@ function(quaserver_configure_integration_tests)
         list(APPEND locked_tests quaserver_tests_history_integration)
     endif()
 
+    if(QUASERVER_ENCRYPTION)
+        quaserver_add_integration_test(quaserver_tests_encryption_integration test_encryption_integration.cpp)
+        target_compile_definitions(quaserver_tests_encryption_integration PRIVATE
+            QUASERVER_TEST_CERTIFICATES_DIR="${PROJECT_SOURCE_DIR}/examples/07_encryption")
+        list(APPEND locked_tests quaserver_tests_encryption_integration)
+    endif()
+
     # A free port is probed before the server binds it, so concurrent servers could race for it.
     set_property(TEST ${locked_tests} APPEND PROPERTY RESOURCE_LOCK opcua_test_server)
 endfunction()

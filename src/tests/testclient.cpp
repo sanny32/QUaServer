@@ -117,15 +117,10 @@ UA_StatusCode TestClient::disconnect()
 ///
 QList<UA_UserTokenType> TestClient::endpointUserTokenTypes(const QString &url)
 {
-    const QByteArray endpoint = url.toUtf8();
     size_t endpointsSize = 0;
     UA_EndpointDescription *endpoints = nullptr;
-    UA_StatusCode status = UA_STATUSCODE_GOOD;
-    runInWorker([&] {
-        status = UA_Client_getEndpoints(m_client, endpoint.constData(), &endpointsSize, &endpoints);
-    });
     QList<UA_UserTokenType> tokenTypes;
-    if (status != UA_STATUSCODE_GOOD)
+    if (getEndpoints(url, endpointsSize, endpoints) != UA_STATUSCODE_GOOD)
     {
         return tokenTypes;
     }
@@ -139,6 +134,65 @@ QList<UA_UserTokenType> TestClient::endpointUserTokenTypes(const QString &url)
     UA_Array_delete(endpoints, endpointsSize, &UA_TYPES[UA_TYPES_ENDPOINTDESCRIPTION]);
     return tokenTypes;
 }
+
+///
+/// \brief Returns the security policy URIs of the endpoints of \a url offered with \a mode.
+///
+QStringList TestClient::endpointSecurityPolicyUris(const QString &url, UA_MessageSecurityMode mode)
+{
+    size_t endpointsSize = 0;
+    UA_EndpointDescription *endpoints = nullptr;
+    QStringList policyUris;
+    if (getEndpoints(url, endpointsSize, endpoints) != UA_STATUSCODE_GOOD)
+    {
+        return policyUris;
+    }
+    for (size_t e = 0; e < endpointsSize; ++e)
+    {
+        if (endpoints[e].securityMode == mode)
+        {
+            const UA_String &uri = endpoints[e].securityPolicyUri;
+            policyUris << QString::fromUtf8(reinterpret_cast<const char *>(uri.data), static_cast<int>(uri.length));
+        }
+    }
+    UA_Array_delete(endpoints, endpointsSize, &UA_TYPES[UA_TYPES_ENDPOINTDESCRIPTION]);
+    return policyUris;
+}
+
+#ifdef UA_ENABLE_ENCRYPTION
+///
+/// \brief Opens a session on \a url over a SignAndEncrypt secure channel, authenticated with a user name and password.
+/// \param certificate DER client certificate.
+/// \param privateKey DER private key of \a certificate.
+/// \param applicationUri Application URI stored in \a certificate.
+///
+UA_StatusCode TestClient::connectEncrypted(const QString &url,
+                                           const QByteArray &certificate,
+                                           const QByteArray &privateKey,
+                                           const QString &applicationUri,
+                                           const QString &userName,
+                                           const QString &password)
+{
+    UA_ClientConfig *config = UA_Client_getConfig(m_client);
+    UA_ByteString uaCertificate;
+    uaCertificate.length = static_cast<size_t>(certificate.size());
+    uaCertificate.data = reinterpret_cast<UA_Byte *>(const_cast<char *>(certificate.constData()));
+    UA_ByteString uaPrivateKey;
+    uaPrivateKey.length = static_cast<size_t>(privateKey.size());
+    uaPrivateKey.data = reinterpret_cast<UA_Byte *>(const_cast<char *>(privateKey.constData()));
+    const UA_StatusCode status =
+        UA_ClientConfig_setDefaultEncryption(config, uaCertificate, uaPrivateKey, nullptr, 0, nullptr, 0);
+    if (status != UA_STATUSCODE_GOOD)
+    {
+        return status;
+    }
+    config->securityMode = UA_MESSAGESECURITYMODE_SIGNANDENCRYPT;
+    // the server rejects a client whose application URI differs from the one in its certificate
+    UA_String_clear(&config->clientDescription.applicationUri);
+    config->clientDescription.applicationUri = UA_String_fromChars(applicationUri.toUtf8().constData());
+    return connectUsername(url, userName, password);
+}
+#endif // UA_ENABLE_ENCRYPTION
 
 ///
 /// \brief Reads the Value attribute of \a nodeId into \a value.
@@ -369,6 +423,19 @@ UA_StatusCode TestClient::ensureSubscription()
         m_subscriptionId = response.subscriptionId;
     }
     UA_CreateSubscriptionResponse_clear(&response);
+    return status;
+}
+
+///
+/// \brief Fetches the endpoint descriptions of \a url; the caller owns \a endpoints.
+///
+UA_StatusCode TestClient::getEndpoints(const QString &url, size_t &endpointsSize, UA_EndpointDescription *&endpoints)
+{
+    const QByteArray endpoint = url.toUtf8();
+    UA_StatusCode status = UA_STATUSCODE_GOOD;
+    runInWorker([&] {
+        status = UA_Client_getEndpoints(m_client, endpoint.constData(), &endpointsSize, &endpoints);
+    });
     return status;
 }
 

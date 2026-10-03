@@ -1,53 +1,82 @@
-# Builds the third-party dependencies (mbedTLS, open62541) from the git
-# submodules in depends/ as part of the main build.
+# Fetches open62541 at configure time and builds it as part of the main build.
+# Encryption uses OpenSSL: the one shipped with Qt on Windows, the system one elsewhere.
 
-set(QUASERVER_DEPENDS_DIR ${PROJECT_SOURCE_DIR}/depends)
+include(FetchContent)
 
-if(NOT EXISTS ${QUASERVER_DEPENDS_DIR}/open62541.git/CMakeLists.txt)
-    message(FATAL_ERROR
-        "open62541 submodule is missing. Run:\n"
-        "  git submodule update --init --recursive")
-endif()
+set(QUASERVER_OPEN62541_VERSION "v1.5.8")
+# deps/ua-nodeset commit pinned by that open62541 release
+set(QUASERVER_UA_NODESET_COMMIT "257db9ad98ee7ba4b67d3500b54bfc9d744a36af")
 
 # Helper to force a cache option of a subproject
 macro(quaserver_set_cache name value type)
     set(${name} ${value} CACHE ${type} "" FORCE)
 endmacro()
 
+# Full namespace zero needs only these UA-Nodeset files; the whole repo is ~250 MB with paths beyond MAX_PATH.
+function(quaserver_fetch_ua_nodeset_schema)
+    set(_dir ${CMAKE_BINARY_DIR}/_deps/ua-nodeset)
+    set(_url https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/${QUASERVER_UA_NODESET_COMMIT}/Schema)
+    set(_files
+        Opc.Ua.NodeSet2.xml 79d4e0d787cac6234acfe72d48d370b316ec811176bf912c7f1ed199a4c94d5a
+        NodeIds.csv         b9ab8d8f221324430ec88d34baf3f7f8511fec454bbdf487d54fe2c3ff573d96
+        StatusCode.csv      18c4826d221941912a2ed982e2ea5a43aac977de02977b33d8ccaab367157464
+        Opc.Ua.Types.bsd    e1d7fa8e4b3f49ffd2dc518409650b5a29bfa5a5b454990926e85c1fc8537766
+    )
+    while(_files)
+        list(POP_FRONT _files _name _sha256)
+        file(DOWNLOAD ${_url}/${_name} ${_dir}/Schema/${_name}
+             EXPECTED_HASH SHA256=${_sha256}
+             TLS_VERIFY ON)
+    endwhile()
+    quaserver_set_cache(UA_NODESET_DIR ${_dir} STRING)
+endfunction()
+
+# Points FindOpenSSL to the toolkit the Qt installer puts in <Qt root>/Tools/OpenSSLv3,
+# unless OPENSSL_ROOT_DIR is given explicitly.
+function(quaserver_hint_qt_openssl)
+    if(NOT WIN32 OR OPENSSL_ROOT_DIR OR DEFINED ENV{OPENSSL_ROOT_DIR})
+        return()
+    endif()
+    if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+        set(_arch Win_x86)
+    else()
+        set(_arch Win_x64)
+    endif()
+    get_filename_component(_root "${QT6_INSTALL_PREFIX}/../../Tools/OpenSSLv3/${_arch}" ABSOLUTE)
+    if(EXISTS ${_root}/include/openssl/opensslv.h)
+        set(OPENSSL_ROOT_DIR ${_root} PARENT_SCOPE)
+    endif()
+endfunction()
+
+# Sets QUASERVER_OPENSSL_RUNTIME_DLLS to the OpenSSL DLLs that executables need at run time.
+function(quaserver_find_openssl_runtime)
+    set(_dlls)
+    if(WIN32)
+        get_filename_component(_bin "${OPENSSL_INCLUDE_DIR}/../bin" ABSOLUTE)
+        file(GLOB _dlls "${_bin}/libcrypto-*.dll" "${_bin}/libssl-*.dll")
+    endif()
+    set(QUASERVER_OPENSSL_RUNTIME_DLLS ${_dlls} PARENT_SCOPE)
+endfunction()
+
+# Copies the OpenSSL runtime DLLs next to the executable <target>.
+function(quaserver_deploy_openssl_runtime target)
+    if(QUASERVER_OPENSSL_RUNTIME_DLLS)
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    ${QUASERVER_OPENSSL_RUNTIME_DLLS}
+                    $<TARGET_FILE_DIR:${target}>
+            VERBATIM)
+    endif()
+endfunction()
+
 # ------------------------------------------------------------------------------
-# mbedTLS
+# OpenSSL
 # ------------------------------------------------------------------------------
 if(QUASERVER_ENCRYPTION)
-    if(NOT EXISTS ${QUASERVER_DEPENDS_DIR}/mbedtls.git/CMakeLists.txt)
-        message(FATAL_ERROR
-            "mbedtls submodule is missing. Run:\n"
-            "  git submodule update --init --recursive")
-    endif()
-
-    quaserver_set_cache(ENABLE_PROGRAMS                    OFF BOOL)
-    quaserver_set_cache(ENABLE_TESTING                     OFF BOOL)
-    quaserver_set_cache(MBEDTLS_FATAL_WARNINGS             OFF BOOL)
-    quaserver_set_cache(USE_STATIC_MBEDTLS_LIBRARY         ON  BOOL)
-    quaserver_set_cache(USE_SHARED_MBEDTLS_LIBRARY         OFF BOOL)
-    quaserver_set_cache(DISABLE_PACKAGE_CONFIG_AND_INSTALL ON  BOOL)
-
-    add_subdirectory(${QUASERVER_DEPENDS_DIR}/mbedtls.git
-                     ${CMAKE_BINARY_DIR}/depends/mbedtls)
-
-    # open62541 locates mbedTLS through its FindMbedTLS module. Pre-seed the
-    # variables it looks for with imported wrappers around the in-tree targets
-    # (imported targets do not need to be part of open62541's export set).
-    foreach(_lib mbedtls mbedx509 mbedcrypto)
-        add_library(QUaServerDeps::${_lib} INTERFACE IMPORTED GLOBAL)
-        set_target_properties(QUaServerDeps::${_lib} PROPERTIES
-            INTERFACE_LINK_LIBRARIES ${_lib})
-    endforeach()
-    quaserver_set_cache(MBEDTLS_INCLUDE_DIRS ${QUASERVER_DEPENDS_DIR}/mbedtls.git/include PATH)
-    quaserver_set_cache(MBEDTLS_LIBRARY      QUaServerDeps::mbedtls    STRING)
-    quaserver_set_cache(MBEDX509_LIBRARY     QUaServerDeps::mbedx509   STRING)
-    quaserver_set_cache(MBEDCRYPTO_LIBRARY   QUaServerDeps::mbedcrypto STRING)
-
-    quaserver_set_cache(UA_ENABLE_ENCRYPTION MBEDTLS STRING)
+    quaserver_hint_qt_openssl()
+    find_package(OpenSSL 3 REQUIRED COMPONENTS Crypto)
+    quaserver_find_openssl_runtime()
+    quaserver_set_cache(UA_ENABLE_ENCRYPTION OPENSSL STRING)
 else()
     quaserver_set_cache(UA_ENABLE_ENCRYPTION OFF STRING)
 endif()
@@ -56,6 +85,7 @@ endif()
 # open62541
 # ------------------------------------------------------------------------------
 if(QUASERVER_NAMESPACE_FULL)
+    quaserver_fetch_ua_nodeset_schema()
     quaserver_set_cache(UA_NAMESPACE_ZERO FULL STRING)
 else()
     quaserver_set_cache(UA_NAMESPACE_ZERO REDUCED STRING)
@@ -74,5 +104,11 @@ quaserver_set_cache(UA_ENABLE_DEBUG_SANITIZER OFF BOOL)
 # Link against the same (dynamic) C runtime as Qt
 quaserver_set_cache(UA_MSVC_FORCE_STATIC_CRT OFF BOOL)
 
-add_subdirectory(${QUASERVER_DEPENDS_DIR}/open62541.git
-                 ${CMAKE_BINARY_DIR}/depends/open62541)
+FetchContent_Declare(open62541
+    GIT_REPOSITORY https://github.com/open62541/open62541.git
+    GIT_TAG        ${QUASERVER_OPEN62541_VERSION}
+    GIT_SHALLOW    TRUE
+    # the submodules serve disabled features, except ua-nodeset which is fetched separately
+    GIT_SUBMODULES ""
+)
+FetchContent_MakeAvailable(open62541)

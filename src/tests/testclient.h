@@ -4,6 +4,7 @@
 #include <functional>
 
 #include <QList>
+#include <QStringList>
 #include <QVariant>
 
 #include <QUaServer>
@@ -47,6 +48,26 @@ public:
     /// \brief Returns the user token types offered by the endpoints of \a url.
     ///
     QList<UA_UserTokenType> endpointUserTokenTypes(const QString &url);
+
+    ///
+    /// \brief Returns the security policy URIs of the endpoints of \a url offered with \a mode.
+    ///
+    QStringList endpointSecurityPolicyUris(const QString &url, UA_MessageSecurityMode mode);
+
+#ifdef UA_ENABLE_ENCRYPTION
+    ///
+    /// \brief Opens a session on \a url over a SignAndEncrypt secure channel, authenticated with a user name and password.
+    /// \param certificate DER client certificate.
+    /// \param privateKey DER private key of \a certificate.
+    /// \param applicationUri Application URI stored in \a certificate.
+    ///
+    UA_StatusCode connectEncrypted(const QString &url,
+                                   const QByteArray &certificate,
+                                   const QByteArray &privateKey,
+                                   const QString &applicationUri,
+                                   const QString &userName,
+                                   const QString &password);
+#endif // UA_ENABLE_ENCRYPTION
 
     ///
     /// \brief Reads the Value attribute of \a nodeId into \a value.
@@ -116,6 +137,7 @@ private:
     QList<QVariantList> m_events;
 
     UA_StatusCode ensureSubscription();
+    UA_StatusCode getEndpoints(const QString &url, size_t &endpointsSize, UA_EndpointDescription *&endpoints);
     void runInWorker(const std::function<void()> &job);
     static UA_EventFilter eventFilter(const QList<QUaBrowsePath> &selectClauses);
     static QVariantList eventFieldsToList(size_t nEventFields, UA_Variant *eventFields);

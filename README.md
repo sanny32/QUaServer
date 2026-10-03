@@ -68,28 +68,25 @@ How to create server alarms and conditions.
 
 ## Include
 
-This library requires `Qt 6.9` or higher, `C++ 17` and `CMake 3.21` or higher. *Python 3* is required to generate the *open62541* sources.
+This library requires `Qt 6.9` or higher, `C++ 17`, `CMake 3.21` or higher and `Git`. *Python 3* is required to generate the *open62541* sources.
 
-The dependencies are included in this project as **git submodules**:
+The [open62541](https://github.com/open62541/open62541) v1.5 library is cloned by CMake ([FetchContent](https://cmake.org/cmake/help/latest/module/FetchContent.html)) into the build directory when the project is configured, so the first configuration needs network access. When `QUASERVER_NAMESPACE_FULL` is enabled, the required [UA-Nodeset](https://github.com/OPCFoundation/UA-Nodeset) schema files are downloaded as well. To build offline from a local *open62541* checkout, pass `-DFETCHCONTENT_SOURCE_DIR_OPEN62541=<path to open62541>`.
 
-* [open62541](https://github.com/open62541/open62541) v1.5 ([`./depends/open62541.git`](./depends/open62541.git))
-* [mbedtls](https://github.com/Mbed-TLS/mbedtls) v3.6 LTS ([`./depends/mbedtls.git`](./depends/mbedtls.git)), only needed for encryption
-
-So don't forget to clone this repository **recursively**, or run `git submodule update --init --recursive` after cloning this repo.
+Encryption additionally requires [OpenSSL](https://www.openssl.org/) 3, see the *Encryption* section.
 
 The dependencies are built automatically as part of the CMake project. The library features are selected with the following options:
 
 | Option | Default | Description |
 |---|---|---|
 | `QUASERVER_NAMESPACE_FULL` | `OFF` | Build *open62541* with the full namespace zero |
-| `QUASERVER_ENCRYPTION` | `OFF` | Encryption support (builds *mbedtls*) |
+| `QUASERVER_ENCRYPTION` | `OFF` | Encryption support (requires *OpenSSL* 3) |
 | `QUASERVER_EVENTS` | `OFF` | Events support (implies `QUASERVER_NAMESPACE_FULL`) |
 | `QUASERVER_ALARMS_CONDITIONS` | `OFF` | Alarms and conditions support (implies `QUASERVER_EVENTS`) |
 | `QUASERVER_HISTORIZING` | `OFF` | Historizing support |
 | `QUASERVER_BUILD_EXAMPLES` | `ON` (top level) | Build the examples |
 | `QUASERVER_BUILD_TESTS` | `OFF` | Build the tests |
 
-The [`./depends/open62541.git`](./depends/open62541.git) submodule on this repo tracks the latest **compatible** *open62541* version, which might not be the most recent version of their master branch. Compatibility of *QUaServer* with the latest version of *open62541* is not always guaranteed.
+The *open62541* version is pinned by `QUASERVER_OPEN62541_VERSION` in [`./cmake/Dependencies.cmake`](./cmake/Dependencies.cmake) to the latest **compatible** release, which might not be the most recent version of their master branch. Compatibility of *QUaServer* with the latest version of *open62541* is not always guaranteed.
 
 To include *QUaServer* in your CMake project, add this repository as a subdirectory and link against the `QUaServer::QUaServer` target. For example:
 
@@ -1266,14 +1263,17 @@ Build and test the server example in [./examples/06_users](./examples/06_users/m
 
 In this section the *QUaServer* library is configured to encrypt communications. Before continuing, make sure to go through the *Server* section in detail and generate all the required certificates and keys.
 
-To support encryption, it is necessary to add the [mbedtls library](https://github.com/Mbed-TLS/mbedtls) to the project's dependencies. A copy of a compatible version of the `mbedtls` library (3.6 LTS) is included in this repo as a *git submodule* in [`./depends/mbedtls.git`](./depends/mbedtls.git).
-
-The `mbedtls` library is built automatically as part of the CMake project when the `QUASERVER_ENCRYPTION` option is enabled:
+To support encryption, *open62541* is built against the [OpenSSL](https://www.openssl.org/) 3 library when the `QUASERVER_ENCRYPTION` option is enabled:
 
 ```bash
 cmake -S . -B build -DCMAKE_PREFIX_PATH=<path to Qt6> -DQUASERVER_ENCRYPTION=ON
 cmake --build build
 ```
+
+* On **Windows**, the OpenSSL toolkit shipped with Qt is used. Install it with the *Qt Maintenance Tool* (*Developer and Designer Tools → OpenSSL 3.x Toolkit*); it is found automatically in `<Qt root>/Tools/OpenSSLv3`. The OpenSSL DLLs (`libcrypto-3-x64.dll`, `libssl-3-x64.dll`) are copied next to the built examples and tests; deploy them along with your own application.
+* On **Linux**, the system OpenSSL is used (e.g. `sudo apt install libssl-dev`), the same one Qt itself relies on.
+
+To use another OpenSSL installation, pass `-DOPENSSL_ROOT_DIR=<path to OpenSSL>`.
 
 When changing options of an existing build directory, it is recommended to **rebuild** the complete project.
 
@@ -2148,7 +2148,7 @@ levelAlarm->setHistorizingBranches(true);
 
 ### Amalgamation
 
-The *open62541* source code found in `./depends/open62541.git` is licensed by **open62541** under the [Mozilla Public License 2.0](https://github.com/open62541/open62541/blob/master/LICENSE).
+The *open62541* source code fetched into the build directory is licensed by **open62541** under the [Mozilla Public License 2.0](https://github.com/open62541/open62541/blob/master/LICENSE).
 
 ### QUaTypesConverter
 

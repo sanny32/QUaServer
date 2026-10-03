@@ -1,9 +1,8 @@
 # Build Examples
 
-Requires `Qt 6.9+`, `CMake 3.21+` and `Python 3`. The examples are built from the root of the repository:
+Requires `Qt 6.9+`, `CMake 3.21+`, `Git` and `Python 3`. The examples are built from the root of the repository:
 
 ```bash
-git submodule update --init --recursive
 cmake -S . -B build -DCMAKE_PREFIX_PATH=<path to Qt6>
 cmake --build build
 ```
