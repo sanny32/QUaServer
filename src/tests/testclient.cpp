@@ -173,6 +173,24 @@ UA_StatusCode TestClient::connectEncrypted(const QString &url,
                                            const QString &userName,
                                            const QString &password)
 {
+    const UA_StatusCode status = setEncryption(certificate, privateKey, applicationUri);
+    if (status != UA_STATUSCODE_GOOD)
+    {
+        return status;
+    }
+    return connectUsername(url, userName, password);
+}
+
+///
+/// \brief Makes every following connection, discovery included, use a SignAndEncrypt secure channel.
+/// \param certificate DER client certificate.
+/// \param privateKey DER private key of \a certificate.
+/// \param applicationUri Application URI stored in \a certificate.
+///
+UA_StatusCode TestClient::setEncryption(const QByteArray &certificate,
+                                        const QByteArray &privateKey,
+                                        const QString &applicationUri)
+{
     UA_ClientConfig *config = UA_Client_getConfig(m_client);
     UA_ByteString uaCertificate;
     uaCertificate.length = static_cast<size_t>(certificate.size());
@@ -190,7 +208,7 @@ UA_StatusCode TestClient::connectEncrypted(const QString &url,
     // the server rejects a client whose application URI differs from the one in its certificate
     UA_String_clear(&config->clientDescription.applicationUri);
     config->clientDescription.applicationUri = UA_String_fromChars(applicationUri.toUtf8().constData());
-    return connectUsername(url, userName, password);
+    return UA_STATUSCODE_GOOD;
 }
 #endif // UA_ENABLE_ENCRYPTION
 

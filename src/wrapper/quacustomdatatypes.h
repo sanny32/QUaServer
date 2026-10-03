@@ -135,12 +135,46 @@ enum class ChangeVerb
 };
 Q_ENUM_NS(ChangeVerb)
 size_t qHash(const ChangeVerb& key, size_t seed = 0);
+
+// Basic128Rsa15 and Basic256 are only available when open62541 is built with UA_INCLUDE_INSECURE_POLICIES
+enum class SecurityPolicy
+{
+    None                  = 0x001,
+    Basic128Rsa15         = 0x002,
+    Basic256              = 0x004,
+    Basic256Sha256        = 0x008,
+    Aes128Sha256RsaOaep   = 0x010,
+    Aes256Sha256RsaPss    = 0x020,
+    EccNistP256AesGcm     = 0x040,
+    EccNistP256ChaChaPoly = 0x080,
+    EccCurve25519         = 0x100,
+    EccCurve448           = 0x200,
+    All                   = 0x3FF
+};
+Q_DECLARE_FLAGS(SecurityPolicies, SecurityPolicy)
+Q_FLAG_NS(SecurityPolicies)
+
+enum class MessageSecurityMode
+{
+    None           = 0x1,
+    Sign           = 0x2,
+    SignAndEncrypt = 0x4,
+    All            = 0x7
+};
+Q_DECLARE_FLAGS(MessageSecurityModes, MessageSecurityMode)
+Q_FLAG_NS(MessageSecurityModes)
 }
+Q_DECLARE_OPERATORS_FOR_FLAGS(QUa::SecurityPolicies)
+Q_DECLARE_OPERATORS_FOR_FLAGS(QUa::MessageSecurityModes)
 
 using QUaLogLevel = QUa::LogLevel;
 using QUaLogCategory = QUa::LogCategory;
 using QUaStatus = QUa::Status;
 using QUaChangeVerb = QUa::ChangeVerb;
+using QUaSecurityPolicy = QUa::SecurityPolicy;
+using QUaSecurityPolicies = QUa::SecurityPolicies;
+using QUaMessageSecurityMode = QUa::MessageSecurityMode;
+using QUaMessageSecurityModes = QUa::MessageSecurityModes;
 
 struct QUaLog
 {

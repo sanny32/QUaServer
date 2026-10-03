@@ -24,6 +24,12 @@ class TestServer : public QObject
 private slots:
     void descriptionPropertiesNotify();
     void limitsNotify();
+    void hostnameIsEmptyByDefaultAndNotifies();
+#ifdef UA_ENABLE_ENCRYPTION
+    void trustListsAreEmptyByDefaultAndNotify();
+    void allSecurityPoliciesAndModesAreAllowedByDefault();
+    void securityPoliciesAndModesNotify();
+#endif // UA_ENABLE_ENCRYPTION
     void anonymousLoginIsAllowedByDefault();
     void usersAddUpdateAndRemove();
     void emptyUserNameIsIgnored();
@@ -77,6 +83,76 @@ void TestServer::limitsNotify()
     QCOMPARE(server.maxSecureChannels(), quint16(9));
     QCOMPARE(sessionsSpy.count(), 1);
 }
+
+///
+/// \brief An empty hostname keeps listening on all interfaces until one is set.
+///
+void TestServer::hostnameIsEmptyByDefaultAndNotifies()
+{
+    QUaServer server;
+    QSignalSpy spy(&server, &QUaServer::hostnameChanged);
+
+    QVERIFY(server.hostname().isEmpty());
+    server.setHostname(QStringLiteral("plc.local"));
+
+    QCOMPARE(server.hostname(), QStringLiteral("plc.local"));
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(spy.first().first().toString(), QStringLiteral("plc.local"));
+}
+
+#ifdef UA_ENABLE_ENCRYPTION
+void TestServer::trustListsAreEmptyByDefaultAndNotify()
+{
+    QUaServer server;
+    QSignalSpy trustedSpy(&server, &QUaServer::trustedCertificatesChanged);
+    QSignalSpy issuersSpy(&server, &QUaServer::issuerCertificatesChanged);
+    QSignalSpy revocationSpy(&server, &QUaServer::revocationListsChanged);
+    const QList<QByteArray> trusted{ QByteArray("client") };
+    const QList<QByteArray> issuers{ QByteArray("ca") };
+    const QList<QByteArray> revocation{ QByteArray("crl") };
+
+    QVERIFY(server.trustedCertificates().isEmpty());
+    QVERIFY(server.issuerCertificates().isEmpty());
+    QVERIFY(server.revocationLists().isEmpty());
+    server.setTrustedCertificates(trusted);
+    server.setIssuerCertificates(issuers);
+    server.setRevocationLists(revocation);
+
+    QCOMPARE(server.trustedCertificates(), trusted);
+    QCOMPARE(server.issuerCertificates(), issuers);
+    QCOMPARE(server.revocationLists(), revocation);
+    QCOMPARE(trustedSpy.count(), 1);
+    QCOMPARE(issuersSpy.count(), 1);
+    QCOMPARE(revocationSpy.count(), 1);
+}
+
+void TestServer::allSecurityPoliciesAndModesAreAllowedByDefault()
+{
+    QUaServer server;
+
+    QCOMPARE(server.securityPolicies(), QUaSecurityPolicies(QUaSecurityPolicy::All));
+    QVERIFY(server.securityPolicies().testFlag(QUaSecurityPolicy::None));
+    QVERIFY(server.securityPolicies().testFlag(QUaSecurityPolicy::EccCurve448));
+    QCOMPARE(server.securityModes(), QUaMessageSecurityModes(QUaMessageSecurityMode::All));
+    QVERIFY(server.securityModes().testFlag(QUaMessageSecurityMode::Sign));
+}
+
+void TestServer::securityPoliciesAndModesNotify()
+{
+    QUaServer server;
+    QSignalSpy policiesSpy(&server, &QUaServer::securityPoliciesChanged);
+    QSignalSpy modesSpy(&server, &QUaServer::securityModesChanged);
+    const QUaSecurityPolicies policies = QUaSecurityPolicy::Basic256Sha256 | QUaSecurityPolicy::Aes256Sha256RsaPss;
+
+    server.setSecurityPolicies(policies);
+    server.setSecurityModes(QUaMessageSecurityMode::SignAndEncrypt);
+
+    QCOMPARE(server.securityPolicies(), policies);
+    QCOMPARE(server.securityModes(), QUaMessageSecurityModes(QUaMessageSecurityMode::SignAndEncrypt));
+    QCOMPARE(policiesSpy.count(), 1);
+    QCOMPARE(modesSpy.count(), 1);
+}
+#endif // UA_ENABLE_ENCRYPTION
 
 ///
 /// \brief Anonymous login starts enabled and can be switched off.

@@ -58,6 +58,53 @@ using quaSocket = int;
 #include <QMetaProperty>
 #include <QTimer>
 
+#ifdef UA_ENABLE_ENCRYPTION
+namespace {
+
+///
+/// \brief Maps an OPC UA security policy URI to its QUaSecurityPolicy flag.
+/// \return The flag, or an empty set for a policy QUaServer does not know.
+///
+QUaSecurityPolicies securityPolicyFromUri(const UA_String& policyUri)
+{
+	static const QHash<QByteArray, QUaSecurityPolicy> policies = {
+		{ "http://opcfoundation.org/UA/SecurityPolicy#None"                    , QUaSecurityPolicy::None                  },
+		{ "http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15"           , QUaSecurityPolicy::Basic128Rsa15         },
+		{ "http://opcfoundation.org/UA/SecurityPolicy#Basic256"                , QUaSecurityPolicy::Basic256              },
+		{ "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256"          , QUaSecurityPolicy::Basic256Sha256        },
+		{ "http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep"   , QUaSecurityPolicy::Aes128Sha256RsaOaep   },
+		{ "http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss"    , QUaSecurityPolicy::Aes256Sha256RsaPss    },
+		{ "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256_AesGcm"     , QUaSecurityPolicy::EccNistP256AesGcm     },
+		{ "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256_ChaChaPoly" , QUaSecurityPolicy::EccNistP256ChaChaPoly },
+		{ "http://opcfoundation.org/UA/SecurityPolicy#ECC_curve25519"          , QUaSecurityPolicy::EccCurve25519         },
+		{ "http://opcfoundation.org/UA/SecurityPolicy#ECC_curve448"            , QUaSecurityPolicy::EccCurve448           }
+	};
+	const QByteArray uri(reinterpret_cast<const char*>(policyUri.data), static_cast<qsizetype>(policyUri.length));
+	const auto it = policies.constFind(uri);
+	return it == policies.constEnd() ? QUaSecurityPolicies() : QUaSecurityPolicies(it.value());
+}
+
+///
+/// \brief Maps an open62541 message security mode to its QUaMessageSecurityMode flag.
+///
+QUaMessageSecurityModes securityModeFromUa(const UA_MessageSecurityMode mode)
+{
+	switch (mode)
+	{
+	case UA_MESSAGESECURITYMODE_NONE:
+		return QUaMessageSecurityMode::None;
+	case UA_MESSAGESECURITYMODE_SIGN:
+		return QUaMessageSecurityMode::Sign;
+	case UA_MESSAGESECURITYMODE_SIGNANDENCRYPT:
+		return QUaMessageSecurityMode::SignAndEncrypt;
+	default:
+		return QUaMessageSecurityModes();
+	}
+}
+
+} // namespace
+#endif // UA_ENABLE_ENCRYPTION
+
 /* helper null log for avoiding startup messages */
 void UA_Log_Discard_log(void *context,
                         UA_LogLevel level,
@@ -1129,6 +1176,8 @@ QUaServer::QUaServer(QObject* parent/* = 0*/)
 #ifdef UA_ENABLE_ENCRYPTION
 	m_bytePrivateKey = QByteArray();
 	m_bytePrivateKeyInternal = QByteArray();
+	m_securityPolicies = QUaSecurityPolicy::All;
+	m_securityModes = QUaMessageSecurityMode::All;
 #endif
 #ifdef UA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS
 	m_conditionsRefreshRequired = false;
@@ -1237,7 +1286,7 @@ void QUaServer::setEventNotifier(const quint8& eventNotifier)
 }
 #endif // UA_ENABLE_HISTORIZING
 
-void QUaServer::resetConfig()
+bool QUaServer::resetConfig()
 {
 	// clean old config and create new
 	UA_ServerConfig * config = UA_Server_getConfig(m_server);
@@ -1283,20 +1332,27 @@ void QUaServer::resetConfig()
 	// check if valid private key
 	if (ptrCert && ptrPriv)
 	{
-		// create config with port, certificate and private key for encryption
+		// create config with port, certificate, private key and trust lists for encryption
+		const QVector<UA_ByteString> trusted    = QUaServer::toByteStringArray(m_listTrusted);
+		const QVector<UA_ByteString> issuers    = QUaServer::toByteStringArray(m_listIssuers);
+		const QVector<UA_ByteString> revocation = QUaServer::toByteStringArray(m_listRevocation);
 		st = UA_ServerConfig_setDefaultWithSecurityPolicies(
 			config,
 			m_port,
 			ptrCert,
 			ptrPriv,
-			nullptr,
-			0,
-			nullptr,
-			0,
-			nullptr,
-			0
+			trusted.constData(),
+			static_cast<size_t>(trusted.size()),
+			issuers.constData(),
+			static_cast<size_t>(issuers.size()),
+			revocation.constData(),
+			static_cast<size_t>(revocation.size())
 		);
-		Q_ASSERT(st == UA_STATUSCODE_GOOD);
+		if (st != UA_STATUSCODE_GOOD)
+		{
+			UA_LOG_ERROR(config->logging, UA_LOGCATEGORY_SERVER,
+				"Could not configure encryption with the given certificates : %s", UA_StatusCode_name(st));
+		}
 	}
 	else
 	{
@@ -1313,6 +1369,11 @@ void QUaServer::resetConfig()
 	{
 		UA_ByteString_clear(ptrCert);
 	}
+	if (st != UA_STATUSCODE_GOOD || !this->applySecurityFilter(config))
+	{
+		return false;
+	}
+	this->applyServerUrls(config);
 
 	// NOTE : open62541 >= 1.4 does not allow user and password on unencrypted
 	//        channels by default, keep previous QUaServer behaviour if no encryption
@@ -1383,7 +1444,79 @@ void QUaServer::resetConfig()
 	this->setupConfigCallbacks();
 
 	Q_UNUSED(st);
+	return true;
 }
+
+///
+/// \brief Removes the endpoints whose security policy or mode is not allowed.
+///        The security policies themselves are kept, since discovery always runs over SecurityPolicy None.
+/// \return False when no endpoint is left to publish.
+///
+bool QUaServer::applySecurityFilter(UA_ServerConfig* config)
+{
+#ifdef UA_ENABLE_ENCRYPTION
+	size_t count = 0;
+	for (size_t i = 0; i < config->endpointsSize; i++)
+	{
+		UA_EndpointDescription& endpoint = config->endpoints[i];
+		if (!(securityPolicyFromUri(endpoint.securityPolicyUri) & m_securityPolicies) ||
+			!(securityModeFromUa(endpoint.securityMode) & m_securityModes))
+		{
+			UA_EndpointDescription_clear(&endpoint);
+			continue;
+		}
+		config->endpoints[count++] = endpoint;
+	}
+	config->endpointsSize = count;
+#endif // UA_ENABLE_ENCRYPTION
+	if (config->endpointsSize == 0)
+	{
+		UA_LOG_ERROR(config->logging, UA_LOGCATEGORY_SERVER,
+			"No endpoint matches the allowed security policies and modes");
+		return false;
+	}
+	return true;
+}
+
+///
+/// \brief Replaces the default listen-on-all-interfaces server URL with one bound to the configured hostname.
+///
+void QUaServer::applyServerUrls(UA_ServerConfig* config)
+{
+	if (m_strHostname.isEmpty())
+	{
+		return;
+	}
+	UA_Array_delete(config->serverUrls, config->serverUrlsSize, &UA_TYPES[UA_TYPES_STRING]);
+	const QByteArray url = QStringLiteral("opc.tcp://%1:%2").arg(m_strHostname).arg(m_port).toUtf8();
+	config->serverUrls     = UA_String_new();
+	*config->serverUrls    = UA_String_fromChars(url.constData());
+	config->serverUrlsSize = 1;
+}
+
+#ifdef UA_ENABLE_ENCRYPTION
+///
+/// \brief Wraps the non-empty items of \a list as UA_ByteString views, without copying the data.
+/// \return Views that are valid as long as \a list is not modified.
+///
+QVector<UA_ByteString> QUaServer::toByteStringArray(const QList<QByteArray>& list)
+{
+	QVector<UA_ByteString> array;
+	array.reserve(list.size());
+	for (const QByteArray& item : list)
+	{
+		if (item.isEmpty())
+		{
+			continue;
+		}
+		UA_ByteString bytes;
+		bytes.length = static_cast<size_t>(item.size());
+		bytes.data   = reinterpret_cast<UA_Byte*>(const_cast<char*>(item.constData()));
+		array.append(bytes);
+	}
+	return array;
+}
+#endif // UA_ENABLE_ENCRYPTION
 
 void QUaServer::setupConfigCallbacks()
 {
@@ -1724,7 +1857,115 @@ void QUaServer::setPrivateKey(const QByteArray& bytePrivateKey)
 	m_bytePrivateKey = bytePrivateKey;
 	emit this->privateKeyChanged(m_bytePrivateKey);
 }
+
+///
+/// \brief Returns the DER certificates of the clients and CAs that the server trusts.
+///
+QList<QByteArray> QUaServer::trustedCertificates() const
+{
+	return m_listTrusted;
+}
+
+///
+/// \brief Sets the DER certificates of the clients and CAs that the server trusts.
+///        While the list is empty, the server accepts any client certificate.
+///        Applied on the next start().
+///
+void QUaServer::setTrustedCertificates(const QList<QByteArray>& trustedCertificates)
+{
+	m_listTrusted = trustedCertificates;
+	emit this->trustedCertificatesChanged(m_listTrusted);
+}
+
+///
+/// \brief Returns the DER CA certificates used to build the chain of a client certificate.
+///
+QList<QByteArray> QUaServer::issuerCertificates() const
+{
+	return m_listIssuers;
+}
+
+///
+/// \brief Sets the DER CA certificates used to build the chain of a client certificate,
+///        without trusting them. Ignored while the trusted certificates list is empty.
+///        Applied on the next start().
+///
+void QUaServer::setIssuerCertificates(const QList<QByteArray>& issuerCertificates)
+{
+	m_listIssuers = issuerCertificates;
+	emit this->issuerCertificatesChanged(m_listIssuers);
+}
+
+///
+/// \brief Returns the DER certificate revocation lists of the trusted and issuer CAs.
+///
+QList<QByteArray> QUaServer::revocationLists() const
+{
+	return m_listRevocation;
+}
+
+///
+/// \brief Sets the DER certificate revocation lists of the trusted and issuer CAs.
+///        Ignored while the trusted certificates list is empty. Applied on the next start().
+///
+void QUaServer::setRevocationLists(const QList<QByteArray>& revocationLists)
+{
+	m_listRevocation = revocationLists;
+	emit this->revocationListsChanged(m_listRevocation);
+}
+
+///
+/// \brief Returns the security policies the server publishes endpoints for.
+///
+QUaSecurityPolicies QUaServer::securityPolicies() const
+{
+	return m_securityPolicies;
+}
+
+///
+/// \brief Restricts the published endpoints to \a securityPolicies. Applied on the next start().
+///
+void QUaServer::setSecurityPolicies(const QUaSecurityPolicies& securityPolicies)
+{
+	m_securityPolicies = securityPolicies;
+	emit this->securityPoliciesChanged(m_securityPolicies);
+}
+
+///
+/// \brief Returns the message security modes the server publishes endpoints for.
+///
+QUaMessageSecurityModes QUaServer::securityModes() const
+{
+	return m_securityModes;
+}
+
+///
+/// \brief Restricts the published endpoints to \a securityModes. Applied on the next start().
+///
+void QUaServer::setSecurityModes(const QUaMessageSecurityModes& securityModes)
+{
+	m_securityModes = securityModes;
+	emit this->securityModesChanged(m_securityModes);
+}
 #endif
+
+///
+/// \brief Returns the hostname the server listens on and advertises as discovery URL.
+///
+QString QUaServer::hostname() const
+{
+	return m_strHostname;
+}
+
+///
+/// \brief Sets the hostname or IP address the server listens on and advertises as discovery URL.
+///        An empty hostname listens on all interfaces. Applied on the next start().
+///
+void QUaServer::setHostname(const QString& hostname)
+{
+	m_strHostname = hostname;
+	emit this->hostnameChanged(m_strHostname);
+}
 
 QString QUaServer::applicationName() const
 {
@@ -1825,12 +2066,12 @@ bool QUaServer::start()
 	{
 		return true;
 	}
-	// reset config before starting
-	this->resetConfig();
+	if (!this->resetConfig())
+	{
+		return false;
+	}
 	// start open62541 server
 	auto st = UA_Server_run_startup(m_server);
-	Q_ASSERT(st == UA_STATUSCODE_GOOD);
-	Q_UNUSED(st);
 	if (st != UA_STATUSCODE_GOOD)
 	{
 		return false;

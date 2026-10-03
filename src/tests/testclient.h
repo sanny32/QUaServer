@@ -67,6 +67,16 @@ public:
                                    const QString &applicationUri,
                                    const QString &userName,
                                    const QString &password);
+
+    ///
+    /// \brief Makes every following connection, discovery included, use a SignAndEncrypt secure channel.
+    /// \param certificate DER client certificate.
+    /// \param privateKey DER private key of \a certificate.
+    /// \param applicationUri Application URI stored in \a certificate.
+    ///
+    UA_StatusCode setEncryption(const QByteArray &certificate,
+                                const QByteArray &privateKey,
+                                const QString &applicationUri);
 #endif // UA_ENABLE_ENCRYPTION
 
     ///

@@ -62,7 +62,13 @@ class QUaServer : public QObject
 	Q_PROPERTY(QByteArray certificate       READ certificate       WRITE setCertificate       NOTIFY certificateChanged      )
 #ifdef UA_ENABLE_ENCRYPTION
 	Q_PROPERTY(QByteArray privateKey        READ privateKey        WRITE setPrivateKey        NOTIFY privateKeyChanged       )
+	Q_PROPERTY(QList<QByteArray>       trustedCertificates READ trustedCertificates WRITE setTrustedCertificates NOTIFY trustedCertificatesChanged)
+	Q_PROPERTY(QList<QByteArray>       issuerCertificates  READ issuerCertificates  WRITE setIssuerCertificates  NOTIFY issuerCertificatesChanged )
+	Q_PROPERTY(QList<QByteArray>       revocationLists     READ revocationLists     WRITE setRevocationLists     NOTIFY revocationListsChanged    )
+	Q_PROPERTY(QUaSecurityPolicies     securityPolicies    READ securityPolicies    WRITE setSecurityPolicies    NOTIFY securityPoliciesChanged   )
+	Q_PROPERTY(QUaMessageSecurityModes securityModes       READ securityModes       WRITE setSecurityModes       NOTIFY securityModesChanged      )
 #endif
+	Q_PROPERTY(QString    hostname          READ hostname          WRITE setHostname          NOTIFY hostnameChanged         )
 	Q_PROPERTY(quint16    maxSecureChannels READ maxSecureChannels WRITE setMaxSecureChannels NOTIFY maxSecureChannelsChanged)
 	Q_PROPERTY(quint16    maxSessions       READ maxSessions       WRITE setMaxSessions       NOTIFY maxSessionsChanged      )
 	Q_PROPERTY(bool       isRunning         READ isRunning         WRITE setIsRunning         NOTIFY isRunningChanged        )
@@ -93,7 +99,67 @@ public:
 #ifdef UA_ENABLE_ENCRYPTION
 	QByteArray privateKey() const;
 	void       setPrivateKey(const QByteArray& bytePrivateKey);
+
+	///
+	/// \brief Returns the DER certificates of the clients and CAs that the server trusts.
+	///
+	QList<QByteArray> trustedCertificates() const;
+	///
+	/// \brief Sets the DER certificates of the clients and CAs that the server trusts.
+	///        While the list is empty, the server accepts any client certificate.
+	///        Applied on the next start().
+	///
+	void setTrustedCertificates(const QList<QByteArray>& trustedCertificates);
+
+	///
+	/// \brief Returns the DER CA certificates used to build the chain of a client certificate.
+	///
+	QList<QByteArray> issuerCertificates() const;
+	///
+	/// \brief Sets the DER CA certificates used to build the chain of a client certificate,
+	///        without trusting them. Ignored while the trusted certificates list is empty.
+	///        Applied on the next start().
+	///
+	void setIssuerCertificates(const QList<QByteArray>& issuerCertificates);
+
+	///
+	/// \brief Returns the DER certificate revocation lists of the trusted and issuer CAs.
+	///
+	QList<QByteArray> revocationLists() const;
+	///
+	/// \brief Sets the DER certificate revocation lists of the trusted and issuer CAs.
+	///        Ignored while the trusted certificates list is empty. Applied on the next start().
+	///
+	void setRevocationLists(const QList<QByteArray>& revocationLists);
+
+	///
+	/// \brief Returns the security policies the server publishes endpoints for.
+	///
+	QUaSecurityPolicies securityPolicies() const;
+	///
+	/// \brief Restricts the published endpoints to \a securityPolicies. Applied on the next start().
+	///
+	void setSecurityPolicies(const QUaSecurityPolicies& securityPolicies);
+
+	///
+	/// \brief Returns the message security modes the server publishes endpoints for.
+	///
+	QUaMessageSecurityModes securityModes() const;
+	///
+	/// \brief Restricts the published endpoints to \a securityModes. Applied on the next start().
+	///
+	void setSecurityModes(const QUaMessageSecurityModes& securityModes);
 #endif
+
+	///
+	/// \brief Returns the hostname the server listens on and advertises as discovery URL.
+	///
+	QString hostname() const;
+	///
+	/// \brief Sets the hostname or IP address the server listens on and advertises as discovery URL.
+	///        An empty hostname listens on all interfaces. Applied on the next start().
+	///
+	void setHostname(const QString& hostname);
 
 	// Server Description API
 
@@ -271,7 +337,13 @@ signals:
 	void certificateChanged          (const QByteArray &byteCertificate   );
 #ifdef UA_ENABLE_ENCRYPTION		     									  
 	void privateKeyChanged           (const QByteArray &bytePrivateKey    );
-#endif							     									  
+	void trustedCertificatesChanged  (const QList<QByteArray> &trustedCertificates);
+	void issuerCertificatesChanged   (const QList<QByteArray> &issuerCertificates );
+	void revocationListsChanged      (const QList<QByteArray> &revocationLists    );
+	void securityPoliciesChanged     (const QUaSecurityPolicies &securityPolicies );
+	void securityModesChanged        (const QUaMessageSecurityModes &securityModes);
+#endif
+	void hostnameChanged             (const QString &strHostname          );
 	void maxSecureChannelsChanged    (const quint16 &maxSecureChannels    );
 	void maxSessionsChanged          (const quint16 &maxSessions          );
 	void applicationNameChanged      (const QString &strApplicationName   );
@@ -312,7 +384,13 @@ private:
 #ifdef UA_ENABLE_ENCRYPTION
 	QByteArray m_bytePrivateKey;
 	QByteArray m_bytePrivateKeyInternal; // NOTE : needs to exists as long as server instance
+	QList<QByteArray>       m_listTrusted;
+	QList<QByteArray>       m_listIssuers;
+	QList<QByteArray>       m_listRevocation;
+	QUaSecurityPolicies     m_securityPolicies;
+	QUaMessageSecurityModes m_securityModes;
 #endif
+	QString m_strHostname;
 
 	QByteArray m_byteApplicationName;
 	QByteArray m_byteApplicationUri;
@@ -390,7 +468,12 @@ private:
 #endif // UA_ENABLE_HISTORIZING
 
 	// reset open62541 config
-	void resetConfig();
+	bool resetConfig();
+	bool applySecurityFilter(UA_ServerConfig* config);
+	void applyServerUrls(UA_ServerConfig* config);
+#ifdef UA_ENABLE_ENCRYPTION
+	static QVector<UA_ByteString> toByteStringArray(const QList<QByteArray>& list);
+#endif
 
 	// parse and validate certificate
 	static UA_ByteString * parseCertificate(const QByteArray &inByteCert, 
