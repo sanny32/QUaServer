@@ -14,4 +14,4 @@ cmake -S . -B build -DCMAKE_PREFIX_PATH=<path to Qt6> \
       -DQUASERVER_ALARMS_CONDITIONS=ON -DQUASERVER_HISTORIZING=ON -DQUASERVER_ENCRYPTION=ON
 ```
 
-The executables are placed in `build/bin`. On Windows, make sure Qt's `bin` directory is in `PATH` (or run `windeployqt`) before running them.
+Each example is explained in the matching chapter of the [guide](../docs/README.md). The executables are placed in `build/bin`. On Windows, make sure Qt's `bin` directory is in `PATH` (or run `windeployqt`) before running them.

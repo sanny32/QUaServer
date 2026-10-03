@@ -1,4 +1,4 @@
-# Implemented 62541 Types
+# Implemented OPC UA Types
 
 | C++ Type                       | Spec              | UA Type Hierarchy  |
 |--------------------------------|-------------------|--------------------|
@@ -33,10 +33,3 @@
 | QUaLimitAlarm                  | Part 9 - 5.8.11   | `BaseObjectType/BaseEventType/ConditionType/AcknowledgeableConditionType/AlarmConditionType/LimitAlarmType` |
 | QUaExclusiveLimitAlarm         | Part 9 - 5.8.12.3 | `BaseObjectType/BaseEventType/ConditionType/AcknowledgeableConditionType/AlarmConditionType/LimitAlarmType/ExclusiveLimitAlarmType` |
 | QUaExclusiveLevelAlarm         | Part 9 - 5.8.14.3 | `BaseObjectType/BaseEventType/ConditionType/AcknowledgeableConditionType/AlarmConditionType/LimitAlarmType/ExclusiveLimitAlarmType/ExclusiveLevelAlarmType` |
-
-
-
-
-
-
-

@@ -1,8 +1,8 @@
-### How Validation Works
+# How Validation Works
 
 Validation means that the client can be sure that it is connecting to the server it wants to connect, and not some other server posing as the real one, in an attempt to steal sensitive information. For example, if a malicious server poses as the real one, it can ask the client for passwords, credit card details, etc. Then use that information to access the real server and compromise it.
 
-Validation of the server is based on [Public Key Infrasctructure (PKI)](https://en.wikipedia.org/wiki/Public_key_infrastructure). This document is no place to explain the whole details of PKI, but a minimal working set of concepts will do to get validation working.
+Validation of the server is based on [Public Key Infrastructure (PKI)](https://en.wikipedia.org/wiki/Public_key_infrastructure). This document is no place to explain the whole details of PKI, but a minimal working set of concepts will do to get validation working.
 
 * A [Cryptographic Hash](https://en.wikipedia.org/wiki/Cryptographic_hash_function) is a function that takes any data as input and creates a *fingerprint* of the data. Just as real finger prints, the *Hash* cannot be used to reconstruct the original data (or the person), but is useful to **identify** that such *fingerprint* belongs to that data (or that person).
 
