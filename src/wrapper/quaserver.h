@@ -34,6 +34,13 @@ class QUaRefreshRequiredEvent;
 
 using QUaChildNodeIdCallback = std::function<QUaNodeId(const QUaNodeId&, const QUaQualifiedName&)>;
 
+#ifdef UA_ENABLE_ENCRYPTION
+///
+/// \brief Maps the DER certificate a client authenticates its user with to a user name; an empty name rejects it.
+///
+using QUaUserCertificateCallback = std::function<QString(const QByteArray& certificate)>;
+#endif // UA_ENABLE_ENCRYPTION
+
 ///
 /// \brief Server limits negotiated with or enforced on clients. Durations are in milliseconds, 0 means unlimited
 ///        where open62541 allows it. Start from QUaServer::limits(), which holds the open62541 defaults.
@@ -368,6 +375,14 @@ public:
 	// add a validation callback for user key, defaults checks key == password
 	template<typename M>
 	void        setUserValidationCallback(const M &callback);
+#ifdef UA_ENABLE_ENCRYPTION
+	///
+	/// \brief Lets clients authenticate users with X.509 certificates, mapped to user names by \a callback.
+	///        The certificate must also pass the trusted certificates lists. Only offered while the server
+	///        has a private key; call without arguments to disable it. Applied on the next start().
+	///
+	void        setUserCertificateCallback(const QUaUserCertificateCallback& callback = QUaUserCertificateCallback());
+#endif // UA_ENABLE_ENCRYPTION
 
 	// Sessions API
 
@@ -473,6 +488,11 @@ private:
     QHash<QUaNodeId, QSet<QUaQualifiedName>> m_hashMandatoryChildren;
 
 	QUaValidationCallback m_validationCallback;
+#ifdef UA_ENABLE_ENCRYPTION
+	QUaUserCertificateCallback m_userCertificateCallback;
+	// users authenticated by certificate; kept apart from m_hashUsers, where they would get an empty password
+	QSet<QString> m_certificateUsers;
+#endif // UA_ENABLE_ENCRYPTION
 	// default open62541 implementation, wrapped by QUaServer::activateSession
 	UA_StatusCode (*m_defaultActivateSession)(UA_Server *server, UA_AccessControl *ac,
 		const UA_EndpointDescription *endpointDescription,

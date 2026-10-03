@@ -266,6 +266,24 @@ The instance `custom2` also inherits by default the reimplemented access level d
 
 The same mechanism is available for the `WriteMask` of any node (`userWriteMask()` / `setUserWriteMaskCallback()`) and for the execution of methods (`userExecutable()` / `setUserExecutableCallback()`).
 
+## Certificate Users
+
+When the library is built with `QUASERVER_ENCRYPTION` and the server has a private key (see [Encryption](07_encryption.md)), clients can also authenticate users with an X.509 certificate instead of a password. The server checks that the client owns the certificate's private key; a callback then maps the DER certificate to a user name, or rejects it by returning an empty string:
+
+```c++
+// user certificates allowed to log in, e.g. loaded from DER files
+QHash<QByteArray, QString> userCertificates;
+userCertificates.insert(readFile("operator.crt.der"), "operator");
+
+server.setUserCertificateCallback([userCertificates](const QByteArray &certificate) {
+	return userCertificates.value(certificate); // empty, thus rejected, when unknown
+});
+```
+
+* The certificate token is only offered while a callback is set.
+* If trusted certificates are set (see [Trusting Clients](07_encryption.md#trusting-clients)), user certificates are checked against the same lists before the callback is called.
+* The returned user name is passed to the user access callbacks like any other user. It does not need to be added with `addUser()`, and is not, so it cannot be used to log in with a password.
+
 ## Sessions
 
 The sessions currently open on the server are returned by the `sessions()` method. Each `QUaSession` provides the session id, the user name, the client application name and URI, the client address and port, and the time the session was created. The server notifies when clients connect and disconnect:

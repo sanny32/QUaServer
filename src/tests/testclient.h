@@ -77,6 +77,15 @@ public:
     UA_StatusCode setEncryption(const QByteArray &certificate,
                                 const QByteArray &privateKey,
                                 const QString &applicationUri);
+
+    ///
+    /// \brief Opens a session on \a url over the channel set up by setEncryption(), authenticated with a user certificate.
+    /// \param userCertificate DER certificate identifying the user.
+    /// \param userPrivateKey DER private key of \a userCertificate, used to sign the user token.
+    ///
+    UA_StatusCode connectCertificate(const QString &url,
+                                     const QByteArray &userCertificate,
+                                     const QByteArray &userPrivateKey);
 #endif // UA_ENABLE_ENCRYPTION
 
     ///

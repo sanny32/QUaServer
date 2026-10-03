@@ -210,6 +210,29 @@ UA_StatusCode TestClient::setEncryption(const QByteArray &certificate,
     config->clientDescription.applicationUri = UA_String_fromChars(applicationUri.toUtf8().constData());
     return UA_STATUSCODE_GOOD;
 }
+
+///
+/// \brief Opens a session on \a url over the channel set up by setEncryption(), authenticated with a user certificate.
+/// \param userCertificate DER certificate identifying the user.
+/// \param userPrivateKey DER private key of \a userCertificate, used to sign the user token.
+///
+UA_StatusCode TestClient::connectCertificate(const QString &url,
+                                             const QByteArray &userCertificate,
+                                             const QByteArray &userPrivateKey)
+{
+    UA_ByteString uaCertificate;
+    uaCertificate.length = static_cast<size_t>(userCertificate.size());
+    uaCertificate.data = reinterpret_cast<UA_Byte *>(const_cast<char *>(userCertificate.constData()));
+    UA_ByteString uaPrivateKey;
+    uaPrivateKey.length = static_cast<size_t>(userPrivateKey.size());
+    uaPrivateKey.data = reinterpret_cast<UA_Byte *>(const_cast<char *>(userPrivateKey.constData()));
+    const UA_StatusCode status = UA_ClientConfig_setAuthenticationCert(UA_Client_getConfig(m_client), uaCertificate, uaPrivateKey);
+    if (status != UA_STATUSCODE_GOOD)
+    {
+        return status;
+    }
+    return connect(url);
+}
 #endif // UA_ENABLE_ENCRYPTION
 
 ///

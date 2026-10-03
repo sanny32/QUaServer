@@ -718,6 +718,24 @@ UA_StatusCode QUaServer::activateSession(UA_Server                    * server,
 			static_cast<const UA_UserNameIdentityToken*>(userIdentityToken->content.decoded.data);
 		strUserName = QUaTypesConverter::uaStringToQString(userToken->userName);
 	}
+#ifdef UA_ENABLE_ENCRYPTION
+	else if (userIdentityToken->content.decoded.type == &UA_TYPES[UA_TYPES_X509IDENTITYTOKEN] &&
+	         srv->m_userCertificateCallback)
+	{
+		// open62541 already checked the token signature and the certificate against the trust lists
+		const UA_X509IdentityToken *certToken =
+			static_cast<const UA_X509IdentityToken*>(userIdentityToken->content.decoded.data);
+		strUserName = srv->m_userCertificateCallback(QByteArray(
+			reinterpret_cast<const char*>(certToken->certificateData.data),
+			static_cast<qsizetype>(certToken->certificateData.length)
+		));
+		if (strUserName.isEmpty())
+		{
+			return UA_STATUSCODE_BADIDENTITYTOKENREJECTED;
+		}
+		srv->m_certificateUsers.insert(strUserName);
+	}
+#endif // UA_ENABLE_ENCRYPTION
 	else
 	{
 		/* Unsupported token type */
@@ -1398,7 +1416,13 @@ bool QUaServer::resetConfig()
 		this
 	);
 	Q_ASSERT(st == UA_STATUSCODE_GOOD);
-	// NOTE : certificate (x509) user tokens are not supported by QUaServer
+	// certificate (x509) user tokens need a callback to map them to users, and a private key to check their signature
+#ifdef UA_ENABLE_ENCRYPTION
+	const bool userCertificatesAllowed = m_userCertificateCallback && ptrCert && ptrPriv;
+#else
+	const bool userCertificatesAllowed = false;
+#endif // UA_ENABLE_ENCRYPTION
+	if (!userCertificatesAllowed)
 	{
 		UA_AccessControl* ac = &config->accessControl;
 		size_t count = 0;
@@ -3382,6 +3406,18 @@ QStringList QUaServer::userNames() const
 	return m_hashUsers.keys();
 }
 
+#ifdef UA_ENABLE_ENCRYPTION
+///
+/// \brief Lets clients authenticate users with X.509 certificates, mapped to user names by \a callback.
+///        The certificate must also pass the trusted certificates lists. Only offered while the server
+///        has a private key; call without arguments to disable it. Applied on the next start().
+///
+void QUaServer::setUserCertificateCallback(const QUaUserCertificateCallback& callback)
+{
+	m_userCertificateCallback = callback;
+}
+#endif // UA_ENABLE_ENCRYPTION
+
 bool QUaServer::userExists(const QString & strUserName) const
 {
 	Q_ASSERT(!strUserName.isEmpty());
@@ -3389,6 +3425,12 @@ bool QUaServer::userExists(const QString & strUserName) const
 	{
 		return false;
 	}
+#ifdef UA_ENABLE_ENCRYPTION
+	if (m_certificateUsers.contains(strUserName))
+	{
+		return true;
+	}
+#endif // UA_ENABLE_ENCRYPTION
 	return m_anonUsers.contains(strUserName) || m_hashUsers.contains(strUserName);
 }
 

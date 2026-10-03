@@ -74,6 +74,13 @@ private slots:
     void clientTrust();
     void securityPoliciesAndModesFilterEndpoints();
     void noMatchingEndpointFailsToStart();
+    void userCertificateTokenNeedsCallback_data();
+    void userCertificateTokenNeedsCallback();
+    void userCertificateMapsToUserName_data();
+    void userCertificateMapsToUserName();
+    void certificateUserPassesAccessChecks();
+    void userCertificateMustBeTrusted_data();
+    void userCertificateMustBeTrusted();
 
 private:
     UA_StatusCode connectAsAlice(const ClientIdentity &identity);
@@ -85,6 +92,10 @@ private:
     QByteArray m_untrustedCertificate;
     ClientIdentity m_client;
     ClientIdentity m_revokedClient;
+    ClientIdentity m_user;
+    ClientIdentity m_untrustedUser;
+
+    UA_StatusCode connectAsUser(TestClient &client, const ClientIdentity &user);
     QUaServer *m_server = nullptr;
 };
 
@@ -108,6 +119,25 @@ void TestEncryptionIntegration::initTestCase()
     QVERIFY(!m_untrustedCertificate.isEmpty());
     QVERIFY(!m_client.certificate.isEmpty() && !m_client.privateKey.isEmpty());
     QVERIFY(!m_revokedClient.certificate.isEmpty() && !m_revokedClient.privateKey.isEmpty());
+    m_user = { readPkiFile(QStringLiteral("user.crt.der")),
+               readPkiFile(QStringLiteral("user.key.der")),
+               QStringLiteral("urn:quaserver:test:user") };
+    m_untrustedUser = { m_untrustedCertificate, readPkiFile(QStringLiteral("untrusted.key.der")), QString() };
+    QVERIFY(!m_user.certificate.isEmpty() && !m_user.privateKey.isEmpty());
+    QVERIFY(!m_untrustedUser.privateKey.isEmpty());
+}
+
+///
+/// \brief Opens a session authenticated with the certificate of \a user, over a channel secured with the test client certificate.
+///
+UA_StatusCode TestEncryptionIntegration::connectAsUser(TestClient &client, const ClientIdentity &user)
+{
+    const UA_StatusCode status = client.setEncryption(m_client.certificate, m_client.privateKey, m_client.applicationUri);
+    if (status != UA_STATUSCODE_GOOD)
+    {
+        return status;
+    }
+    return client.connectCertificate(TestServer::endpointUrl(*m_server), user.certificate, user.privateKey);
 }
 
 UA_StatusCode TestEncryptionIntegration::connectAsAlice(const ClientIdentity &identity)
@@ -297,6 +327,131 @@ void TestEncryptionIntegration::noMatchingEndpointFailsToStart()
 
     QVERIFY(!TestServer::start(*m_server));
     QVERIFY(!m_server->isRunning());
+}
+
+///
+/// \brief Certificate user tokens are only offered while a callback can map them to users.
+///
+void TestEncryptionIntegration::userCertificateTokenNeedsCallback_data()
+{
+    QTest::addColumn<bool>("withCallback");
+
+    QTest::newRow("without callback") << false;
+    QTest::newRow("with callback") << true;
+}
+
+void TestEncryptionIntegration::userCertificateTokenNeedsCallback()
+{
+    QFETCH(bool, withCallback);
+    m_server->setCertificate(m_certificate);
+    m_server->setPrivateKey(m_privateKey);
+    if (withCallback)
+    {
+        m_server->setUserCertificateCallback([](const QByteArray &) { return QStringLiteral("anyone"); });
+    }
+    QVERIFY(TestServer::start(*m_server));
+    TestClient client;
+
+    const QList<UA_UserTokenType> tokenTypes = client.endpointUserTokenTypes(TestServer::endpointUrl(*m_server));
+
+    QCOMPARE(tokenTypes.contains(UA_USERTOKENTYPE_CERTIFICATE), withCallback);
+}
+
+void TestEncryptionIntegration::userCertificateMapsToUserName_data()
+{
+    QTest::addColumn<QString>("mappedName");
+
+    QTest::newRow("known certificate") << QStringLiteral("operator");
+    QTest::newRow("rejected by callback") << QString();
+}
+
+void TestEncryptionIntegration::userCertificateMapsToUserName()
+{
+    QFETCH(QString, mappedName);
+    m_server->setCertificate(m_certificate);
+    m_server->setPrivateKey(m_privateKey);
+    m_server->setAnonymousLoginAllowed(false);
+    QByteArray seen;
+    m_server->setUserCertificateCallback([&seen, mappedName](const QByteArray &certificate) {
+        seen = certificate;
+        return mappedName;
+    });
+    QVERIFY(TestServer::start(*m_server));
+    TestClient client;
+
+    const UA_StatusCode status = connectAsUser(client, m_user);
+
+    QCOMPARE(seen, m_user.certificate);
+    QCOMPARE(status == UA_STATUSCODE_GOOD, !mappedName.isEmpty());
+    if (mappedName.isEmpty())
+    {
+        QCOMPARE(m_server->sessions().count(), 0);
+        return;
+    }
+    QTRY_COMPARE(m_server->sessions().count(), 1);
+    QCOMPARE(m_server->sessions().first()->userName(), mappedName);
+}
+
+///
+/// \brief Regression guard: access callbacks deny users they do not know, so certificate users must be known.
+///
+void TestEncryptionIntegration::certificateUserPassesAccessChecks()
+{
+    m_server->setCertificate(m_certificate);
+    m_server->setPrivateKey(m_privateKey);
+    m_server->setUserCertificateCallback([](const QByteArray &) { return QStringLiteral("operator"); });
+    QUaBaseDataVariable *variable = m_server->objectsFolder()->addBaseDataVariable(QStringLiteral("setpoint"));
+    variable->setWriteAccess(true);
+    variable->setValue(1);
+    variable->setUserAccessLevelCallback([](const QString &userName) {
+        QUaAccessLevel access;
+        access.bits.bRead = true;
+        access.bits.bWrite = userName == QStringLiteral("operator");
+        return access;
+    });
+    QVERIFY(TestServer::start(*m_server));
+    TestClient client;
+    QCOMPARE(connectAsUser(client, m_user), UA_STATUSCODE_GOOD);
+
+    QCOMPARE(client.writeValue(variable->nodeId(), 2), UA_STATUSCODE_GOOD);
+
+    QCOMPARE(variable->value<int>(), 2);
+    QVERIFY(!m_server->userNames().contains(QStringLiteral("operator")));
+}
+
+///
+/// \brief With trust lists set, a user certificate is checked against them before the callback sees it.
+///
+void TestEncryptionIntegration::userCertificateMustBeTrusted_data()
+{
+    QTest::addColumn<ClientIdentity>("user");
+    QTest::addColumn<bool>("accepted");
+
+    QTest::newRow("user certificate signed by the trusted CA") << m_user << true;
+    QTest::newRow("unrelated user certificate") << m_untrustedUser << false;
+}
+
+void TestEncryptionIntegration::userCertificateMustBeTrusted()
+{
+    QFETCH(ClientIdentity, user);
+    QFETCH(bool, accepted);
+    m_server->setCertificate(m_certificate);
+    m_server->setPrivateKey(m_privateKey);
+    m_server->setTrustedCertificates({ m_caCertificate });
+    m_server->setRevocationLists({ m_caRevocationList });
+    m_server->setAnonymousLoginAllowed(false);
+    int calls = 0;
+    m_server->setUserCertificateCallback([&calls](const QByteArray &) {
+        ++calls;
+        return QStringLiteral("anyone");
+    });
+    QVERIFY(TestServer::start(*m_server));
+    TestClient client;
+
+    const UA_StatusCode status = connectAsUser(client, user);
+
+    QCOMPARE(status == UA_STATUSCODE_GOOD, accepted);
+    QCOMPARE(calls, accepted ? 1 : 0);
 }
 
 QTEST_GUILESS_MAIN(TestEncryptionIntegration)
