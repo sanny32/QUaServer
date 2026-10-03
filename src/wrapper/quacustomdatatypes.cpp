@@ -41,6 +41,7 @@ QHash<QString, QMetaType::Type> QUaDataType::_custTypesByName = {
 	{QStringLiteral("QUaStatusCode")             , QMetaType_StatusCode             },
 	{QStringLiteral("QUaQualifiedName")          , QMetaType_QualifiedName          },
 	{QStringLiteral("QUaLocalizedText")          , QMetaType_LocalizedText          },
+	{QStringLiteral("QUaStructure")              , QMetaType_Structure              },
 #ifdef UA_GENERATED_NAMESPACE_ZERO_FULL
 	// TODO : image
 	{QStringLiteral("QImage")                    , QMetaType_Image                  },
@@ -77,8 +78,9 @@ QHash<UA_NodeId, QMetaType::Type> QUaDataType::_custTypesByNodeId = {
 	{UA_NODEID_NUMERIC(0, UA_NS0ID_STATUSCODE)                  , QMetaType_StatusCode             },
 	{UA_NODEID_NUMERIC(0, UA_NS0ID_QUALIFIEDNAME)               , QMetaType_QualifiedName          },
 	{UA_NODEID_NUMERIC(0, UA_NS0ID_LOCALIZEDTEXT)               , QMetaType_LocalizedText          },
+	{UA_NODEID_NUMERIC(0, UA_NS0ID_STRUCTURE)                   , QMetaType_Structure              },
 #ifdef UA_GENERATED_NAMESPACE_ZERO_FULL
-	{UA_NODEID_NUMERIC(0, UA_NS0ID_IMAGE)                       , QMetaType_Image                  },
+	{UA_NODEID_NUMERIC(0, UA_NS0ID_IMAGE)                     , QMetaType_Image                  },
 	{UA_NODEID_NUMERIC(0, UA_NS0ID_OPTIONSET)                   , QMetaType_OptionSet              },
 #endif // UA_GENERATED_NAMESPACE_ZERO_FULL
 #ifdef UA_ENABLE_SUBSCRIPTIONS_EVENTS
@@ -146,6 +148,7 @@ QHash<QMetaType::Type, QUaDataType::TypeData> QUaDataType::_custTypesByType = {
 	{ QMetaType_StatusCode              , {QStringLiteral("QUaStatusCode")              , UA_NODEID_NUMERIC(0, UA_NS0ID_STATUSCODE)                  , &UA_TYPES[UA_TYPES_STATUSCODE                  ]} },
 	{ QMetaType_QualifiedName           , {QStringLiteral("QUaQualifiedName")           , UA_NODEID_NUMERIC(0, UA_NS0ID_QUALIFIEDNAME)               , &UA_TYPES[UA_TYPES_QUALIFIEDNAME               ]} },
 	{ QMetaType_LocalizedText           , {QStringLiteral("QUaLocalizedText")           , UA_NODEID_NUMERIC(0, UA_NS0ID_LOCALIZEDTEXT)               , &UA_TYPES[UA_TYPES_LOCALIZEDTEXT               ]} },
+	{ QMetaType_Structure               , {QStringLiteral("QUaStructure")               , UA_NODEID_NUMERIC(0, UA_NS0ID_STRUCTURE)                   , &UA_TYPES[UA_TYPES_EXTENSIONOBJECT             ]} },
 #ifdef UA_GENERATED_NAMESPACE_ZERO_FULL
 	// TODO : image
 	// NOTE : QMetaType_Image is the same as QMetaType::QByteArray, which must map to ByteString
@@ -1535,3 +1538,131 @@ void QUaOptionSet::setBitValidity(const quint8& bit, const bool& validity)
 }
 
 #endif // UA_GENERATED_NAMESPACE_ZERO_FULL
+
+///
+/// \brief Field of a built-in type, e.g. QMetaType::Double.
+///
+QUaStructureField::QUaStructureField(const QString& name, const QMetaType::Type& type, bool isArray, bool isOptional)
+	: name(name)
+	, dataTypeId(QUaDataType::nodeIdByQType(type))
+	, isArray(isArray)
+	, isOptional(isOptional)
+{
+}
+
+///
+/// \brief Field of the data type \a dataTypeId: a built-in type, an enumeration or another structure.
+///
+QUaStructureField::QUaStructureField(const QString& name, const QUaNodeId& dataTypeId, bool isArray, bool isOptional)
+	: name(name)
+	, dataTypeId(dataTypeId)
+	, isArray(isArray)
+	, isOptional(isOptional)
+{
+}
+
+bool QUaStructureField::operator==(const QUaStructureField& other) const
+{
+	return name == other.name && dataTypeId == other.dataTypeId &&
+	       isArray == other.isArray && isOptional == other.isOptional;
+}
+
+QUaStructure::QUaStructure(const QUaNodeId& typeId)
+	: _typeId(typeId)
+{
+}
+
+QUaNodeId QUaStructure::typeId() const
+{
+	return _typeId;
+}
+
+///
+/// \brief Tells whether the value has no type.
+///
+bool QUaStructure::isNull() const
+{
+	return _typeId.isNull();
+}
+
+///
+/// \brief Returns the names of the fields that are set, in the order they were set.
+///
+QStringList QUaStructure::fieldNames() const
+{
+	QStringList names;
+	for (const auto& field : _fields)
+	{
+		names << field.first;
+	}
+	return names;
+}
+
+bool QUaStructure::hasField(const QString& name) const
+{
+	return this->fieldNames().contains(name);
+}
+
+///
+/// \brief Returns the value of a field, invalid when it is not set.
+///
+QVariant QUaStructure::field(const QString& name) const
+{
+	for (const auto& field : _fields)
+	{
+		if (field.first == name)
+		{
+			return field.second;
+		}
+	}
+	return QVariant();
+}
+
+void QUaStructure::setField(const QString& name, const QVariant& value)
+{
+	for (auto& field : _fields)
+	{
+		if (field.first == name)
+		{
+			field.second = value;
+			return;
+		}
+	}
+	_fields << qMakePair(name, value);
+}
+
+void QUaStructure::removeField(const QString& name)
+{
+	for (int i = 0; i < _fields.count(); i++)
+	{
+		if (_fields.at(i).first == name)
+		{
+			_fields.removeAt(i);
+			return;
+		}
+	}
+}
+
+///
+/// \brief Compares the type and the fields, regardless of the order they were set in.
+///
+bool QUaStructure::operator==(const QUaStructure& other) const
+{
+	if (_typeId != other._typeId || _fields.count() != other._fields.count())
+	{
+		return false;
+	}
+	for (const auto& field : _fields)
+	{
+		if (!other.hasField(field.first) || other.field(field.first) != field.second)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+bool QUaStructure::operator!=(const QUaStructure& other) const
+{
+	return !(*this == other);
+}

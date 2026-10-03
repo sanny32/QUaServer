@@ -23,6 +23,8 @@ private slots:
     void nonRectangularNestingIsNotMatrix_data();
     void nonRectangularNestingIsNotMatrix();
     void inconsistentArrayDimensionsAreReadFlat();
+    void builtinStructureRoundTrip();
+    void undecodedExtensionObjectIsInvalid();
     void emptyVariantIsEmpty();
     void invalidDateTimeIsNullUaDateTime();
     void extremeUaDateTimeIsInvalid_data();
@@ -253,6 +255,46 @@ void TestTypesConverter::inconsistentArrayDimensionsAreReadFlat()
     UA_Variant_clear(&uaValue);
 
     QCOMPARE(back.value<QList<int>>(), QList<int>({ 1, 2, 3 }));
+}
+
+///
+/// \brief Structures of open62541 without a dedicated Qt type, such as Range, convert from and to QUaStructure.
+///
+void TestTypesConverter::builtinStructureRoundTrip()
+{
+    QUaStructure range(QUaNodeId(0, quint32(UA_NS0ID_RANGE)));
+    range.setField(QStringLiteral("Low"), 0.5);
+    range.setField(QStringLiteral("High"), 9.5);
+
+    UA_Variant uaValue = QUaTypesConverter::uaVariantFromQVariant(QVariant::fromValue(range));
+    const UA_DataType *type = uaValue.type;
+    const double high = type == &UA_TYPES[UA_TYPES_RANGE] ? static_cast<UA_Range *>(uaValue.data)->high : 0.0;
+    const QVariant back = QUaTypesConverter::uaVariantToQVariant(uaValue);
+    UA_Variant_clear(&uaValue);
+
+    QCOMPARE(type, &UA_TYPES[UA_TYPES_RANGE]);
+    QCOMPARE(high, 9.5);
+    QCOMPARE(back.value<QUaStructure>(), range);
+}
+
+///
+/// \brief An ExtensionObject open62541 could not decode has no Qt value, while a decoded one gives its content.
+///
+void TestTypesConverter::undecodedExtensionObjectIsInvalid()
+{
+    UA_ExtensionObject encoded;
+    UA_ExtensionObject_init(&encoded);
+    encoded.encoding = UA_EXTENSIONOBJECT_ENCODED_BYTESTRING;
+    UA_Variant encodedValue;
+    UA_Variant_setScalar(&encodedValue, &encoded, &UA_TYPES[UA_TYPES_EXTENSIONOBJECT]);
+    UA_Double number = 2.5;
+    UA_ExtensionObject decoded;
+    UA_ExtensionObject_setValueNoDelete(&decoded, &number, &UA_TYPES[UA_TYPES_DOUBLE]);
+    UA_Variant decodedValue;
+    UA_Variant_setScalar(&decodedValue, &decoded, &UA_TYPES[UA_TYPES_EXTENSIONOBJECT]);
+
+    QVERIFY(!QUaTypesConverter::uaVariantToQVariant(encodedValue).isValid());
+    QCOMPARE(QUaTypesConverter::uaVariantToQVariant(decodedValue), QVariant(2.5));
 }
 
 ///

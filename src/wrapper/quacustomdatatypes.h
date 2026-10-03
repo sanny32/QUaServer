@@ -1037,6 +1037,91 @@ inline QDataStream& operator>>(QDataStream& inStream, QUaEventHistoryQueryData& 
     return inStream;
 }
 
+///
+/// \brief Field of a structured data type registered with QUaServer::registerStructure().
+///
+struct QUaStructureField
+{
+    QUaStructureField() = default;
+    ///
+    /// \brief Field of a built-in type, e.g. QMetaType::Double.
+    ///
+    QUaStructureField(const QString& name, const QMetaType::Type& type, bool isArray = false, bool isOptional = false);
+    ///
+    /// \brief Field of the data type \a dataTypeId: a built-in type, an enumeration or another structure.
+    ///
+    QUaStructureField(const QString& name, const QUaNodeId& dataTypeId, bool isArray = false, bool isOptional = false);
+
+    QString   name;
+    QUaNodeId dataTypeId;
+    /// One-dimensional array of the data type.
+    bool      isArray    = false;
+    /// The field may be left out of a value; a structure with optional fields is encoded with their presence mask.
+    bool      isOptional = false;
+
+    bool operator==(const QUaStructureField& other) const;
+};
+
+///
+/// \brief Value of a structured data type: the NodeId of the type and the values of its fields by name.
+///        A field of a structure type holds a QUaStructure, an array field a list. Fields that are not set have
+///        their default value, or are left out when optional.
+///
+class QUaStructure
+{
+public:
+    QUaStructure() = default;
+    explicit QUaStructure(const QUaNodeId& typeId);
+
+    QUaNodeId typeId() const;
+    ///
+    /// \brief Tells whether the value has no type.
+    ///
+    bool isNull() const;
+
+    ///
+    /// \brief Returns the names of the fields that are set, in the order they were set.
+    ///
+    QStringList fieldNames() const;
+    bool        hasField(const QString& name) const;
+    ///
+    /// \brief Returns the value of a field, invalid when it is not set.
+    ///
+    QVariant    field(const QString& name) const;
+    void        setField(const QString& name, const QVariant& value);
+    void        removeField(const QString& name);
+
+    ///
+    /// \brief Compares the type and the fields, regardless of the order they were set in.
+    ///
+    bool operator==(const QUaStructure& other) const;
+    bool operator!=(const QUaStructure& other) const;
+
+private:
+    QUaNodeId _typeId;
+    QList<QPair<QString, QVariant>> _fields;
+
+    friend QDataStream& operator<<(QDataStream& outStream, const QUaStructure& inStructure);
+    friend QDataStream& operator>>(QDataStream& inStream, QUaStructure& outStructure);
+};
+
+Q_DECLARE_METATYPE(QUaStructure);
+
+inline QDataStream& operator<<(QDataStream& outStream, const QUaStructure& inStructure)
+{
+    outStream << inStructure._typeId;
+    outStream << inStructure._fields;
+    return outStream;
+}
+
+inline QDataStream& operator>>(QDataStream& inStream, QUaStructure& outStructure)
+{
+    inStream >> outStructure._typeId;
+    inStream >> outStructure._fields;
+    return inStream;
+}
+
+#define QMetaType_Structure static_cast<QMetaType::Type>(qMetaTypeId<QUaStructure>())
 
 #endif // QUACUSTOMDATATYPES_H
 

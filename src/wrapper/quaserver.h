@@ -359,6 +359,21 @@ public:
     void            removeOptionSetEntry (const QString& strOptionSetName, const QUaOptionSetBit& optionSetBit);
 #endif
 	
+	///
+	/// \brief Adds a structured data type with \a fields, which may be built-in types, enumerations and structures
+	///        registered before. Variables then take its values as QUaStructure, and clients decode them from the
+	///        DataTypeDefinition. The BrowseName is \a name in the namespace of \a nodeId, by default "ns=1;s=<name>".
+	/// \return The NodeId of the data type, or a null NodeId when the NodeId is used, a field name is empty or
+	///         repeated, or a field type is unknown.
+	///
+	QUaNodeId registerStructure(const QString& name, const QList<QUaStructureField>& fields,
+	                            const QUaNodeId& nodeId = QUaNodeId());
+	///
+	/// \brief Returns the fields of a structured data type registered with registerStructure() or loaded from a
+	///        NodeSet, empty for other types.
+	///
+	QList<QUaStructureField> structureFields(const QUaNodeId& typeId) const;
+
 	// register custom non-hierarchical reference type
 	bool registerReferenceType(const QUaReferenceType &refType, const QUaNodeId& nodeId = "");
 	// get list of registered reference types
@@ -560,6 +575,7 @@ private:
     QHash<QString         , UA_NodeId    > _hashOptionSets;
 #endif // UA_GENERATED_NAMESPACE_ZERO_FULL
 	QHash<QUaReferenceType, UA_NodeId    > _hashRefTypes;
+	QHash<QUaNodeId, QList<QUaStructureField>> _hashStructures;
 	QHash<QUaReferenceType, UA_NodeId    > _hashHierRefTypes;
 	QHash<UA_NodeId       , QUaSignaler* > _hashSignalers;
     // mandatory children browsenames for type definition
@@ -665,9 +681,12 @@ private:
 		UA_DataType      type;
 		UA_DataTypeArray array;
 		QByteArray       name;
+		QVector<UA_DataTypeMember> members;
+		QList<QByteArray>          memberNames;
 	};
 	QList<QUaCustomDataType*> _customDataTypes;
-	void registerEnumDataType(const UA_NodeId &enumNodeId, const QString &strEnumName);
+	void registerEnumDataType(const UA_NodeId &enumNodeId, const QString &strEnumName, const QUaEnumMap &enumMap);
+	static void setEnumDataTypeMembers(QUaCustomDataType *customType, const QUaEnumMap &enumMap);
 #ifdef UA_GENERATED_NAMESPACE_ZERO_FULL
     // optionsets
     UA_NodeId  optionSetValuesNodeId(const UA_NodeId& optionSetNodeId) const;
@@ -677,6 +696,13 @@ private:
 	// lifecycle
     void registerTypeLifeCycle(const UA_NodeId &typeNodeId, const QMetaObject &metaObject);
     void bindNodeSetType(const UA_NodeId &typeNodeId);
+    bool addStructureDataType(const QUaNodeId& typeId, const QUaQualifiedName& browseName,
+                              const QList<QUaStructureField>& fields, const QUaNodeId& binaryEncodingId,
+                              const QUaNodeId& xmlEncodingId);
+    bool ensureFieldDataType(const QUaNodeId& dataTypeId);
+    bool addEnumerationDataType(const QUaNodeId& typeId, const QUaQualifiedName& browseName,
+                                const QList<QPair<qint64, QString>>& values);
+    QUaNodeId addDataTypeEncoding(const QUaNodeId& typeId, const QString& encodingName);
     void registerTypeDefaults (const UA_NodeId &typeNodeId, const QMetaObject &metaObject);
 	// meta
 	void registerMetaEnums      (const QMetaObject &metaObject);

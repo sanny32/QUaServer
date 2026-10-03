@@ -111,7 +111,7 @@ void QUaServer::registerEnum(const QString& strEnumName, const QUaEnumMap& enumM
 	Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	// finally append to map
 	_hashEnums.insert(strEnumName, reqNodeId);
-	this->registerEnumDataType(reqNodeId, strEnumName);
+	this->registerEnumDataType(reqNodeId, strEnumName, enumMap);
 }
 
 bool QUaServer::isEnumRegistered(const QString& strEnumName) const
@@ -195,7 +195,34 @@ void QUaServer::removeEnumEntry(const QString& strEnumName, const QUaEnumKey& en
 	this->updateEnum(enumNodeId, mapValues);
 }
 
-void QUaServer::registerEnumDataType(const UA_NodeId& enumNodeId, const QString& strEnumName)
+///
+/// \brief Describes the entries of an enumeration as the members of its data type, from which open62541 answers
+///        the DataTypeDefinition attribute that clients need to decode structures with enumeration fields.
+///
+void QUaServer::setEnumDataTypeMembers(QUaCustomDataType* customType, const QUaEnumMap& enumMap)
+{
+	customType->members.clear();
+	customType->memberNames.clear();
+	for (auto it = enumMap.cbegin(); it != enumMap.cend() && customType->members.count() < UA_BYTE_MAX; ++it)
+	{
+		customType->memberNames << it.value().displayName.text().toUtf8();
+		UA_DataTypeMember member;
+		memset(&member, 0, sizeof(UA_DataTypeMember));
+		// open62541 keeps the value of an enumeration member in its memberType
+		member.memberType = reinterpret_cast<const UA_DataType*>(static_cast<uintptr_t>(it.key()));
+		customType->members << member;
+	}
+#ifdef UA_ENABLE_TYPEDESCRIPTION
+	for (int i = 0; i < customType->members.count(); i++)
+	{
+		customType->members[i].memberName = customType->memberNames.at(i).constData();
+	}
+#endif // UA_ENABLE_TYPEDESCRIPTION
+	customType->type.members     = customType->members.data();
+	customType->type.membersSize = static_cast<UA_Byte>(customType->members.count());
+}
+
+void QUaServer::registerEnumDataType(const UA_NodeId& enumNodeId, const QString& strEnumName, const QUaEnumMap& enumMap)
 {
 	auto custType = new QUaCustomDataType;
 	memset(&custType->type , 0, sizeof(UA_DataType));
@@ -209,8 +236,7 @@ void QUaServer::registerEnumDataType(const UA_NodeId& enumNodeId, const QString&
 	custType->type.typeKind    = UA_DATATYPEKIND_ENUM;
 	custType->type.pointerFree = true;
 	custType->type.overlayable = UA_BINARY_OVERLAYABLE_INTEGER;
-	custType->type.membersSize = 0;
-	custType->type.members     = nullptr;
+	QUaServer::setEnumDataTypeMembers(custType, enumMap);
 	// prepend to the custom types of the server (owned by QUaServer)
 	UA_ServerConfig* config = UA_Server_getConfig(_server);
 	custType->array.next       = config->customDataTypes;
@@ -304,6 +330,13 @@ void QUaServer::updateEnum(const UA_NodeId& enumNodeId, const QUaEnumMap& mapEnu
 	auto st = UA_Server_writeValue(_server, enumValuesNodeId, enumValues);
 	Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	Q_UNUSED(st);
+	for (auto customType : std::as_const(_customDataTypes))
+	{
+		if (UA_NodeId_equal(&customType->type.typeId, &enumNodeId))
+		{
+			QUaServer::setEnumDataTypeMembers(customType, mapEnum);
+		}
+	}
 	// cleanup
 	UA_NodeId_clear(&enumValuesNodeId);
 	for (int i = 0; i < mapEnum.count(); i++)

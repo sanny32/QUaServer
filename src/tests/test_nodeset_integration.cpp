@@ -102,7 +102,7 @@ QUaNodeId TestNodeSetIntegration::devicesNodeId(quint32 numericId) const
 ///
 void TestNodeSetIntegration::loadsNodesInDependencyOrder()
 {
-    QCOMPARE(m_result.addedNodes.count(), 14);
+    QCOMPARE(m_result.addedNodes.count(), 18);
     const int typeIndex = m_result.addedNodes.indexOf(this->devicesNodeId(1001));
     const int instanceIndex = m_result.addedNodes.indexOf(this->devicesNodeId(2001));
     const int childIndex = m_result.addedNodes.indexOf(this->devicesNodeId(3001));
@@ -177,6 +177,17 @@ void TestNodeSetIntegration::decodesValues()
     const QVariantList rows = grid->value().value<QVariantList>();
     QCOMPARE(rows.count(), 2);
     QCOMPARE(rows.at(1).value<QList<int>>(), QList<int>({ 3, 4 }));
+
+    const QUaNodeId readingTypeId = this->devicesNodeId(5100);
+    QCOMPARE(m_server->structureFields(readingTypeId).count(), 3);
+    auto *reading = m_server->nodeById<QUaBaseDataVariable>(this->devicesNodeId(5110));
+    QVERIFY(reading);
+    QCOMPARE(reading->dataType(), QMetaType_Structure);
+    const QUaStructure value = reading->value().value<QUaStructure>();
+    QCOMPARE(value.typeId(), readingTypeId);
+    QCOMPARE(value.field(QStringLiteral("Value")).toDouble(), 12.5);
+    QCOMPARE(value.field(QStringLiteral("Mode")).toInt(), 1);
+    QCOMPARE(value.field(QStringLiteral("Tags")).value<QList<QString>>(), QList<QString>({ QStringLiteral("a"), QStringLiteral("b") }));
 }
 
 void TestNodeSetIntegration::clientsReadAndWriteLoadedVariables()

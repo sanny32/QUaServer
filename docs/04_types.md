@@ -245,6 +245,48 @@ The shorter `units()->setDataTypeEnum<TemperatureSensor::Units>()` overload is e
 
 Then any client has knowledge of the enum options.
 
+## Structured Data Types
+
+A variable value can also be a structure: a data type made of named fields. Register it with its fields, each a built-in type, an enumeration or a structure registered before, optionally as an array (third argument) or optional (fourth argument):
+
+```c++
+QUaNodeId pointId = server.registerStructure("Point", {
+	{ "x", QMetaType::Double },
+	{ "y", QMetaType::Double }
+});
+QUaNodeId segmentId = server.registerStructure("Segment", {
+	{ "start"  , pointId },
+	{ "end"    , pointId },
+	{ "tags"   , QMetaType::QString, true },
+	{ "comment", QMetaType::QString, false, true }
+});
+```
+
+The data type gets the NodeId `ns=1;s=<name>` unless one is passed as third argument, and a null NodeId is returned when the NodeId is already used, a field name is empty or repeated, or a field type is unknown. Clients learn the layout from the *DataTypeDefinition* attribute of the data type, and use it to decode the values.
+
+Values are `QUaStructure` objects: the NodeId of the type and the fields by name. A field of a structure type holds a `QUaStructure`, an array field a list:
+
+```c++
+QUaStructure start(pointId);
+start.setField("x", 1.5);
+start.setField("y", 2.5);
+
+QUaStructure segment(segmentId);
+segment.setField("start", QVariant::fromValue(start));
+segment.setField("tags", QStringList{ "a", "b" });
+
+auto varSegment = objsFolder->addBaseDataVariable("segment");
+varSegment->setValue(QVariant::fromValue(segment));
+
+QUaStructure value = varSegment->value().value<QUaStructure>();
+double x = value.field("start").value<QUaStructure>().field("x").toDouble();
+```
+
+* Fields that are not set take their default value, `end` above is the point (0, 0). Optional fields that are not set are left out of the value, `hasField()` tells whether a value has them.
+* A value whose type is not registered, or whose fields do not convert to their type, is ignored by `setValue()`.
+* A list of structures is an array of them. The variable `dataType()` is `QMetaType_Structure`, and `dataTypeNodeId()` gives the NodeId of the structure.
+* Unions, structures with fields of more than one dimension and structures inheriting the fields of another structure are not supported.
+
 ## Types Example
 
 Build and run the [04_types](../examples/04_types/main.cpp) example to learn more.

@@ -389,9 +389,14 @@ void QUaBaseVariable::setValue(
 	{
 		newValue = matrixValues;
 	}
+	const bool isStructure = QUaTypesConverter::isQStructure(newValue);
 
+	if (isStructure)
+	{
+		newType = QMetaType_Structure;
+	}
 	// if new type not forced, then figure out new type from input
-	if (newType == QMetaType::UnknownType)
+	else if (newType == QMetaType::UnknownType)
 	{
 		bool isArray = QUaTypesConverter::canConvertQVariantList(newValue);
 		if (isArray)
@@ -460,6 +465,11 @@ void QUaBaseVariable::setValue(
 	else if (newType == QMetaType::LongLong ) { newType = QMetaType::Long; }
 	else if (newType == QMetaType::ULongLong) { newType = QMetaType::ULong;}
 
+	if (isStructure)
+	{
+		this->setStructureValue(newValue, matrixDimensions, statusCode, sourceTimestamp, serverTimestamp);
+		return;
+	}
 	// wether new type is forced or could not be converted to old type, we need type convertion
 	if (newType != oldType)
 	{
@@ -510,6 +520,49 @@ void QUaBaseVariable::setValue(
 	// update cache
 	_dataType = newType;
 	Q_ASSERT(this->dataTypeInternal() == _dataType);
+}
+
+///
+/// \brief Sets a QUaStructure value, or a list of them, as their data type; a value whose type is not registered or
+///        whose fields do not convert to it is ignored.
+///
+void QUaBaseVariable::setStructureValue(
+	const QVariant         &value,
+	const QVector<quint32> &matrixDimensions,
+	const QUaStatusCode    &statusCode,
+	const QDateTime        &sourceTimestamp,
+	const QDateTime        &serverTimestamp)
+{
+	UA_Server* server = _qUaServer->_server;
+	UA_Variant uaVar = QUaTypesConverter::uaVariantFromQStructure(value, UA_Server_getDataTypes(server));
+	if (UA_Variant_isEmpty(&uaVar))
+	{
+		return;
+	}
+	if (!matrixDimensions.isEmpty())
+	{
+		QUaTypesConverter::setVariantArrayDimensions(uaVar, matrixDimensions);
+	}
+	UA_NodeId currentTypeId;
+	UA_Server_readDataType(server, _nodeId, &currentTypeId);
+	const bool isTypeChange = !UA_NodeId_equal(&currentTypeId, &uaVar.type->typeId);
+	UA_NodeId_clear(&currentTypeId);
+	// the current value may not fit the new type, nor the new value the current type
+	if (isTypeChange)
+	{
+		UA_Server_writeDataType(server, _nodeId, UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATATYPE));
+	}
+	_bInternalWrite = true;
+	auto st = this->setValueInternal(uaVar, statusCode, sourceTimestamp, serverTimestamp);
+	Q_ASSERT(st == UA_STATUSCODE_GOOD);
+	Q_UNUSED(st);
+	if (isTypeChange)
+	{
+		st = UA_Server_writeDataType(server, _nodeId, uaVar.type->typeId);
+		Q_ASSERT(st == UA_STATUSCODE_GOOD);
+	}
+	UA_Variant_clear(&uaVar);
+	_dataType = QMetaType_Structure;
 }
 
 QDateTime QUaBaseVariable::sourceTimestamp() const
@@ -978,6 +1031,13 @@ QMetaType::Type QUaBaseVariable::dataTypeInternal() const
 #endif // UA_GENERATED_NAMESPACE_ZERO_FULL
 	// else return converted type
 	QMetaType::Type type = QUaTypesConverter::uaTypeNodeIdToQType(&outDataType);
+	// structured data types without a dedicated Qt type are read as QUaStructure
+	const UA_DataType* uaType = UA_Server_findDataType(_qUaServer->_server, &outDataType);
+	if (type == QMetaType::UnknownType && uaType &&
+	    (uaType->typeKind == UA_DATATYPEKIND_STRUCTURE || uaType->typeKind == UA_DATATYPEKIND_OPTSTRUCT))
+	{
+		type = QMetaType_Structure;
+	}
 	UA_NodeId_clear(&outDataType);
 	return type;
 }

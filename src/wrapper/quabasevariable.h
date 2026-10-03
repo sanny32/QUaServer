@@ -234,6 +234,9 @@ private:
 		                                  const UA_DataValue    *value);
 
 	void applyValueSource();
+	void setStructureValue(const QVariant& value, const QVector<quint32>& matrixDimensions,
+	                       const QUaStatusCode& statusCode, const QDateTime& sourceTimestamp,
+	                       const QDateTime& serverTimestamp);
 	void runReadCallback();
 	void emitWriteSignals(const UA_DataValue &data);
 

@@ -3472,6 +3472,255 @@ bool QUaServer::registerReferenceType(const QUaReferenceType& refType, const QUa
 	return true;
 }
 
+namespace {
+
+///
+/// \brief Registers \a type with the server and releases it. UA_DataType_copy of open62541 1.5.8 copies the NodeIds
+///        shallowly, so the server copy takes them over instead of them being cleared here.
+///
+UA_StatusCode addDataTypeAndRelease(UA_Server* server, UA_DataType* type)
+{
+	const UA_StatusCode st = UA_Server_addDataType(server, UA_NODEID_NULL, type);
+	if (st == UA_STATUSCODE_GOOD)
+	{
+		type->typeId           = UA_NODEID_NULL;
+		type->binaryEncodingId = UA_NODEID_NULL;
+		type->xmlEncodingId    = UA_NODEID_NULL;
+	}
+	UA_DataType_clear(type);
+	return st;
+}
+
+} // namespace
+
+///
+/// \brief Adds a structured data type with \a fields, which may be built-in types, enumerations and structures
+///        registered before. Variables then take its values as QUaStructure, and clients decode them from the
+///        DataTypeDefinition. The BrowseName is \a name in the namespace of \a nodeId, by default "ns=1;s=<name>".
+/// \return The NodeId of the data type, or a null NodeId when the NodeId is used, a field name is empty or
+///         repeated, or a field type is unknown.
+///
+QUaNodeId QUaServer::registerStructure(const QString& name, const QList<QUaStructureField>& fields,
+                                       const QUaNodeId& nodeId)
+{
+	const QUaNodeId typeId = nodeId.isNull() ? QUaNodeId(1, name) : nodeId;
+	if (name.isEmpty() || this->isNodeIdUsed(typeId))
+	{
+		return QUaNodeId();
+	}
+	QSet<QString> names;
+	for (const auto& field : fields)
+	{
+		if (field.name.isEmpty() || names.contains(field.name) || !this->ensureFieldDataType(field.dataTypeId))
+		{
+			return QUaNodeId();
+		}
+		names.insert(field.name);
+	}
+	const QUaQualifiedName browseName(typeId.namespaceIndex(), name);
+	UA_DataTypeAttributes attr = UA_DataTypeAttributes_default;
+	attr.displayName = QUaLocalizedText(QString(), name);
+	UA_NodeId requestedId = typeId;
+	UA_QualifiedName uaBrowseName = browseName;
+	UA_StatusCode st = UA_Server_addDataTypeNode(_server, requestedId,
+		UA_NODEID_NUMERIC(0, UA_NS0ID_STRUCTURE), UA_NODEID_NUMERIC(0, UA_NS0ID_HASSUBTYPE),
+		uaBrowseName, attr, nullptr, nullptr);
+	UA_NodeId_clear(&requestedId);
+	UA_QualifiedName_clear(&uaBrowseName);
+	UA_LocalizedText_clear(&attr.displayName);
+	if (st != UA_STATUSCODE_GOOD)
+	{
+		return QUaNodeId();
+	}
+	const QUaNodeId binaryEncodingId = this->addDataTypeEncoding(typeId, QStringLiteral("Default Binary"));
+	const QUaNodeId xmlEncodingId    = this->addDataTypeEncoding(typeId, QStringLiteral("Default XML"));
+	if (binaryEncodingId.isNull() || xmlEncodingId.isNull() ||
+	    !this->addStructureDataType(typeId, browseName, fields, binaryEncodingId, xmlEncodingId))
+	{
+		UA_NodeId uaTypeId = typeId;
+		UA_Server_deleteNode(_server, uaTypeId, true);
+		UA_NodeId_clear(&uaTypeId);
+		return QUaNodeId();
+	}
+	return typeId;
+}
+
+///
+/// \brief Returns the fields of a structured data type registered with registerStructure() or loaded from a
+///        NodeSet, empty for other types.
+///
+QList<QUaStructureField> QUaServer::structureFields(const QUaNodeId& typeId) const
+{
+	return _hashStructures.value(typeId);
+}
+
+///
+/// \brief Registers the open62541 description of a structure whose DataType and encoding nodes exist, so its
+///        values are encoded, decoded and converted to QUaStructure.
+///
+bool QUaServer::addStructureDataType(const QUaNodeId& typeId, const QUaQualifiedName& browseName,
+                                     const QList<QUaStructureField>& fields, const QUaNodeId& binaryEncodingId,
+                                     const QUaNodeId& xmlEncodingId)
+{
+	const bool hasOptionalFields = std::any_of(fields.cbegin(), fields.cend(),
+		[](const QUaStructureField& field) { return field.isOptional; });
+	QVector<UA_StructureField> structureFields(fields.count());
+	for (int i = 0; i < fields.count(); i++)
+	{
+		UA_StructureField& structureField = structureFields[i];
+		UA_StructureField_init(&structureField);
+		structureField.name       = QUaTypesConverter::uaStringFromQString(fields.at(i).name);
+		structureField.dataType   = fields.at(i).dataTypeId;
+		structureField.valueRank  = fields.at(i).isArray ? UA_VALUERANK_ONE_DIMENSION : UA_VALUERANK_SCALAR;
+		structureField.isOptional = fields.at(i).isOptional;
+	}
+	UA_StructureDescription description;
+	UA_StructureDescription_init(&description);
+	description.dataTypeId = typeId;
+	description.name       = browseName;
+	description.structureDefinition.defaultEncodingId = binaryEncodingId;
+	description.structureDefinition.baseDataType      = UA_NODEID_NUMERIC(0, UA_NS0ID_STRUCTURE);
+	description.structureDefinition.structureType     = hasOptionalFields ?
+		UA_STRUCTURETYPE_STRUCTUREWITHOPTIONALFIELDS : UA_STRUCTURETYPE_STRUCTURE;
+	description.structureDefinition.fields     = structureFields.data();
+	description.structureDefinition.fieldsSize = static_cast<size_t>(structureFields.size());
+	UA_ExtensionObject wrapped;
+	UA_ExtensionObject_setValueNoDelete(&wrapped, &description, &UA_TYPES[UA_TYPES_STRUCTUREDESCRIPTION]);
+	UA_DataType type;
+	UA_StatusCode st = UA_DataType_fromDescription(&type, &wrapped, UA_Server_getDataTypes(_server));
+	if (st == UA_STATUSCODE_GOOD)
+	{
+		UA_NodeId uaXmlEncodingId = xmlEncodingId;
+		type.xmlEncodingId = uaXmlEncodingId;
+		st = addDataTypeAndRelease(_server, &type);
+	}
+	description.structureDefinition.fields     = nullptr;
+	description.structureDefinition.fieldsSize = 0;
+	UA_StructureDescription_clear(&description);
+	for (auto& structureField : structureFields)
+	{
+		UA_StructureField_clear(&structureField);
+	}
+	if (st != UA_STATUSCODE_GOOD)
+	{
+		return false;
+	}
+	_hashStructures.insert(typeId, fields);
+	return true;
+}
+
+///
+/// \brief Registers an enumeration with its \a values and their names, so its DataTypeDefinition can be read and
+///        structures can have fields of it.
+///
+bool QUaServer::addEnumerationDataType(const QUaNodeId& typeId, const QUaQualifiedName& browseName,
+                                       const QList<QPair<qint64, QString>>& values)
+{
+	QVector<UA_EnumField> fields(values.count());
+	for (int i = 0; i < values.count(); i++)
+	{
+		UA_EnumField_init(&fields[i]);
+		fields[i].value       = values.at(i).first;
+		fields[i].name        = QUaTypesConverter::uaStringFromQString(values.at(i).second);
+		fields[i].displayName = QUaLocalizedText(QString(), values.at(i).second);
+	}
+	UA_EnumDescription description;
+	UA_EnumDescription_init(&description);
+	description.dataTypeId  = typeId;
+	description.name        = browseName;
+	description.builtInType = UA_DATATYPEKIND_INT32 + 1;
+	description.enumDefinition.fields     = fields.data();
+	description.enumDefinition.fieldsSize = static_cast<size_t>(fields.size());
+	UA_ExtensionObject wrapped;
+	UA_ExtensionObject_setValueNoDelete(&wrapped, &description, &UA_TYPES[UA_TYPES_ENUMDESCRIPTION]);
+	UA_DataType type;
+	UA_StatusCode st = UA_DataType_fromDescription(&type, &wrapped, UA_Server_getDataTypes(_server));
+	if (st == UA_STATUSCODE_GOOD)
+	{
+		st = addDataTypeAndRelease(_server, &type);
+	}
+	description.enumDefinition.fields     = nullptr;
+	description.enumDefinition.fieldsSize = 0;
+	UA_EnumDescription_clear(&description);
+	for (auto& field : fields)
+	{
+		UA_EnumField_clear(&field);
+	}
+	return st == UA_STATUSCODE_GOOD;
+}
+
+///
+/// \brief Makes sure open62541 knows the layout of a field type; an enumeration it does not know is described as
+///        an Int32 enumeration, which is how enumerations are encoded.
+///
+bool QUaServer::ensureFieldDataType(const QUaNodeId& dataTypeId)
+{
+	UA_NodeId uaDataTypeId = dataTypeId;
+	const bool isKnown = UA_Server_findDataType(_server, &uaDataTypeId) != nullptr;
+	bool isEnumeration = false;
+	UA_NodeId superTypeId;
+	UA_NodeId_copy(&uaDataTypeId, &superTypeId);
+	const UA_NodeId enumerationId = UA_NODEID_NUMERIC(0, UA_NS0ID_ENUMERATION);
+	while (!isKnown && !UA_NodeId_isNull(&superTypeId) && !isEnumeration)
+	{
+		UA_NodeId nextId = QUaNode::getFirstInverseReferenceSource(
+			superTypeId, UA_NODEID_NUMERIC(0, UA_NS0ID_HASSUBTYPE), _server);
+		UA_NodeId_clear(&superTypeId);
+		superTypeId = nextId;
+		isEnumeration = UA_NodeId_equal(&superTypeId, &enumerationId);
+	}
+	UA_NodeId_clear(&superTypeId);
+	if (isKnown || !isEnumeration)
+	{
+		UA_NodeId_clear(&uaDataTypeId);
+		return isKnown;
+	}
+	UA_DataType type;
+	UA_StatusCode st = UA_DataType_copy(&UA_TYPES[UA_TYPES_INT32], &type);
+	if (st == UA_STATUSCODE_GOOD)
+	{
+		UA_NodeId_clear(&type.typeId);
+		UA_NodeId_clear(&type.binaryEncodingId);
+		UA_NodeId_clear(&type.xmlEncodingId);
+		type.typeId   = uaDataTypeId;
+		type.typeKind = UA_DATATYPEKIND_ENUM;
+		return addDataTypeAndRelease(_server, &type) == UA_STATUSCODE_GOOD;
+	}
+	UA_NodeId_clear(&uaDataTypeId);
+	return false;
+}
+
+///
+/// \brief Adds the DataTypeEncoding object named \a encodingName of a data type, which clients use to identify
+///        encoded values of it.
+/// \return The NodeId of the encoding, null on failure.
+///
+QUaNodeId QUaServer::addDataTypeEncoding(const QUaNodeId& typeId, const QString& encodingName)
+{
+	UA_ObjectAttributes attr = UA_ObjectAttributes_default;
+	attr.displayName = QUaLocalizedText(QString(), encodingName);
+	UA_QualifiedName browseName = QUaQualifiedName(0, encodingName);
+	UA_NodeId encodingId;
+	UA_StatusCode st = UA_Server_addObjectNode(_server,
+		UA_NODEID_NUMERIC(typeId.namespaceIndex(), 0), UA_NODEID_NULL, UA_NODEID_NULL, browseName,
+		UA_NODEID_NUMERIC(0, UA_NS0ID_DATATYPEENCODINGTYPE), attr, nullptr, &encodingId);
+	UA_QualifiedName_clear(&browseName);
+	UA_LocalizedText_clear(&attr.displayName);
+	if (st != UA_STATUSCODE_GOOD)
+	{
+		return QUaNodeId();
+	}
+	UA_NodeId uaTypeId = typeId;
+	UA_ExpandedNodeId target;
+	UA_ExpandedNodeId_init(&target);
+	target.nodeId = encodingId;
+	st = UA_Server_addReference(_server, uaTypeId, UA_NODEID_NUMERIC(0, UA_NS0ID_HASENCODING), target, true);
+	UA_NodeId_clear(&uaTypeId);
+	const QUaNodeId result = st == UA_STATUSCODE_GOOD ? QUaNodeId(encodingId) : QUaNodeId();
+	UA_NodeId_clear(&encodingId);
+	return result;
+}
+
 const QList<QUaReferenceType> QUaServer::referenceTypes() const
 {
 	return _hashRefTypes.keys();

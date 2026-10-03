@@ -272,12 +272,84 @@ UA_StatusCode TestClient::readValueDataType(const QUaNodeId &nodeId, QUaNodeId &
 }
 
 ///
+/// \brief Reads the DataTypeDefinition of the server data types \a typeIds, so the client decodes and encodes their
+///        values as any client would.
+///
+UA_StatusCode TestClient::loadServerDataTypes(const QList<QUaNodeId> &typeIds)
+{
+    QVector<UA_NodeId> ids;
+    for (const auto &typeId : typeIds)
+    {
+        ids << typeId.toUaNodeId();
+    }
+    UA_DataTypeArray *customTypes = nullptr;
+    UA_StatusCode status = UA_STATUSCODE_GOOD;
+    runInWorker([&] {
+        status = UA_Client_getRemoteDataTypes(_client, static_cast<size_t>(ids.size()), ids.data(), &customTypes);
+    });
+    for (auto &id : ids)
+    {
+        UA_NodeId_clear(&id);
+    }
+    if (status == UA_STATUSCODE_GOOD)
+    {
+        UA_Client_getConfig(_client)->customDataTypes = customTypes;
+    }
+    return status;
+}
+
+///
+/// \brief Reads the field names of the DataTypeDefinition of the structure or enumeration \a typeId into \a names.
+///
+UA_StatusCode TestClient::readDefinitionFieldNames(const QUaNodeId &typeId, QStringList &names)
+{
+    const UaNodeIdGuard id(typeId);
+    UA_ReadValueId readValueId;
+    UA_ReadValueId_init(&readValueId);
+    readValueId.nodeId      = id.get();
+    readValueId.attributeId = UA_ATTRIBUTEID_DATATYPEDEFINITION;
+    UA_ReadRequest request;
+    UA_ReadRequest_init(&request);
+    request.nodesToRead     = &readValueId;
+    request.nodesToReadSize = 1;
+    UA_ReadResponse response;
+    runInWorker([&] { response = UA_Client_Service_read(_client, request); });
+    UA_StatusCode status = response.responseHeader.serviceResult;
+    if (status == UA_STATUSCODE_GOOD && response.resultsSize == 1)
+    {
+        status = response.results[0].hasStatus ? response.results[0].status : UA_STATUSCODE_GOOD;
+    }
+    names.clear();
+    const UA_Variant &definition = response.resultsSize == 1 ? response.results[0].value : UA_Variant();
+    if (UA_Variant_hasScalarType(&definition, &UA_TYPES[UA_TYPES_STRUCTUREDEFINITION]))
+    {
+        const auto *structure = static_cast<const UA_StructureDefinition *>(definition.data);
+        for (size_t i = 0; i < structure->fieldsSize; i++)
+        {
+            names << QUaTypesConverter::uaStringToQString(structure->fields[i].name);
+        }
+    }
+    else if (UA_Variant_hasScalarType(&definition, &UA_TYPES[UA_TYPES_ENUMDEFINITION]))
+    {
+        const auto *enumeration = static_cast<const UA_EnumDefinition *>(definition.data);
+        for (size_t i = 0; i < enumeration->fieldsSize; i++)
+        {
+            names << QUaTypesConverter::uaStringToQString(enumeration->fields[i].name);
+        }
+    }
+    UA_ReadResponse_clear(&response);
+    return status;
+}
+
+///
 /// \brief Writes \a value to the Value attribute of \a nodeId.
 ///
 UA_StatusCode TestClient::writeValue(const QUaNodeId &nodeId, const QVariant &value)
 {
     const UaNodeIdGuard id(nodeId);
-    UA_Variant uaValue = QUaTypesConverter::uaVariantFromQVariant(value);
+    UA_Variant uaValue = QUaTypesConverter::isQStructure(value) ?
+        QUaTypesConverter::uaVariantFromQStructure(value, UA_Client_getConfig(_client)->customDataTypes) :
+        QUaTypesConverter::uaVariantFromQVariant(value);
     UA_StatusCode status = UA_STATUSCODE_GOOD;
     runInWorker([&] { status = UA_Client_writeValueAttribute(_client, id.get(), &uaValue); });
     UA_Variant_clear(&uaValue);

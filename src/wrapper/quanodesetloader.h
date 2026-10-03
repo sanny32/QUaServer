@@ -25,6 +25,17 @@ private:
 		QUaNodeId targetId;
 	};
 
+	struct DefinitionField
+	{
+		QString   name;
+		QString   dataType;
+		qint32    valueRank  = -1;
+		bool      isOptional = false;
+		qint64    value      = 0;
+		bool      hasValue   = false;
+		QUaNodeId dataTypeId;
+	};
+
 	struct Node
 	{
 		UA_NodeClass            nodeClass = UA_NODECLASS_UNSPECIFIED;
@@ -40,6 +51,10 @@ private:
 		QUaNodeId               parentReferenceTypeId;
 		QUaNodeId               typeDefinitionId;
 		QUaNodeId               dataTypeId;
+		bool                    hasDefinition = false;
+		bool                    isUnion       = false;
+		bool                    isOptionSet   = false;
+		QList<DefinitionField>  definition;
 	};
 
 	bool readNodeSet(QXmlStreamReader& reader);
@@ -49,6 +64,7 @@ private:
 	static QUaLocalizedText readLocalizedText(QXmlStreamReader& reader);
 	static QList<Reference> readReferences(QXmlStreamReader& reader);
 	static QByteArray readValue(QXmlStreamReader& reader);
+	static void readDefinition(QXmlStreamReader& reader, Node& node);
 
 	void mapNamespaces();
 	bool resolveNodeId(const QString& text, QUaNodeId& nodeId) const;
@@ -62,6 +78,9 @@ private:
 
 	UA_StatusCode addNode(const Node& node);
 	void registerReferenceType(const Node& node);
+	void registerDataType(const Node& node);
+	void registerStructure(const Node& node);
+	QUaNodeId encodingId(const Node& node, const QString& encodingName) const;
 	void addReferences(const Node& node);
 	void finishNodes(const QList<int>& sorted, const QSet<int>& begun);
 	UA_StatusCode decodeValue(const Node& node, UA_Variant* value);

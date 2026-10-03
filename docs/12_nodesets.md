@@ -47,7 +47,7 @@ QList<QUaNode*> fed = machine->findReferences({ "Feeds", "FedBy" });
 ## Limitations
 
 * Methods of the NodeSet have no implementation, so calling them fails with `BadNotImplemented`.
-* Custom structured data types are added as nodes only: their `Definition` is ignored, and values of such types stay in their XML encoding, which `QVariant` and most clients cannot read.
+* Structured data types and enumerations are registered from their `Definition`, so their values are read as `QUaStructure` (see [Structured Data Types](04_types.md#structured-data-types)) and their *DataTypeDefinition* can be read by clients. Unions are not registered. Values in the NodeSet of structures with optional fields, and enumeration fields written as `Name_Value` rather than a number, cannot be decoded by *open62541* and are left without Qt value.
 * Objects and variables of event types, and of types derived from abstract types such as `BaseVariableType`, have no C++ instance.
 * The models a NodeSet requires (`RequiredModel`) are not checked.
 

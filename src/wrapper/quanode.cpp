@@ -1682,8 +1682,8 @@ QString QUaNode::className() const
 }
 
 ///
-/// \brief Returns the source of the first inverse reference of \a referenceTypeId or its subtypes, null when none.
-///        The result must be cleared.
+/// \brief Returns the source of the first inverse reference of \a referenceTypeId or its subtypes, null when none
+///        or when the node does not exist. The result must be cleared.
 ///
 UA_NodeId QUaNode::getFirstInverseReferenceSource(const UA_NodeId& nodeId, const UA_NodeId& referenceTypeId,
                                                   UA_Server* server)
@@ -1696,7 +1696,6 @@ UA_NodeId QUaNode::getFirstInverseReferenceSource(const UA_NodeId& nodeId, const
 	bDesc.includeSubtypes = true;
 	bDesc.resultMask      = UA_BROWSERESULTMASK_NONE;
 	UA_BrowseResult bRes = UA_Server_browse(server, 0, &bDesc);
-	Q_ASSERT(bRes.statusCode == UA_STATUSCODE_GOOD);
 	UA_NodeId sourceNodeId = UA_NODEID_NULL;
 	if (bRes.referencesSize > 0)
 	{

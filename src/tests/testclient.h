@@ -105,6 +105,17 @@ public:
     UA_StatusCode readValueDataType(const QUaNodeId &nodeId, QUaNodeId &dataTypeId);
 
     ///
+    /// \brief Reads the DataTypeDefinition of the server data types \a typeIds, so the client decodes and encodes their
+    ///        values as any client would.
+    ///
+    UA_StatusCode loadServerDataTypes(const QList<QUaNodeId> &typeIds);
+
+    ///
+    /// \brief Reads the field names of the DataTypeDefinition of the structure or enumeration \a typeId into \a names.
+    ///
+    UA_StatusCode readDefinitionFieldNames(const QUaNodeId &typeId, QStringList &names);
+
+    ///
     /// \brief Writes \a value to the Value attribute of \a nodeId.
     ///
     UA_StatusCode writeValue(const QUaNodeId &nodeId, const QVariant &value);

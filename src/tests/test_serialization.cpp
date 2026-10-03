@@ -137,6 +137,7 @@ private slots:
     void roundTripRestoresNodesAndValues();
     void roundTripRestoresCustomReferences();
     void roundTripRestoresMatrices();
+    void roundTripRestoresStructures();
     void failedReadIsReported();
 };
 
@@ -266,6 +267,39 @@ void TestSerialization::roundTripRestoresMatrices()
     const QVariantList rows = matrix->value().value<QVariantList>();
     QCOMPARE(rows.count(), 2);
     QCOMPARE(rows.at(1).value<QList<int>>(), QList<int>({ 4, 5, 6 }));
+}
+
+///
+/// \brief A structure value is restored into a server where its data type is registered too.
+///
+void TestSerialization::roundTripRestoresStructures()
+{
+    const QList<QUaStructureField> fields = { { QStringLiteral("x"), QMetaType::Double },
+                                              { QStringLiteral("y"), QMetaType::Double } };
+    QUaStructure position(QUaNodeId(1, QStringLiteral("Point")));
+    position.setField(QStringLiteral("x"), 1.5);
+    position.setField(QStringLiteral("y"), 2.5);
+    MemorySerializer serializer;
+    QQueue<QUaLog> logOut;
+    {
+        QUaServer source;
+        QVERIFY(!source.registerStructure(QStringLiteral("Point"), fields).isNull());
+        QUaFolderObject *plant = buildPlant(source);
+        plant->addBaseDataVariable(QStringLiteral("position"), QUaNodeId(1, QStringLiteral("plant.position")))
+            ->setValue(QVariant::fromValue(position));
+        QVERIFY(plant->serialize(serializer, logOut));
+    }
+
+    QUaServer target;
+    QVERIFY(!target.registerStructure(QStringLiteral("Point"), fields).isNull());
+    QUaFolderObject *plant = target.objectsFolder()->addFolderObject(QStringLiteral("plant"),
+                                                                     QUaNodeId(1, QStringLiteral("plant")));
+    QVERIFY(plant->deserialize(serializer, logOut));
+
+    auto restored = target.nodeById<QUaBaseDataVariable>(QUaNodeId(1, QStringLiteral("plant.position")));
+    QVERIFY(restored);
+    QCOMPARE(restored->dataType(), QMetaType_Structure);
+    QCOMPARE(restored->value().value<QUaStructure>(), position);
 }
 
 ///

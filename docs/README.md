@@ -7,7 +7,7 @@ Each chapter builds on the previous ones and has a matching example in [`example
 | 1 | [Basics](01_basics.md) | Create the server, objects and variables, and access their attributes | [01_basics](../examples/01_basics/main.cpp) | |
 | 2 | [Methods](02_methods.md) | Add methods that clients can call remotely | [02_methods](../examples/02_methods/main.cpp) | |
 | 3 | [References](03_references.md) | Create and browse custom non-hierarchical references | [03_references](../examples/03_references/main.cpp) | |
-| 4 | [Types](04_types.md) | Create custom object and variable types | [04_types](../examples/04_types/main.cpp) | |
+| 4 | [Types](04_types.md) | Create custom object, variable and structured data types | [04_types](../examples/04_types/main.cpp) | |
 | 5 | [Server](05_server.md) | Create certificates and set the server description | [05_server](../examples/05_server/main.cpp) | |
 | 6 | [Users](06_users.md) | User accounts, per-user access control and sessions | [06_users](../examples/06_users/main.cpp) | |
 | 7 | [Encryption](07_encryption.md) | Encrypt the communication with clients | [07_encryption](../examples/07_encryption/main.cpp) | `QUASERVER_ENCRYPTION` |

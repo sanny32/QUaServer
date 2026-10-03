@@ -33,6 +33,10 @@ namespace QUaTypesConverter {
 	bool            canConvertQVariantList(const QVariant &value);
 	bool            flattenMatrix(const QVariant &value, QVariantList &values, QVector<quint32> &dimensions);
 	void            setVariantArrayDimensions(UA_Variant &variant, const QVector<quint32> &dimensions);
+	// structured data types without a dedicated Qt type are converted from and to QUaStructure
+	bool            isQStructure(const QVariant &value);
+	UA_Variant      uaVariantFromQStructure(const QVariant &value, const UA_DataTypeArray *customTypes);
+	QUaStructure    uaStructureToQStructure(const void *data, const UA_DataType *type);
 
 	// ua from c++
 	template<typename T>

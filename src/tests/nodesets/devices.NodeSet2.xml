@@ -15,6 +15,7 @@
     <Alias Alias="String">i=12</Alias>
     <Alias Alias="Organizes">i=35</Alias>
     <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasEncoding">i=38</Alias>
     <Alias Alias="HasTypeDefinition">i=40</Alias>
     <Alias Alias="HasSubtype">i=45</Alias>
     <Alias Alias="HasProperty">i=46</Alias>
@@ -32,7 +33,64 @@
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
     </References>
+    <Definition Name="1:Mode">
+      <Field Name="Manual" Value="0" />
+      <Field Name="Auto" Value="1" />
+    </Definition>
   </UADataType>
+  <UADataType NodeId="ns=1;i=5100" BrowseName="1:Reading">
+    <DisplayName>Reading</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5101</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5102</Reference>
+    </References>
+    <Definition Name="1:Reading">
+      <Field Name="Value" DataType="Double">
+        <Description>Measured value</Description>
+      </Field>
+      <Field Name="Mode" DataType="ns=1;i=5001" />
+      <Field Name="Tags" DataType="String" ValueRank="1" />
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=5101" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=5100</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5102" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=5100</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=5110" BrowseName="1:LastReading" DataType="ns=1;i=5100">
+    <DisplayName>LastReading</DisplayName>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject>
+        <uax:TypeId>
+          <uax:Identifier>ns=1;i=5102</uax:Identifier>
+        </uax:TypeId>
+        <uax:Body>
+          <Reading xmlns="http://quaserver.test/devices/Types.xsd">
+            <Value>12.5</Value>
+            <Mode>1</Mode>
+            <Tags>
+              <uax:String>a</uax:String>
+              <uax:String>b</uax:String>
+            </Tags>
+          </Reading>
+        </uax:Body>
+      </uax:ExtensionObject>
+    </Value>
+  </UAVariable>
   <UAObject NodeId="ns=1;i=2001" BrowseName="1:Device1">
     <DisplayName Locale="en">Device 1</DisplayName>
     <DisplayName Locale="de">Gerät 1</DisplayName>

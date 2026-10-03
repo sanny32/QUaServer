@@ -192,6 +192,10 @@ QUaNodeSetResult QUaNodeSetLoader::load(QIODevice* device)
 		{
 			this->registerReferenceType(node);
 		}
+		if (node.nodeClass == UA_NODECLASS_DATATYPE && node.hasDefinition)
+		{
+			this->registerDataType(node);
+		}
 	}
 	for (int index : sorted)
 	{
@@ -319,6 +323,10 @@ void QUaNodeSetLoader::readNode(QXmlStreamReader& reader, UA_NodeClass nodeClass
 		{
 			node.value = QUaNodeSetLoader::readValue(reader);
 		}
+		else if (name == u"Definition")
+		{
+			QUaNodeSetLoader::readDefinition(reader, node);
+		}
 		else
 		{
 			reader.skipCurrentElement();
@@ -399,6 +407,35 @@ QByteArray QUaNodeSetLoader::readValue(QXmlStreamReader& reader)
 		}
 	}
 	return xml;
+}
+
+///
+/// \brief Reads the Definition element of a data type: the fields of a structure, or the values of an enumeration.
+///
+void QUaNodeSetLoader::readDefinition(QXmlStreamReader& reader, Node& node)
+{
+	node.hasDefinition = true;
+	const auto definitionAttributes = reader.attributes();
+	node.isUnion     = definitionAttributes.value(QStringLiteral("IsUnion")).trimmed() == u"true";
+	node.isOptionSet = definitionAttributes.value(QStringLiteral("IsOptionSet")).trimmed() == u"true";
+	while (reader.readNextStartElement())
+	{
+		if (reader.name() == u"Field")
+		{
+			const auto attributes = reader.attributes();
+			DefinitionField field;
+			field.name       = attributes.value(QStringLiteral("Name")).toString();
+			field.dataType   = attributes.hasAttribute(QStringLiteral("DataType")) ?
+				attributes.value(QStringLiteral("DataType")).toString() : QStringLiteral("i=24");
+			field.valueRank  = attributes.hasAttribute(QStringLiteral("ValueRank")) ?
+				attributes.value(QStringLiteral("ValueRank")).toInt() : -1;
+			field.isOptional = attributes.value(QStringLiteral("IsOptional")).trimmed() == u"true";
+			field.hasValue   = attributes.hasAttribute(QStringLiteral("Value"));
+			field.value      = attributes.value(QStringLiteral("Value")).toLongLong();
+			node.definition << field;
+		}
+		reader.skipCurrentElement();
+	}
 }
 
 ///
@@ -536,6 +573,16 @@ bool QUaNodeSetLoader::resolveNode(Node& node)
 			node.dataTypeId = QUaNodeId(0, quint32(UA_NS0ID_BASEDATATYPE));
 		}
 	}
+	for (auto& field : node.definition)
+	{
+		if (!this->resolveNodeId(field.dataType, field.dataTypeId))
+		{
+			this->warn(node, QStringLiteral("definition ignored, unknown DataType %1 of field %2")
+				.arg(field.dataType, field.name));
+			node.hasDefinition = false;
+			break;
+		}
+	}
 	if (node.typeDefinitionId.isNull() && node.nodeClass == UA_NODECLASS_OBJECT)
 	{
 		node.typeDefinitionId = QUaNodeId(0, quint32(UA_NS0ID_BASEOBJECTTYPE));
@@ -649,7 +696,8 @@ void QUaNodeSetLoader::resolveParents()
 }
 
 ///
-/// \brief Orders the nodes so that parents, types, data types and reference types come before the nodes using them.
+/// \brief Orders the nodes so that parents, types, data types, reference types and the types of structure fields come
+///        before the nodes using them.
 ///
 QList<int> QUaNodeSetLoader::sortNodes() const
 {
@@ -677,10 +725,14 @@ void QUaNodeSetLoader::visitNode(int index, QVector<char>& states, QList<int>& s
 	}
 	states[index] = Visiting;
 	const Node& node = _nodes.at(index);
-	const QUaNodeId dependencies[] = {
+	QList<QUaNodeId> dependencies = {
 		node.parentNodeId, node.parentReferenceTypeId, node.typeDefinitionId, node.dataTypeId
 	};
-	for (const auto& dependency : dependencies)
+	for (const auto& field : node.definition)
+	{
+		dependencies << field.dataTypeId;
+	}
+	for (const auto& dependency : std::as_const(dependencies))
 	{
 		const int dependencyIndex = _nodeIndexes.value(dependency, -1);
 		if (dependencyIndex >= 0)
@@ -832,6 +884,85 @@ void QUaNodeSetLoader::registerReferenceType(const Node& node)
 	{
 		_server->_hashRefTypes.insert(referenceType, node.nodeId);
 	}
+}
+
+///
+/// \brief Registers the layout given by the Definition of a data type, so values of it are decoded, encoded and
+///        converted to Qt; option sets keep the encoding of their base type and need none.
+///
+void QUaNodeSetLoader::registerDataType(const Node& node)
+{
+	if (node.isOptionSet || node.definition.isEmpty())
+	{
+		return;
+	}
+	if (node.isUnion)
+	{
+		this->warn(node, QStringLiteral("union data types are not supported, their values stay encoded"));
+		return;
+	}
+	const bool isEnumeration = std::all_of(node.definition.cbegin(), node.definition.cend(),
+		[](const DefinitionField& field) { return field.hasValue; });
+	if (!isEnumeration)
+	{
+		this->registerStructure(node);
+		return;
+	}
+	QList<QPair<qint64, QString>> values;
+	for (const auto& field : node.definition)
+	{
+		values << qMakePair(field.value, field.name);
+	}
+	if (!_server->addEnumerationDataType(node.nodeId, node.browseName, values))
+	{
+		this->warn(node, QStringLiteral("definition of the enumeration not registered"));
+	}
+}
+
+///
+/// \brief Registers a structure from its Definition, with the encodings the NodeSet declares for it.
+///
+void QUaNodeSetLoader::registerStructure(const Node& node)
+{
+	QList<QUaStructureField> fields;
+	for (const auto& field : node.definition)
+	{
+		if (field.valueRank != UA_VALUERANK_SCALAR && field.valueRank != UA_VALUERANK_ONE_DIMENSION)
+		{
+			this->warn(node, QStringLiteral("structure not registered, field %1 is not a scalar nor an array").arg(field.name));
+			return;
+		}
+		if (!_server->ensureFieldDataType(field.dataTypeId))
+		{
+			this->warn(node, QStringLiteral("structure not registered, the type of field %1 is unknown").arg(field.name));
+			return;
+		}
+		fields << QUaStructureField(field.name, field.dataTypeId,
+			field.valueRank == UA_VALUERANK_ONE_DIMENSION, field.isOptional);
+	}
+	if (!_server->addStructureDataType(node.nodeId, node.browseName, fields,
+		this->encodingId(node, QStringLiteral("Default Binary")), this->encodingId(node, QStringLiteral("Default XML"))))
+	{
+		this->warn(node, QStringLiteral("structure not registered"));
+	}
+}
+
+///
+/// \brief Returns the DataTypeEncoding named \a encodingName that the NodeSet declares for a data type, null if none.
+///
+QUaNodeId QUaNodeSetLoader::encodingId(const Node& node, const QString& encodingName) const
+{
+	static const QUaNodeId hasEncoding(0, quint32(UA_NS0ID_HASENCODING));
+	for (const auto& reference : node.references)
+	{
+		const int encodingIndex = _nodeIndexes.value(reference.targetId, -1);
+		if (reference.isForward && reference.referenceTypeId == hasEncoding && encodingIndex >= 0 &&
+		    _nodes.at(encodingIndex).browseName.name() == encodingName)
+		{
+			return reference.targetId;
+		}
+	}
+	return QUaNodeId();
 }
 
 ///
