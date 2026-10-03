@@ -186,6 +186,29 @@ server.setHostname("192.168.1.18");
 
 The server then also advertises `opc.tcp://<hostname>:<port>` as its discovery URL. If the hostname cannot be resolved, `start()` fails. The hostname must be listed in the `subjectAltName` of the server certificate. Clients that connect through another name (e.g. behind NAT) still get endpoints with the URL they used.
 
+## Limits
+
+The number of secure channels and sessions is set with `setMaxSecureChannels()` and `setMaxSessions()`. The other limits are grouped in `QUaServerLimits`. Start from the current limits, which hold the *open62541* defaults, change the ones of interest and set them **before** starting the server:
+
+```c++
+QUaServerLimits limits = server.limits();
+limits.maxSessionTimeout                = 10 * 60 * 1000; // 10 min
+limits.maxSubscriptionsPerSession       = 5;
+limits.minPublishingInterval            = 250;            // ms
+limits.maxMonitoredItemsPerSubscription = 1000;
+limits.minSamplingInterval              = 100;            // ms
+limits.maxNodesPerRead                  = 500;
+if (!server.setLimits(limits))
+{
+	qWarning() << "Invalid limits";
+}
+```
+
+* Requested publishing and sampling intervals, and queue sizes, are revised into their `min`/`max` range; the client is told the revised value.
+* Requests over a count limit fail: e.g. `BadTooManySubscriptions`, `BadTooManyMonitoredItems` or `BadTooManyOperations`.
+* A count limit of `0` means unlimited.
+* `setLimits()` returns `false` and keeps the previous limits when a `min` is above its `max`, or when a publishing or sampling interval is below 5 ms.
+
 ## Server Example
 
 Build and run the [05_server](../examples/05_server/main.cpp) example to learn more.

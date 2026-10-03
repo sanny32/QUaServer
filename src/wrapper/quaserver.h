@@ -34,6 +34,49 @@ class QUaRefreshRequiredEvent;
 
 using QUaChildNodeIdCallback = std::function<QUaNodeId(const QUaNodeId&, const QUaQualifiedName&)>;
 
+///
+/// \brief Server limits negotiated with or enforced on clients. Durations are in milliseconds, 0 means unlimited
+///        where open62541 allows it. Start from QUaServer::limits(), which holds the open62541 defaults.
+///
+struct QUaServerLimits
+{
+	QUaServerLimits();
+
+	double  maxSessionTimeout;
+	quint32 maxSecurityTokenLifetime;
+	// operations per service call
+	quint32 maxNodesPerRead;
+	quint32 maxNodesPerWrite;
+	quint32 maxNodesPerMethodCall;
+	quint32 maxNodesPerBrowse;
+	quint32 maxNodesPerTranslateBrowsePathsToNodeIds;
+	quint32 maxMonitoredItemsPerCall;
+	quint32 maxReferencesPerNode;
+	// subscriptions
+	quint32 maxSubscriptions;
+	quint32 maxSubscriptionsPerSession;
+	double  minPublishingInterval;
+	double  maxPublishingInterval;
+	quint32 maxNotificationsPerPublish;
+	quint32 maxPublishRequestsPerSession;
+	// monitored items
+	quint32 maxMonitoredItems;
+	quint32 maxMonitoredItemsPerSubscription;
+	double  minSamplingInterval;
+	double  maxSamplingInterval;
+	quint32 minQueueSize;
+	quint32 maxQueueSize;
+
+	///
+	/// \brief Tells whether every range has its minimum below its maximum and no interval is below 5 ms.
+	///
+	bool isValid() const;
+
+	bool operator==(const QUaServerLimits& other) const;
+	bool operator!=(const QUaServerLimits& other) const;
+};
+Q_DECLARE_METATYPE(QUaServerLimits)
+
 class QUaServer : public QObject
 {
 	friend class QUaNode;
@@ -193,6 +236,16 @@ public:
 	quint16 maxSessions() const;
 	void    setMaxSessions(const quint16 &maxSessions);
 
+	///
+	/// \brief Returns the session, operation, subscription and monitored item limits.
+	///
+	QUaServerLimits limits() const;
+	///
+	/// \brief Sets the session, operation, subscription and monitored item limits. Applied on the next start().
+	/// \return False, leaving the limits unchanged, when \a limits is not valid (see QUaServerLimits::isValid()).
+	///
+	bool setLimits(const QUaServerLimits& limits);
+
 	// Instance Creation API
 
 	// register type in order to assign it a typeNodeId
@@ -346,6 +399,7 @@ signals:
 	void hostnameChanged             (const QString &strHostname          );
 	void maxSecureChannelsChanged    (const quint16 &maxSecureChannels    );
 	void maxSessionsChanged          (const quint16 &maxSessions          );
+	void limitsChanged               (const QUaServerLimits &limits       );
 	void applicationNameChanged      (const QString &strApplicationName   );
 	void applicationUriChanged       (const QString &strApplicationUri    );
 	void productNameChanged          (const QString &strProductName       );
@@ -370,6 +424,7 @@ private:
 	quint16                 m_port;
 	quint16                 m_maxSecureChannels;
 	quint16                 m_maxSessions;
+	QUaServerLimits         m_limits;
 	UA_Boolean              m_running;
 	QTimer                  m_iterWaitTimer;
 	QByteArray              m_byteCertificate;
@@ -471,6 +526,8 @@ private:
 	bool resetConfig();
 	bool applySecurityFilter(UA_ServerConfig* config);
 	void applyServerUrls(UA_ServerConfig* config);
+	void applyLimits(UA_ServerConfig* config) const;
+	static QUaServerLimits limitsFromConfig(const UA_ServerConfig* config);
 #ifdef UA_ENABLE_ENCRYPTION
 	static QVector<UA_ByteString> toByteStringArray(const QList<QByteArray>& list);
 #endif

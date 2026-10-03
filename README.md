@@ -15,6 +15,7 @@ Features:
 * Custom non-hierarchical references
 * User accounts with per-user access control, and session tracking
 * Server certificates, encrypted communication, trusted client certificates and security policy selection
+* Configurable session, operation, subscription and monitored item limits
 * Events, alarms and conditions
 * Serialization of the address space
 * Historizing of data and events

@@ -1439,6 +1439,7 @@ bool QUaServer::resetConfig()
 	// setup server limits
 	config->maxSecureChannels = m_maxSecureChannels;
 	config->maxSessions       = m_maxSessions;
+	this->applyLimits(config);
 
 	// custom callbacks
 	this->setupConfigCallbacks();
@@ -1725,6 +1726,7 @@ void QUaServer::setupServer()
 	// copy other initial values
 	m_maxSecureChannels = config->maxSecureChannels;
 	m_maxSessions = config->maxSessions;
+	m_limits = QUaServer::limitsFromConfig(config);
 
 	// instantiate change event
 #ifdef UA_ENABLE_SUBSCRIPTIONS_EVENTS
@@ -2159,6 +2161,161 @@ void QUaServer::setMaxSessions(const quint16& maxSessions)
 {
 	m_maxSessions = maxSessions;
 	emit this->maxSessionsChanged(m_maxSessions);
+}
+
+///
+/// \brief Returns the session, operation, subscription and monitored item limits.
+///
+QUaServerLimits QUaServer::limits() const
+{
+	return m_limits;
+}
+
+///
+/// \brief Sets the session, operation, subscription and monitored item limits. Applied on the next start().
+/// \return False, leaving the limits unchanged, when \a limits is not valid (see QUaServerLimits::isValid()).
+///
+bool QUaServer::setLimits(const QUaServerLimits& limits)
+{
+	if (!limits.isValid())
+	{
+		return false;
+	}
+	if (limits != m_limits)
+	{
+		m_limits = limits;
+		emit this->limitsChanged(m_limits);
+	}
+	return true;
+}
+
+///
+/// \brief Reads the limits of \a config, used to start from the open62541 defaults.
+///
+QUaServerLimits QUaServer::limitsFromConfig(const UA_ServerConfig* config)
+{
+	QUaServerLimits limits;
+	limits.maxSessionTimeout                        = config->maxSessionTimeout;
+	limits.maxSecurityTokenLifetime                 = config->maxSecurityTokenLifetime;
+	limits.maxNodesPerRead                          = config->maxNodesPerRead;
+	limits.maxNodesPerWrite                         = config->maxNodesPerWrite;
+	limits.maxNodesPerMethodCall                    = config->maxNodesPerMethodCall;
+	limits.maxNodesPerBrowse                        = config->maxNodesPerBrowse;
+	limits.maxNodesPerTranslateBrowsePathsToNodeIds = config->maxNodesPerTranslateBrowsePathsToNodeIds;
+	limits.maxMonitoredItemsPerCall                 = config->maxMonitoredItemsPerCall;
+	limits.maxReferencesPerNode                     = config->maxReferencesPerNode;
+#ifdef UA_ENABLE_SUBSCRIPTIONS
+	limits.maxSubscriptions                         = config->maxSubscriptions;
+	limits.maxSubscriptionsPerSession               = config->maxSubscriptionsPerSession;
+	limits.minPublishingInterval                    = config->publishingIntervalLimits.min;
+	limits.maxPublishingInterval                    = config->publishingIntervalLimits.max;
+	limits.maxNotificationsPerPublish               = config->maxNotificationsPerPublish;
+	limits.maxPublishRequestsPerSession             = config->maxPublishReqPerSession;
+	limits.maxMonitoredItems                        = config->maxMonitoredItems;
+	limits.maxMonitoredItemsPerSubscription         = config->maxMonitoredItemsPerSubscription;
+	limits.minSamplingInterval                      = config->samplingIntervalLimits.min;
+	limits.maxSamplingInterval                      = config->samplingIntervalLimits.max;
+	limits.minQueueSize                             = config->queueSizeLimits.min;
+	limits.maxQueueSize                             = config->queueSizeLimits.max;
+#endif // UA_ENABLE_SUBSCRIPTIONS
+	return limits;
+}
+
+///
+/// \brief Writes the stored limits over the defaults that open62541 sets on every configuration reset.
+///
+void QUaServer::applyLimits(UA_ServerConfig* config) const
+{
+	config->maxSessionTimeout                        = m_limits.maxSessionTimeout;
+	config->maxSecurityTokenLifetime                 = m_limits.maxSecurityTokenLifetime;
+	config->maxNodesPerRead                          = m_limits.maxNodesPerRead;
+	config->maxNodesPerWrite                         = m_limits.maxNodesPerWrite;
+	config->maxNodesPerMethodCall                    = m_limits.maxNodesPerMethodCall;
+	config->maxNodesPerBrowse                        = m_limits.maxNodesPerBrowse;
+	config->maxNodesPerTranslateBrowsePathsToNodeIds = m_limits.maxNodesPerTranslateBrowsePathsToNodeIds;
+	config->maxMonitoredItemsPerCall                 = m_limits.maxMonitoredItemsPerCall;
+	config->maxReferencesPerNode                     = m_limits.maxReferencesPerNode;
+#ifdef UA_ENABLE_SUBSCRIPTIONS
+	config->maxSubscriptions                         = m_limits.maxSubscriptions;
+	config->maxSubscriptionsPerSession               = m_limits.maxSubscriptionsPerSession;
+	config->publishingIntervalLimits.min             = m_limits.minPublishingInterval;
+	config->publishingIntervalLimits.max             = m_limits.maxPublishingInterval;
+	config->maxNotificationsPerPublish               = m_limits.maxNotificationsPerPublish;
+	config->maxPublishReqPerSession                  = m_limits.maxPublishRequestsPerSession;
+	config->maxMonitoredItems                        = m_limits.maxMonitoredItems;
+	config->maxMonitoredItemsPerSubscription         = m_limits.maxMonitoredItemsPerSubscription;
+	config->samplingIntervalLimits.min               = m_limits.minSamplingInterval;
+	config->samplingIntervalLimits.max               = m_limits.maxSamplingInterval;
+	config->queueSizeLimits.min                      = m_limits.minQueueSize;
+	config->queueSizeLimits.max                      = m_limits.maxQueueSize;
+#endif // UA_ENABLE_SUBSCRIPTIONS
+}
+
+QUaServerLimits::QUaServerLimits()
+	: maxSessionTimeout(0.0)
+	, maxSecurityTokenLifetime(0)
+	, maxNodesPerRead(0)
+	, maxNodesPerWrite(0)
+	, maxNodesPerMethodCall(0)
+	, maxNodesPerBrowse(0)
+	, maxNodesPerTranslateBrowsePathsToNodeIds(0)
+	, maxMonitoredItemsPerCall(0)
+	, maxReferencesPerNode(0)
+	, maxSubscriptions(0)
+	, maxSubscriptionsPerSession(0)
+	, minPublishingInterval(0.0)
+	, maxPublishingInterval(0.0)
+	, maxNotificationsPerPublish(0)
+	, maxPublishRequestsPerSession(0)
+	, maxMonitoredItems(0)
+	, maxMonitoredItemsPerSubscription(0)
+	, minSamplingInterval(0.0)
+	, maxSamplingInterval(0.0)
+	, minQueueSize(0)
+	, maxQueueSize(0)
+{
+}
+
+///
+/// \brief Tells whether every range has its minimum below its maximum and no interval is below 5 ms.
+///
+bool QUaServerLimits::isValid() const
+{
+	// open62541 rejects publishing and sampling intervals below 5 ms
+	static constexpr double minimumInterval = 5.0;
+	return minPublishingInterval >= minimumInterval && minPublishingInterval <= maxPublishingInterval &&
+	       minSamplingInterval   >= minimumInterval && minSamplingInterval   <= maxSamplingInterval   &&
+	       minQueueSize <= maxQueueSize;
+}
+
+bool QUaServerLimits::operator==(const QUaServerLimits& other) const
+{
+	return maxSessionTimeout                        == other.maxSessionTimeout                        &&
+	       maxSecurityTokenLifetime                 == other.maxSecurityTokenLifetime                 &&
+	       maxNodesPerRead                          == other.maxNodesPerRead                          &&
+	       maxNodesPerWrite                         == other.maxNodesPerWrite                         &&
+	       maxNodesPerMethodCall                    == other.maxNodesPerMethodCall                    &&
+	       maxNodesPerBrowse                        == other.maxNodesPerBrowse                        &&
+	       maxNodesPerTranslateBrowsePathsToNodeIds == other.maxNodesPerTranslateBrowsePathsToNodeIds &&
+	       maxMonitoredItemsPerCall                 == other.maxMonitoredItemsPerCall                 &&
+	       maxReferencesPerNode                     == other.maxReferencesPerNode                     &&
+	       maxSubscriptions                         == other.maxSubscriptions                         &&
+	       maxSubscriptionsPerSession               == other.maxSubscriptionsPerSession               &&
+	       minPublishingInterval                    == other.minPublishingInterval                    &&
+	       maxPublishingInterval                    == other.maxPublishingInterval                    &&
+	       maxNotificationsPerPublish               == other.maxNotificationsPerPublish               &&
+	       maxPublishRequestsPerSession             == other.maxPublishRequestsPerSession             &&
+	       maxMonitoredItems                        == other.maxMonitoredItems                        &&
+	       maxMonitoredItemsPerSubscription         == other.maxMonitoredItemsPerSubscription         &&
+	       minSamplingInterval                      == other.minSamplingInterval                      &&
+	       maxSamplingInterval                      == other.maxSamplingInterval                      &&
+	       minQueueSize                             == other.minQueueSize                             &&
+	       maxQueueSize                             == other.maxQueueSize;
+}
+
+bool QUaServerLimits::operator!=(const QUaServerLimits& other) const
+{
+	return !(*this == other);
 }
 
 void QUaServer::setChildNodeIdCallback(const QUaChildNodeIdCallback& callback)

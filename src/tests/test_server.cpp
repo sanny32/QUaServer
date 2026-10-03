@@ -25,6 +25,10 @@ private slots:
     void descriptionPropertiesNotify();
     void limitsNotify();
     void hostnameIsEmptyByDefaultAndNotifies();
+    void limitsStartWithOpen62541Defaults();
+    void setLimitsStoresAndNotifiesOnChange();
+    void invalidLimitsAreRejected_data();
+    void invalidLimitsAreRejected();
 #ifdef UA_ENABLE_ENCRYPTION
     void trustListsAreEmptyByDefaultAndNotify();
     void allSecurityPoliciesAndModesAreAllowedByDefault();
@@ -98,6 +102,73 @@ void TestServer::hostnameIsEmptyByDefaultAndNotifies()
     QCOMPARE(server.hostname(), QStringLiteral("plc.local"));
     QCOMPARE(spy.count(), 1);
     QCOMPARE(spy.first().first().toString(), QStringLiteral("plc.local"));
+}
+
+void TestServer::limitsStartWithOpen62541Defaults()
+{
+    QUaServer server;
+
+    const QUaServerLimits limits = server.limits();
+
+    QVERIFY(limits.isValid());
+    QCOMPARE(limits.maxSessionTimeout, 3600.0 * 1000.0);
+    QCOMPARE(limits.minPublishingInterval, 100.0);
+    QCOMPARE(limits.maxPublishingInterval, 3600.0 * 1000.0);
+    QCOMPARE(limits.minSamplingInterval, 50.0);
+    QCOMPARE(limits.maxSamplingInterval, 24.0 * 3600.0 * 1000.0);
+    QCOMPARE(limits.minQueueSize, quint32(1));
+    QCOMPARE(limits.maxQueueSize, quint32(100));
+}
+
+void TestServer::setLimitsStoresAndNotifiesOnChange()
+{
+    QUaServer server;
+    QSignalSpy spy(&server, &QUaServer::limitsChanged);
+    QUaServerLimits limits = server.limits();
+    limits.maxSubscriptionsPerSession = 3;
+    limits.minPublishingInterval = 500.0;
+
+    QVERIFY(server.setLimits(limits));
+    QVERIFY(server.setLimits(limits));
+
+    QCOMPARE(server.limits(), limits);
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(spy.first().first().value<QUaServerLimits>(), limits);
+}
+
+void TestServer::invalidLimitsAreRejected_data()
+{
+    QTest::addColumn<QUaServerLimits>("limits");
+    const QUaServerLimits defaults = QUaServer().limits();
+
+    QUaServerLimits limits = defaults;
+    limits.minPublishingInterval = limits.maxPublishingInterval + 1.0;
+    QTest::newRow("publishing interval range inverted") << limits;
+    limits = defaults;
+    limits.minPublishingInterval = 1.0;
+    QTest::newRow("publishing interval below 5 ms") << limits;
+    limits = defaults;
+    limits.minSamplingInterval = limits.maxSamplingInterval + 1.0;
+    QTest::newRow("sampling interval range inverted") << limits;
+    limits = defaults;
+    limits.minSamplingInterval = 0.0;
+    QTest::newRow("sampling interval below 5 ms") << limits;
+    limits = defaults;
+    limits.minQueueSize = limits.maxQueueSize + 1;
+    QTest::newRow("queue size range inverted") << limits;
+}
+
+void TestServer::invalidLimitsAreRejected()
+{
+    QFETCH(QUaServerLimits, limits);
+    QUaServer server;
+    const QUaServerLimits before = server.limits();
+    QSignalSpy spy(&server, &QUaServer::limitsChanged);
+
+    QVERIFY(!server.setLimits(limits));
+
+    QCOMPARE(server.limits(), before);
+    QCOMPARE(spy.count(), 0);
 }
 
 #ifdef UA_ENABLE_ENCRYPTION

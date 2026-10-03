@@ -40,6 +40,12 @@ int main(int argc, char *argv[])
 	server.setSoftwareVersion ("6.6.6-master");
 	server.setBuildNumber     ("gvfsed43fs");
 
+	// Restrict subscriptions and sampling
+	QUaServerLimits limits = server.limits();
+	limits.maxSubscriptionsPerSession = 5;
+	limits.minSamplingInterval        = 100;
+	server.setLimits(limits);
+
 	server.start();
 
 	return a.exec(); 

@@ -85,6 +85,12 @@ public:
     UA_StatusCode readValue(const QUaNodeId &nodeId, QVariant &value);
 
     ///
+    /// \brief Reads the Value of all \a nodeIds in one Read request.
+    /// \return The service result, so a request over the server's per-call limit fails as a whole.
+    ///
+    UA_StatusCode readValues(const QList<QUaNodeId> &nodeIds);
+
+    ///
     /// \brief Reads the DataType attribute of the variable \a nodeId into \a dataTypeId.
     ///
     UA_StatusCode readValueDataType(const QUaNodeId &nodeId, QUaNodeId &dataTypeId);
@@ -111,6 +117,18 @@ public:
     /// \brief Creates a subscription with a data change monitored item on the Value of \a nodeId.
     ///
     UA_StatusCode monitorValue(const QUaNodeId &nodeId);
+
+    ///
+    /// \brief Monitors the Value of \a nodeId, asking for \a requestedSamplingInterval.
+    /// \param revisedSamplingInterval The sampling interval granted by the server.
+    ///
+    UA_StatusCode monitorValue(const QUaNodeId &nodeId, double requestedSamplingInterval, double &revisedSamplingInterval);
+
+    ///
+    /// \brief Creates a subscription; the first one created also holds the monitored items of this client.
+    /// \param revisedPublishingInterval The publishing interval granted by the server.
+    ///
+    UA_StatusCode createSubscription(double requestedPublishingInterval, double &revisedPublishingInterval);
 
     ///
     /// \brief Creates a subscription with an event monitored item on \a emitterId.

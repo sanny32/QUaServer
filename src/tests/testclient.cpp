@@ -333,20 +333,66 @@ UA_StatusCode TestClient::call(const QUaNodeId &objectId,
 ///
 UA_StatusCode TestClient::monitorValue(const QUaNodeId &nodeId)
 {
+    double revisedSamplingInterval = 0.0;
+    return monitorValue(nodeId, 250.0, revisedSamplingInterval);
+}
+
+///
+/// \brief Monitors the Value of \a nodeId, asking for \a requestedSamplingInterval.
+/// \param revisedSamplingInterval The sampling interval granted by the server.
+///
+UA_StatusCode TestClient::monitorValue(const QUaNodeId &nodeId,
+                                       double requestedSamplingInterval,
+                                       double &revisedSamplingInterval)
+{
     UA_StatusCode status = ensureSubscription();
     if (status != UA_STATUSCODE_GOOD)
     {
         return status;
     }
     const UaNodeIdGuard id(nodeId);
-    const UA_MonitoredItemCreateRequest item = UA_MonitoredItemCreateRequest_default(id.get());
+    UA_MonitoredItemCreateRequest item = UA_MonitoredItemCreateRequest_default(id.get());
+    item.requestedParameters.samplingInterval = requestedSamplingInterval;
     UA_MonitoredItemCreateResult result;
     runInWorker([&] {
         result = UA_Client_MonitoredItems_createDataChange(m_client, m_subscriptionId, UA_TIMESTAMPSTORETURN_BOTH,
                                                            item, nullptr, nullptr, nullptr);
     });
     status = result.statusCode;
+    revisedSamplingInterval = result.revisedSamplingInterval;
     UA_MonitoredItemCreateResult_clear(&result);
+    return status;
+}
+
+///
+/// \brief Reads the Value of all \a nodeIds in one Read request.
+/// \return The service result, so a request over the server's per-call limit fails as a whole.
+///
+UA_StatusCode TestClient::readValues(const QList<QUaNodeId> &nodeIds)
+{
+    QList<UA_ReadValueId> items;
+    for (const QUaNodeId &nodeId : nodeIds)
+    {
+        UA_ReadValueId item;
+        UA_ReadValueId_init(&item);
+        item.nodeId = nodeId.toUaNodeId();
+        item.attributeId = UA_ATTRIBUTEID_VALUE;
+        items << item;
+    }
+    UA_ReadRequest request;
+    UA_ReadRequest_init(&request);
+    request.nodesToRead = items.data();
+    request.nodesToReadSize = static_cast<size_t>(items.size());
+    UA_StatusCode status = UA_STATUSCODE_GOOD;
+    runInWorker([&] {
+        UA_ReadResponse response = UA_Client_Service_read(m_client, request);
+        status = response.responseHeader.serviceResult;
+        UA_ReadResponse_clear(&response);
+    });
+    for (UA_ReadValueId &item : items)
+    {
+        UA_ReadValueId_clear(&item);
+    }
     return status;
 }
 
@@ -461,8 +507,18 @@ UA_StatusCode TestClient::ensureSubscription()
     {
         return UA_STATUSCODE_GOOD;
     }
+    double revisedPublishingInterval = 0.0;
+    return createSubscription(50.0, revisedPublishingInterval);
+}
+
+///
+/// \brief Creates a subscription; the first one created also holds the monitored items of this client.
+/// \param revisedPublishingInterval The publishing interval granted by the server.
+///
+UA_StatusCode TestClient::createSubscription(double requestedPublishingInterval, double &revisedPublishingInterval)
+{
     UA_CreateSubscriptionRequest request = UA_CreateSubscriptionRequest_default();
-    request.requestedPublishingInterval = 50.0;
+    request.requestedPublishingInterval = requestedPublishingInterval;
     UA_CreateSubscriptionResponse response;
     runInWorker([&] {
         response = UA_Client_Subscriptions_create(m_client, request, nullptr, nullptr, nullptr);
@@ -470,7 +526,11 @@ UA_StatusCode TestClient::ensureSubscription()
     const UA_StatusCode status = response.responseHeader.serviceResult;
     if (status == UA_STATUSCODE_GOOD)
     {
-        m_subscriptionId = response.subscriptionId;
+        revisedPublishingInterval = response.revisedPublishingInterval;
+        if (m_subscriptionId == 0)
+        {
+            m_subscriptionId = response.subscriptionId;
+        }
     }
     UA_CreateSubscriptionResponse_clear(&response);
     return status;
