@@ -119,7 +119,7 @@ objsFolder->addMethod("triggerServerEvent", [&event]() {
 In order to visualize events, some clients require a special events window. For example in *UA Expert*, click the `Add Document` button, then select `Event View` and click `Add`. Then *drag and drop* the *Server Object* (`/Root/Objects/Server`) to the *Configuration* window. Now is possible to see events.
 
 <p align="center">
-  <img src="../res/img/08_events_01.jpg">
+  <img src="img/08_events_01.jpg">
 </p>
 
 The event can be triggered any number of times, and its variables can be updated to new values at any point. Once is not needed anymore, the event can be deleted:
@@ -143,7 +143,7 @@ auto obj_event = obj->createEvent<MyEvent>();
 But now on the client it is necessary to *drag and drop* the originator object to the *Configuration* window.
 
 <p align="center">
-  <img src="../res/img/08_events_02.jpg">
+  <img src="img/08_events_02.jpg">
 </p>
 
 ## Events Example

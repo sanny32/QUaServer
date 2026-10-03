@@ -46,19 +46,19 @@ Error 'BadIdentityTokenInvalid' was returned during ActivateSession
 To connect to the server it is necessary now to provide credentials. For example, with the *UA Expert* client right click the server and select `Properties ...`:
 
 <p align="center">
-  <img src="../res/img/06_users_01.jpg">
+  <img src="img/06_users_01.jpg">
 </p>
 
 Then in *Authentication Settings* select *Username Password* and introduce the username, and click `OK`:
 
 <p align="center">
-  <img src="../res/img/06_users_02.jpg">
+  <img src="img/06_users_02.jpg">
 </p>
 
 Now when connecting, the password will be requested. It is likely that the client will issue a warning:
 
 <p align="center">
-  <img src="../res/img/06_users_03.jpg">
+  <img src="img/06_users_03.jpg">
 </p>
 
 The reason is that communications are **not yet encrypted**, therefore the username and password will be sent in **plain text**. So any application that monitors the network (such as [Wireshark](https://www.wireshark.org/)) can read such messages and read the login credentials.

@@ -173,7 +173,7 @@ These methods should be called **before** starting the server, else the changes 
 This information is then made available to the clients through the *Server Object* that can be found by browsing to `/Root/Objects/Server/ServerStatus/BuildInfo`.
 
 <p align="center">
-  <img src="../res/img/05_server_01.jpg">
+  <img src="img/05_server_01.jpg">
 </p>
 
 ## Hostname

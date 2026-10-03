@@ -21,19 +21,19 @@ The `registerReferenceType()` method *registers* the new reference type as a *su
 The registered reference can be observed when the server is running by browsing to `/Root/Types/ReferenceTypes/NonHierarchicalReferences`. There should be a new entry corresponding to the custom reference.
 
 <p align="center">
-  <img src="../res/img/03_references_01.jpg">
+  <img src="img/03_references_01.jpg">
 </p>
 
 The references for the supplier object should list the *Supplies* reference:
 
 <p align="center">
-  <img src="../res/img/03_references_02.jpg">
+  <img src="img/03_references_02.jpg">
 </p>
 
 The references for the sensor object should list the *IsSuppliedBy* reference:
 
 <p align="center">
-  <img src="../res/img/03_references_03.jpg">
+  <img src="img/03_references_03.jpg">
 </p>
 
 The `registerReferenceType()` method receives a `QUaReferenceType` instance as an argument, which is defined as:
@@ -58,7 +58,7 @@ objSensor2->addReference({ "Supplies", "IsSuppliedBy" }, objSupl1, false);
 In the example above, both sensors are supplied by the same supplier:
 
 <p align="center">
-  <img src="../res/img/03_references_04.jpg">
+  <img src="img/03_references_04.jpg">
 </p>
 
 Programmatically, references can be added, removed and browsed using the following *QUaNode* API methods:

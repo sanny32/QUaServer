@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
 If the new type was registered correctly, it can be observed by browsing to `/Root/Types/ObjectTypes/BaseObjectType`. There should be a new entry corresponding to the custom type.
 
 <p align="center">
-  <img src="../res/img/04_types_01.jpg">
+  <img src="img/04_types_01.jpg">
 </p>
 
 Note that the new *TemperatureSensor* type has a `TypeDefinitionOf` reference to the *Sensor1* instance. And the *Sensor1* instance has a `HasTypeDefinition` to the *TemperatureSensor* type.
@@ -159,7 +159,7 @@ auto sensor3 = objsFolder->addChild<TemperatureSensor>("Sensor3");
 ```
 
 <p align="center">
-  <img src="../res/img/04_types_02.jpg">
+  <img src="img/04_types_02.jpg">
 </p>
 
 Any `Q_PROPERTY` added to the *TemperatureSensor* declaration that **inherits** `QUaProperty`, `QUaBaseDataVariable` or `QUaBaseObject` will be exposed through OPC UA. Else the `Q_PROPERTY` will be created in the C++ instance but not exposed through OPC UA.
@@ -200,7 +200,7 @@ void TemperatureSensor::turnOff()
 If the `Q_INVOKABLE` macro is not used, then the method is simply not exposed through OPC UA.
 
 <p align="center">
-  <img src="../res/img/04_types_03.jpg">
+  <img src="img/04_types_03.jpg">
 </p>
 
 One final perk of creating subtypes is the possibility of creating custom enumerators which can be used as data types for variables. This is done using the `Q_ENUM` macro:

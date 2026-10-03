@@ -71,7 +71,7 @@ Instances must only be added using the *QUaServer* API, by using the following m
 Once connected to the server, the [address space](https://reference.opcfoundation.org/v104/Core/docs/Part1/6.3.4/) should look something like this:
 
 <p align="center">
-  <img src="../res/img/01_basics_02.jpg">
+  <img src="img/01_basics_02.jpg">
 </p>
 
 The string argument passed to these methods defines both the node's initial [`DisplayName`](https://reference.opcfoundation.org/v104/Core/docs/Part3/5.2.5/) and [`BrowseName`](https://reference.opcfoundation.org/v104/Core/docs/Part3/5.2.4/). The `DisplayName` is the name that is displayed to the user by client applications, it should be a human-friendly name. The `BrowseName` is the name that is used programmatically by client applications to find children nodes easily in hierarchical node structures. The `BrowseName` is **immutable** once a node instance has been created, and must be **unique** with respect to its parent, so one parent node cannot have multiple children with the same `BrowseName`. The `DisplayName` has no restrictions, so it can be changed programmatically.

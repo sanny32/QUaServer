@@ -61,7 +61,7 @@ Now when the client browses for the server, there should be a new option to conn
 Once encryption is available, user names and passwords are only accepted over encrypted connections, so the login credentials (see the [Users](06_users.md) section) are never sent in plain text.
 
 <p align="center">
-  <img src="../res/img/07_encryption_02.jpg">
+  <img src="img/07_encryption_02.jpg">
 </p>
 
 ## Trusting Clients

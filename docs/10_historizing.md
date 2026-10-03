@@ -189,7 +189,7 @@ varInt->setReadHistoryAccess(true);
 Similarly, to allow clients to modify the historical data, the `QUaBaseVariable::setWriteHistoryAccess(const bool& bHistoryWrite)` method should be called.
 
 <p align="center">
-  <img src="../res/img/10_historizing_01_data.gif">
+  <img src="img/10_historizing_01_data.gif">
 </p>
 
 ## Historizing Events
@@ -346,7 +346,7 @@ ON t.EventTypeNodeId = e.EventId;
 ```
 
 <p align="center">
-  <img src="../res/img/10_historizing_02_events.gif">
+  <img src="img/10_historizing_02_events.gif">
 </p>
 
 ## Historizing Example
