@@ -997,7 +997,7 @@ inline QDataStream& operator>>(QDataStream& inStream, QUaEventHistoryQueryData& 
 {
     qint64 timeStartExisting;
     inStream >> timeStartExisting;
-    outQueryData.m_timeStartExisting = QDateTime::fromMSecsSinceEpoch(timeStartExisting, Qt::UTC);
+    outQueryData.m_timeStartExisting = QDateTime::fromMSecsSinceEpoch(timeStartExisting, QTimeZone::UTC);
     inStream >> outQueryData.m_numEventsToRead;
     inStream >> outQueryData.m_numEventsAlreadyRead;
     return inStream;

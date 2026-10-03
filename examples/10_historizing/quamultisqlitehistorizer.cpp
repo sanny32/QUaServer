@@ -566,7 +566,7 @@ QDateTime QUaMultiSqliteHistorizer::firstTimestamp(
 		Q_ASSERT(timeKeyCol >= 0);
 		auto timeInt = query.value(timeKeyCol).toLongLong();
 		// return
-		return QDateTime::fromMSecsSinceEpoch(timeInt, Qt::UTC);
+		return QDateTime::fromMSecsSinceEpoch(timeInt, QTimeZone::UTC);
 	}
 	// check row blocks
 	if (m_multiRowInsertSize > 1)
@@ -664,7 +664,7 @@ QDateTime QUaMultiSqliteHistorizer::lastTimestamp(
 		Q_ASSERT(timeKeyCol >= 0);
 		auto timeInt = query.value(timeKeyCol).toLongLong();
 		// return
-		return QDateTime::fromMSecsSinceEpoch(timeInt, Qt::UTC);
+		return QDateTime::fromMSecsSinceEpoch(timeInt, QTimeZone::UTC);
 	}
 	// check row blocks
 	if (m_multiRowInsertSize > 1)
@@ -1006,7 +1006,7 @@ QDateTime QUaMultiSqliteHistorizer::findTimestamp(
 		int timeKeyCol = rec.indexOf("Time");
 		Q_ASSERT(timeKeyCol >= 0);
 		auto timeInt = query.value(timeKeyCol).toLongLong();
-		auto currTimestamp = QDateTime::fromMSecsSinceEpoch(timeInt, Qt::UTC);
+		auto currTimestamp = QDateTime::fromMSecsSinceEpoch(timeInt, QTimeZone::UTC);
 		Q_ASSERT(
 			retTimestamp == QDateTime() ||
 			match == QUaHistoryBackend::TimeMatch::ClosestFromAbove ? 
@@ -1287,7 +1287,7 @@ QVector<QUaHistoryDataPoint> QUaMultiSqliteHistorizer::readHistoryData(
 			Q_ASSERT(valueKeyCol  >= 0);
 			Q_ASSERT(statusKeyCol >= 0);
 			auto timeInt = query.value(timeKeyCol).toLongLong();
-			auto time    = QDateTime::fromMSecsSinceEpoch(timeInt, Qt::UTC); // NOTE : expensive if spec not defined
+			auto time    = QDateTime::fromMSecsSinceEpoch(timeInt, QTimeZone::UTC); // NOTE : expensive if spec not defined
 			auto value   = query.value(valueKeyCol);
 			auto status  = query.value(statusKeyCol).toUInt();
 			Q_ASSERT(points.isEmpty() || time > points.last().timestamp);
@@ -1672,7 +1672,7 @@ QDateTime QUaMultiSqliteHistorizer::findTimestampEventOfType(
 		int timeKeyCol = rec.indexOf("Time");
 		Q_ASSERT(timeKeyCol >= 0);
 		auto timeInt = query.value(timeKeyCol).toLongLong();
-		auto currTimestamp = QDateTime::fromMSecsSinceEpoch(timeInt, Qt::UTC);
+		auto currTimestamp = QDateTime::fromMSecsSinceEpoch(timeInt, QTimeZone::UTC);
 		Q_ASSERT(
 			retTimestamp == QDateTime() ||
 			match == QUaHistoryBackend::TimeMatch::ClosestFromAbove ?
@@ -2101,8 +2101,8 @@ QVector<QUaHistoryEventPoint> QUaMultiSqliteHistorizer::readHistoryEventsOfType(
 		while (query.next() && totalNumPointsToRead < numPointsToRead)
 		{
 			qulonglong iTime = query.value(colsToIndexes[strTimeColName]).toULongLong();
-			// NOTE : expensive if time spec (Qt::UTC) not defined
-			points[totalNumPointsToRead].timestamp = QDateTime::fromMSecsSinceEpoch(iTime, Qt::UTC);
+			// NOTE : expensive if time zone (QTimeZone::UTC) not defined
+			points[totalNumPointsToRead].timestamp = QDateTime::fromMSecsSinceEpoch(iTime, QTimeZone::UTC);
 			auto& fields = points[totalNumPointsToRead].fields;
 			// populate fields
 			i = colsToIndexes.begin();
@@ -2484,7 +2484,7 @@ bool QUaMultiSqliteHistorizer::reloadMatchingFiles(
 			});
 			continue;
 		}
-		QDateTime dateTime = QDateTime::fromMSecsSinceEpoch(msSecSinceEpoc, Qt::UTC);
+		QDateTime dateTime = QDateTime::fromMSecsSinceEpoch(msSecSinceEpoc, QTimeZone::UTC);
 		if (m_dbFiles.contains(dateTime))
 		{
 			// remove from extsing

@@ -1,5 +1,11 @@
+// Copyright (C) 2017 The Qt Company Ltd.
+// Copyright (C) 2019-2020 Juan Gonzalez Burgos
+// SPDX-License-Identifier: LGPL-3.0-only
+// Adapted from qopen62541valueconverter.{h,cpp} of Qt OPC UA 6.9.
+
 #include "quatypesconverter.h"
 #include <cstring>
+#include <limits>
 
 #include <QSequentialIterable>
 
@@ -393,11 +399,14 @@ void uaVariantFromQVariantScalar(const QTTYPE & var, TARGETTYPE * ptr)
 template<>
 void uaVariantFromQVariantScalar<UA_DateTime, QDateTime>(const QDateTime &value, UA_DateTime *ptr)
 {
-	// OPC-UA part 3, Table C.9
-	const QDateTime uaEpochStart(QDate(1601, 1, 1), QTime(0, 0), Qt::UTC);
-	auto time = value.toMSecsSinceEpoch();
-	auto ref  = uaEpochStart.toMSecsSinceEpoch();
-	*ptr = UA_DATETIME_MSEC * (time - ref); // 4.26
+	if (!value.isValid())
+	{
+		*ptr = (std::numeric_limits<qint64>::min)();
+		return;
+	}
+	// OPC UA 1.05 part 6, 5.1.4
+	const QDateTime uaEpochStart(QDate(1601, 1, 1), QTime(0, 0), QTimeZone::UTC);
+	*ptr = UA_DATETIME_MSEC * (value.toMSecsSinceEpoch() - uaEpochStart.toMSecsSinceEpoch());
 }
 // specialization (QString)
 template<>
@@ -563,11 +572,22 @@ UA_Variant uaVariantFromQVariantArray(const QVariant & var, const UA_DataType * 
 {
 	UA_Variant retVar;
 	UA_Variant_init(&retVar);
+	if (type == nullptr)
+	{
+		return retVar;
+	}
 	// if empty
 	auto iter = var.value<QSequentialIterable>();
 	if (iter.size() <= 0)
 	{
 		return retVar;
+	}
+	for (const QVariant &item : iter)
+	{
+		if (!item.canConvert<QTTYPE>())
+		{
+			return retVar;
+		}
 	}
 	// instantiate ua array
     TARGETTYPE *arr = static_cast<TARGETTYPE *>(UA_Array_new(static_cast<size_t>(iter.size()), type));
@@ -961,22 +981,25 @@ TARGETTYPE uaVariantToQVariantScalar(const UATYPE * data)
 template<>
 QString uaVariantToQVariantScalar<QString, UA_String>(const UA_String *data)
 {
-	return QString::fromUtf8(reinterpret_cast<const char *>(data->data), static_cast<int>(data->length));
+	return QString::fromUtf8(reinterpret_cast<const char *>(data->data), static_cast<qsizetype>(data->length));
 }
 // specialization (QByteArray)
 template<>
 QByteArray uaVariantToQVariantScalar<QByteArray, UA_ByteString>(const UA_ByteString *data)
 {
-	return QByteArray(reinterpret_cast<const char *>(data->data), static_cast<int>(data->length));
+	return QByteArray(reinterpret_cast<const char *>(data->data), static_cast<qsizetype>(data->length));
 }
 // specialization (QDateTime)
 template<>
 QDateTime uaVariantToQVariantScalar<QDateTime, UA_DateTime>(const UA_DateTime *data)
 {
-	// OPC-UA part 3, Table C.9
-	static const QDateTime epochStart(QDate(1601, 1, 1), QTime(0, 0), Qt::UTC);
-	return epochStart.addMSecs(*data / UA_DATETIME_MSEC)/*.toLocalTime()*/;
-	// TODO : why .toLocalTime() though?
+	// OPC UA 1.05 part 6, 5.1.4
+	if (*data == (std::numeric_limits<qint64>::min)() || *data == (std::numeric_limits<qint64>::max)())
+	{
+		return QDateTime();
+	}
+	static const QDateTime epochStart(QDate(1601, 1, 1), QTime(0, 0), QTimeZone::UTC);
+	return epochStart.addMSecs(*data / UA_DATETIME_MSEC);
 }
 // specialization (QUuid)
 template<>

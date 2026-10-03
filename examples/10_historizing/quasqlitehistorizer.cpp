@@ -250,7 +250,7 @@ QDateTime QUaSqliteHistorizer::firstTimestamp(
 	int timeKeyCol = rec.indexOf("Time");
 	Q_ASSERT(timeKeyCol >= 0);
 	auto timeInt = query.value(timeKeyCol).toLongLong();
-	return QDateTime::fromMSecsSinceEpoch(timeInt, Qt::UTC);
+	return QDateTime::fromMSecsSinceEpoch(timeInt, QTimeZone::UTC);
 }
 
 QDateTime QUaSqliteHistorizer::lastTimestamp(
@@ -313,7 +313,7 @@ QDateTime QUaSqliteHistorizer::lastTimestamp(
 	int timeKeyCol = rec.indexOf("Time");
 	Q_ASSERT(timeKeyCol >= 0);
 	auto timeInt = query.value(timeKeyCol).toLongLong();
-	return QDateTime::fromMSecsSinceEpoch(timeInt, Qt::UTC);
+	return QDateTime::fromMSecsSinceEpoch(timeInt, QTimeZone::UTC);
 }
 
 bool QUaSqliteHistorizer::hasTimestamp(
@@ -471,7 +471,7 @@ QDateTime QUaSqliteHistorizer::findTimestamp(
 	int timeKeyCol = rec.indexOf("Time");
 	Q_ASSERT(timeKeyCol >= 0);
 	auto timeInt = query.value(timeKeyCol).toLongLong();
-	return QDateTime::fromMSecsSinceEpoch(timeInt, Qt::UTC);
+	return QDateTime::fromMSecsSinceEpoch(timeInt, QTimeZone::UTC);
 }
 
 quint64 QUaSqliteHistorizer::numDataPointsInRange(
@@ -607,7 +607,7 @@ QVector<QUaHistoryDataPoint> QUaSqliteHistorizer::readHistoryData(
 		Q_ASSERT(valueKeyCol >= 0);
 		Q_ASSERT(statusKeyCol >= 0);
 		auto timeInt = query.value(timeKeyCol).toLongLong();
-		auto time = QDateTime::fromMSecsSinceEpoch(timeInt, Qt::UTC); // NOTE : expensive if spec not defined
+		auto time = QDateTime::fromMSecsSinceEpoch(timeInt, QTimeZone::UTC); // NOTE : expensive if spec not defined
 		auto value = query.value(valueKeyCol);
 		auto status = query.value(statusKeyCol).toUInt();
 		points << QUaHistoryDataPoint({
@@ -953,7 +953,7 @@ QDateTime QUaSqliteHistorizer::findTimestampEventOfType(
 	int timeKeyCol = rec.indexOf("Time");
 	Q_ASSERT(timeKeyCol >= 0);
 	auto timeInt = query.value(timeKeyCol).toLongLong();
-	return QDateTime::fromMSecsSinceEpoch(timeInt, Qt::UTC);
+	return QDateTime::fromMSecsSinceEpoch(timeInt, QTimeZone::UTC);
 }
 
 quint64 QUaSqliteHistorizer::numEventsOfTypeInRange(
@@ -1265,8 +1265,8 @@ QVector<QUaHistoryEventPoint> QUaSqliteHistorizer::readHistoryEventsOfType(
 	while (query.next() && pointIndex < numPointsToRead)
 	{
 		qulonglong iTime = query.value(colsToIndexes[strTimeColName]).toULongLong();
-		// NOTE : expensive if time spec (Qt::UTC) not defined
-		points[pointIndex].timestamp = QDateTime::fromMSecsSinceEpoch(iTime, Qt::UTC);
+		// NOTE : expensive if time zone (QTimeZone::UTC) not defined
+		points[pointIndex].timestamp = QDateTime::fromMSecsSinceEpoch(iTime, QTimeZone::UTC);
 		auto& fields = points[pointIndex].fields;
 		// populate fields
 		i = colsToIndexes.begin();

@@ -1,3 +1,8 @@
+// Copyright (C) 2017 The Qt Company Ltd.
+// Copyright (C) 2019-2020 Juan Gonzalez Burgos
+// SPDX-License-Identifier: LGPL-3.0-only
+// Adapted from qopen62541valueconverter.{h,cpp} of Qt OPC UA 6.9.
+
 #ifndef QUATYPESCONVERTER_H
 #define QUATYPESCONVERTER_H
 

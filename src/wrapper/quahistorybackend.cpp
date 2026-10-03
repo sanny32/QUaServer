@@ -98,7 +98,7 @@ void QUaHistoryBackend::fixOutputVariantType(
 	if (metaType == QMetaType::QDateTime && value.canConvert(QMetaType::ULongLong))
 	{
 		qulonglong iTime = value.toULongLong();
-		value = QDateTime::fromMSecsSinceEpoch(iTime, Qt::UTC);  // NOTE : expensive if spec not defined
+		value = QDateTime::fromMSecsSinceEpoch(iTime, QTimeZone::UTC);  // NOTE : expensive if spec not defined
 		return;
 	}
 	if (metaType == QMetaType_StatusCode && value.canConvert(QMetaType::UInt))
@@ -346,8 +346,8 @@ UA_HistoryDataBackend QUaHistoryBackend::CreateUaBackend()
 		Q_UNUSED(sessionId);
 		Q_UNUSED(sessionContext);
 		QUaNodeId nodeIdQt  = *nodeId;
-		QDateTime timeStart = startIndex == LLONG_MAX ? QDateTime() : QDateTime::fromMSecsSinceEpoch(startIndex, Qt::UTC);
-		QDateTime timeEnd = endIndex == LLONG_MAX ? QDateTime() : QDateTime::fromMSecsSinceEpoch(endIndex, Qt::UTC);
+		QDateTime timeStart = startIndex == LLONG_MAX ? QDateTime() : QDateTime::fromMSecsSinceEpoch(startIndex, QTimeZone::UTC);
+		QDateTime timeEnd = endIndex == LLONG_MAX ? QDateTime() : QDateTime::fromMSecsSinceEpoch(endIndex, QTimeZone::UTC);
 		// get server
 		QQueue<QUaLog> logOut;
 		QUaServer* srv = QUaServer::getServerNodeContext(server);
@@ -389,8 +389,8 @@ UA_HistoryDataBackend QUaHistoryBackend::CreateUaBackend()
 		Q_UNUSED(releaseContinuationPoints); // not used?
 		// convert inputs
 		QUaNodeId nodeIdQt = *nodeId;
-		QDateTime timeStart = startIndex == LLONG_MAX ? QDateTime() : QDateTime::fromMSecsSinceEpoch(startIndex, Qt::UTC);
-		QDateTime timeEnd = endIndex == LLONG_MAX ? QDateTime() : QDateTime::fromMSecsSinceEpoch(endIndex, Qt::UTC);
+		QDateTime timeStart = startIndex == LLONG_MAX ? QDateTime() : QDateTime::fromMSecsSinceEpoch(startIndex, QTimeZone::UTC);
+		QDateTime timeEnd = endIndex == LLONG_MAX ? QDateTime() : QDateTime::fromMSecsSinceEpoch(endIndex, QTimeZone::UTC);
 		// get offset wrt to previous call
 		quint64 offset = 0;
 		if (continuationPoint->length > 0)
@@ -485,7 +485,7 @@ UA_HistoryDataBackend QUaHistoryBackend::CreateUaBackend()
 		Q_UNUSED(sessionId);
 		Q_UNUSED(sessionContext);
 		QUaNodeId nodeIdQt = *nodeId;
-		QDateTime time = index == LLONG_MAX ? QDateTime() : QDateTime::fromMSecsSinceEpoch(index, Qt::UTC);
+		QDateTime time = index == LLONG_MAX ? QDateTime() : QDateTime::fromMSecsSinceEpoch(index, QTimeZone::UTC);
 		Q_ASSERT(time.isValid());
 		// get server
 		QQueue<QUaLog> logOut;

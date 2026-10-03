@@ -1,5 +1,7 @@
 # QUaServer
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A [Qt](https://www.qt.io/) based C++ library that wraps the [open62541](https://open62541.org/) library and provides an object-oriented API for OPC UA servers.
 
 Part of the flexibility of the *open62541* server API is traded for ease of use: the address space is built from `QObject` based C++ classes, values and events are exposed through Qt signals and properties, and the server runs on the Qt event loop. The goal is to prototype OPC UA servers quickly, without spending much time on complex address space structures. If more flexibility is required, use *open62541* directly.
@@ -121,10 +123,17 @@ The [guide](docs/README.md) explains every feature step by step, each chapter wi
 [Historizing](docs/10_historizing.md) ·
 [Alarms](docs/11_alarms.md)
 
-## License
+## Third-party software
 
-*QUaServer* is licensed under the [MIT License](LICENSE).
+*QUaServer* source code is licensed under MIT, except `src/wrapper/quatypesconverter.h` and `quatypesconverter.cpp`, which are adapted from [Qt OPC UA](https://github.com/qt/qtopcua) and licensed under LGPL-3.0. Binaries built with *QUaServer* also contain *open62541* and, optionally, OpenSSL, each with its own license terms. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and the accompanying [`licenses`](licenses/) directory for the component list and license texts.
 
-The `src/wrapper/quatypesconverter.h` and `quatypesconverter.cpp` files were adapted from the `qopen62541valueconverter` files of [Qt OPC UA](https://github.com/qt/qtopcua) and are under the [LGPL v3 license](https://github.com/qt/qtopcua/blob/dev/LICENSES/LGPL-3.0-only.txt).
+## MIT License
 
-The *open62541* library, fetched into the build directory, is licensed under the [Mozilla Public License 2.0](https://github.com/open62541/open62541/blob/master/LICENSE).
+Copyright (c) 2019 - 2020 Juan Gonzalez Burgos  
+Copyright (c) 2026 Alexandr Ananev
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

@@ -1,3 +1,5 @@
+#include <limits>
+
 #include <QTest>
 #include <QUuid>
 
@@ -16,6 +18,11 @@ private slots:
     void listRoundTrip();
     void arrayCanBeReadAsVector();
     void emptyVariantIsEmpty();
+    void invalidDateTimeIsNullUaDateTime();
+    void extremeUaDateTimeIsInvalid_data();
+    void extremeUaDateTimeIsInvalid();
+    void dateTimeIsReadAsUtc();
+    void arrayWithInconvertibleElementIsEmpty();
     void nodeIdStringConversions();
     void typeIndexOfBuiltinAndUnknownTypes();
     void arrayTypeHelpers();
@@ -141,6 +148,70 @@ void TestTypesConverter::arrayCanBeReadAsVector()
 
     QVERIFY(QUaTypesConverter::isQTypeArray(asVector.metaType()));
     QCOMPARE(asVector.value<QVector<double>>(), QVector<double>({ 0.5, 1.5 }));
+}
+
+///
+/// \brief Regression: an invalid QDateTime was written as an arbitrary UA_DateTime instead of the OPC UA null date.
+///
+void TestTypesConverter::invalidDateTimeIsNullUaDateTime()
+{
+    UA_Variant uaValue = QUaTypesConverter::uaVariantFromQVariant(QVariant(QDateTime()));
+    const UA_DateTime uaTime = *static_cast<UA_DateTime *>(uaValue.data);
+    const QVariant back = QUaTypesConverter::uaVariantToQVariant(uaValue);
+    UA_Variant_clear(&uaValue);
+
+    QCOMPARE(uaTime, (std::numeric_limits<qint64>::min)());
+    QVERIFY(!back.toDateTime().isValid());
+}
+
+void TestTypesConverter::extremeUaDateTimeIsInvalid_data()
+{
+    QTest::addColumn<qint64>("uaTime");
+
+    QTest::newRow("min") << (std::numeric_limits<qint64>::min)();
+    QTest::newRow("max") << (std::numeric_limits<qint64>::max)();
+}
+
+///
+/// \brief OPC UA 1.05 part 6, 5.1.4: the minimum and maximum UA_DateTime values mean "no date".
+///
+void TestTypesConverter::extremeUaDateTimeIsInvalid()
+{
+    QFETCH(qint64, uaTime);
+    UA_DateTime time = uaTime;
+    UA_Variant uaValue;
+    UA_Variant_setScalar(&uaValue, &time, &UA_TYPES[UA_TYPES_DATETIME]);
+
+    const QVariant back = QUaTypesConverter::uaVariantToQVariant(uaValue);
+
+    QCOMPARE(back.metaType(), QMetaType::fromType<QDateTime>());
+    QVERIFY(!back.toDateTime().isValid());
+}
+
+void TestTypesConverter::dateTimeIsReadAsUtc()
+{
+    const QDateTime local(QDate(2026, 10, 2), QTime(12, 0), QTimeZone::LocalTime);
+
+    UA_Variant uaValue = QUaTypesConverter::uaVariantFromQVariant(QVariant(local));
+    const QDateTime back = QUaTypesConverter::uaVariantToQVariant(uaValue).toDateTime();
+    UA_Variant_clear(&uaValue);
+
+    QCOMPARE(back.timeSpec(), Qt::UTC);
+    QCOMPARE(back, local);
+}
+
+///
+/// \brief An array is written only when every element converts to the type of the first one.
+///
+void TestTypesConverter::arrayWithInconvertibleElementIsEmpty()
+{
+    const QVariantList list = { 1, QVariant::fromValue(QUaNodeId(1, QStringLiteral("x"))) };
+
+    UA_Variant uaValue = QUaTypesConverter::uaVariantFromQVariant(list);
+    const bool empty = UA_Variant_isEmpty(&uaValue);
+    UA_Variant_clear(&uaValue);
+
+    QVERIFY(empty);
 }
 
 ///
