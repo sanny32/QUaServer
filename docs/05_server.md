@@ -24,7 +24,8 @@ mkdir ca
 # Create CA key
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out ca/ca.key
 # Create self-signed CA cert
-openssl req -new -x509 -days 3600 -key ca/ca.key -subj "/CN=juangburgos CA/O=juangburgos Organization" -out ca/ca.crt
+openssl req -new -x509 -days 3600 -key ca/ca.key -subj "/CN=juangburgos CA/O=juangburgos Organization" \
+-addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign,cRLSign" -out ca/ca.crt
 # Convert cert to der format
 openssl x509 -in ca/ca.crt -inform pem -out ca/ca.crt.der -outform der
 # Create cert revocation list CRL file
@@ -175,8 +176,18 @@ This information is then made available to the clients through the *Server Objec
   <img src="../res/img/05_server_01.jpg">
 </p>
 
+## Hostname
+
+By default the server listens on all network interfaces. To listen on a single interface, set its hostname or IP address before starting the server:
+
+```c++
+server.setHostname("192.168.1.18");
+```
+
+The server then also advertises `opc.tcp://<hostname>:<port>` as its discovery URL. If the hostname cannot be resolved, `start()` fails. The hostname must be listed in the `subjectAltName` of the server certificate. Clients that connect through another name (e.g. behind NAT) still get endpoints with the URL they used.
+
 ## Server Example
 
 Build and run the [05_server](../examples/05_server/main.cpp) example to learn more.
 
-Some test certificates are included for convenience in [examples/05_server/ca_files](../examples/05_server/ca_files). **Do not use them in production**, just for testing purposes.
+Some test certificates are included for convenience in [examples/05_server/ca_files](../examples/05_server/ca_files). **Do not use them in production**, just for testing purposes. That CA predates the `keyUsage` extension above, so it cannot be used to trust clients (see [Encryption](07_encryption.md)).

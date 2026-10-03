@@ -64,6 +64,39 @@ Once encryption is available, user names and passwords are only accepted over en
   <img src="../res/img/07_encryption_02.jpg">
 </p>
 
+## Trusting Clients
+
+On an encrypted channel the client presents its own certificate. By default the server accepts **any** client certificate. To accept only known clients, pass DER encoded certificates to the server before starting it:
+
+```c++
+// client certificates, or the CAs that signed them
+server.setTrustedCertificates({ readFile("client.crt.der") });
+// CAs needed to complete the chain of a trusted client certificate, not trusted themselves
+server.setIssuerCertificates({ readFile("ca.crt.der") });
+// revocation lists of the trusted and issuer CAs
+server.setRevocationLists({ readFile("ca.crl.der") });
+```
+
+* Trusting a **CA** accepts every client certificate it signed, unless the certificate is listed in its revocation list.
+* Trusting a **client certificate** that is signed by a CA also requires that CA in the issuer list, otherwise the chain is incomplete and the client is rejected.
+* A CA certificate must have the `keyCertSign` and `cRLSign` key usages (see the [Server](05_server.md) section), otherwise the clients it signed are rejected.
+* The issuer and revocation lists are ignored while the trusted list is empty.
+* Every entry must be a valid DER (or PEM) certificate or CRL. An invalid entry stops the remaining entries of its list from being loaded.
+
+Rejected clients are reported through the `logMessage` signal.
+
+## Security Policies
+
+The server publishes an endpoint for every combination of the available security policies and message security modes, including the unencrypted `None` endpoint. Restrict them before starting the server:
+
+```c++
+// only Basic256Sha256 and Aes256_Sha256_RsaPss, always signed and encrypted
+server.setSecurityPolicies(QUaSecurityPolicy::Basic256Sha256 | QUaSecurityPolicy::Aes256Sha256RsaPss);
+server.setSecurityModes(QUaMessageSecurityMode::SignAndEncrypt);
+```
+
+Clients still discover the endpoints over an unencrypted channel, but can only open a session on the published ones. If no endpoint is left, `start()` fails. The deprecated `Basic128Rsa15` and `Basic256` policies are only available when *open62541* is built with `UA_INCLUDE_INSECURE_POLICIES`; the ECC policies need an ECC certificate.
+
 ## Encryption Example
 
 Build and run the [07_encryption](../examples/07_encryption/main.cpp) example to learn more.

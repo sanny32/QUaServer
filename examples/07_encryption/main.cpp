@@ -33,6 +33,8 @@ int main(int argc, char *argv[])
 	server.setCertificate(certServer.readAll());
 	server.setPrivateKey (privServer.readAll());
 	privServer.close();
+	// Publish only signed and encrypted endpoints; restrict clients with setTrustedCertificates()
+	server.setSecurityModes(QUaMessageSecurityMode::SignAndEncrypt);
 #else
 	QUaServer server;
 	server.setCertificate(certServer.readAll());
