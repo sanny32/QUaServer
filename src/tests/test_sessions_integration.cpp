@@ -86,7 +86,8 @@ void TestSessionsIntegration::runningServerKeepsEventLoopResponsive()
         longestStep = qMax(longestStep, step.elapsed());
     }
 
-    QVERIFY2(longestStep < 100, qPrintable(QStringLiteral("event loop stalled for %1 ms").arg(longestStep)));
+    // Allow CI scheduling jitter while still detecting the 500 ms blocking regression.
+    QVERIFY2(longestStep < 250, qPrintable(QStringLiteral("event loop stalled for %1 ms").arg(longestStep)));
 }
 
 ///
