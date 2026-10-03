@@ -48,23 +48,17 @@ function(quaserver_hint_qt_openssl)
     endif()
 endfunction()
 
-# Sets QUASERVER_OPENSSL_RUNTIME_DLLS to the OpenSSL DLLs that executables need at run time.
-function(quaserver_find_openssl_runtime)
-    set(_dlls)
-    if(WIN32)
-        get_filename_component(_bin "${OPENSSL_INCLUDE_DIR}/../bin" ABSOLUTE)
-        file(GLOB _dlls "${_bin}/libcrypto-*.dll" "${_bin}/libssl-*.dll")
-    endif()
-    set(QUASERVER_OPENSSL_RUNTIME_DLLS ${_dlls} PARENT_SCOPE)
-endfunction()
-
-# Copies the OpenSSL runtime DLLs next to the executable <target>.
+# Copies the OpenSSL runtime DLLs next to the executable <target> on Windows.
+# Reads only cache variables, so host projects can call it from any directory.
 function(quaserver_deploy_openssl_runtime target)
-    if(QUASERVER_OPENSSL_RUNTIME_DLLS)
+    if(NOT WIN32 OR NOT QUASERVER_ENCRYPTION OR NOT OPENSSL_INCLUDE_DIR)
+        return()
+    endif()
+    get_filename_component(_bin "${OPENSSL_INCLUDE_DIR}/../bin" ABSOLUTE)
+    file(GLOB _dlls "${_bin}/libcrypto-*.dll" "${_bin}/libssl-*.dll")
+    if(_dlls)
         add_custom_command(TARGET ${target} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                    ${QUASERVER_OPENSSL_RUNTIME_DLLS}
-                    $<TARGET_FILE_DIR:${target}>
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${_dlls} $<TARGET_FILE_DIR:${target}>
             VERBATIM)
     endif()
 endfunction()
@@ -75,7 +69,6 @@ endfunction()
 if(QUASERVER_ENCRYPTION)
     quaserver_hint_qt_openssl()
     find_package(OpenSSL 3 REQUIRED COMPONENTS Crypto)
-    quaserver_find_openssl_runtime()
     quaserver_set_cache(UA_ENABLE_ENCRYPTION OPENSSL STRING)
 else()
     quaserver_set_cache(UA_ENABLE_ENCRYPTION OFF STRING)
@@ -104,6 +97,9 @@ quaserver_set_cache(UA_ENABLE_DEBUG_SANITIZER OFF BOOL)
 # Link against the same (dynamic) C runtime as Qt
 quaserver_set_cache(UA_MSVC_FORCE_STATIC_CRT OFF BOOL)
 
+# QUaServer is a static library and expects open62541 to be linked into it, whatever the host project builds
+set(BUILD_SHARED_LIBS OFF)
+
 FetchContent_Declare(open62541
     GIT_REPOSITORY https://github.com/open62541/open62541.git
     GIT_TAG        ${QUASERVER_OPEN62541_VERSION}
@@ -112,3 +108,5 @@ FetchContent_Declare(open62541
     GIT_SUBMODULES ""
 )
 FetchContent_MakeAvailable(open62541)
+# open62541 is linked into QUaServer, so a host project's install must not ship its headers and library
+set_property(DIRECTORY ${open62541_SOURCE_DIR} PROPERTY EXCLUDE_FROM_ALL TRUE)

@@ -101,12 +101,19 @@ target_include_directories(QUaServer PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 
+target_compile_features(QUaServer PUBLIC cxx_std_17)
+
 target_link_libraries(QUaServer PUBLIC
     Qt6::Core
     open62541::open62541
 )
 
+if(WIN32)
+    # quaserver.cpp resolves client addresses with Winsock
+    target_link_libraries(QUaServer PRIVATE ws2_32)
+endif()
+
 if(MSVC)
     # macro redefinition warnings coming from open62541 headers
-    target_compile_options(QUaServer PUBLIC /wd4005 /Zc:__cplusplus /permissive-)
+    target_compile_options(QUaServer PUBLIC /wd4005)
 endif()

@@ -9,7 +9,7 @@ cmake -S . -B build -DCMAKE_PREFIX_PATH=<path to Qt6> -DQUASERVER_ENCRYPTION=ON
 cmake --build build
 ```
 
-* On **Windows**, the OpenSSL toolkit shipped with Qt is used. Install it with the *Qt Maintenance Tool* (*Developer and Designer Tools → OpenSSL 3.x Toolkit*); it is found automatically in `<Qt root>/Tools/OpenSSLv3`. The OpenSSL DLLs (`libcrypto-3-x64.dll`, `libssl-3-x64.dll`) are copied next to the built examples and tests; deploy them along with your own application.
+* On **Windows**, the OpenSSL toolkit shipped with Qt is used. Install it with the *Qt Maintenance Tool* (*Developer and Designer Tools → OpenSSL 3.x Toolkit*); it is found automatically in `<Qt root>/Tools/OpenSSLv3`. The OpenSSL DLLs (`libcrypto-3-x64.dll`, `libssl-3-x64.dll`) are copied next to the built examples and tests. In your own project, call `quaserver_deploy_openssl_runtime(<target>)` to copy them next to your executable, and deploy them along with it.
 * On **Linux**, the system OpenSSL is used (e.g. `sudo apt install libssl-dev`), the same one Qt itself relies on.
 
 To use another OpenSSL installation, pass `-DOPENSSL_ROOT_DIR=<path to OpenSSL>`.

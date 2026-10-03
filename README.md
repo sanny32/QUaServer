@@ -95,18 +95,36 @@ The `quaserver_check` target builds and runs all of them at once.
 
 ## Use in Your Project
 
-Add this repository as a subdirectory and link against the `QUaServer::QUaServer` target:
+*QUaServer* is meant to be built as part of the host project, either fetched by CMake or added as a subdirectory (e.g. a git submodule). Set the build options before adding it, then link against the `QUaServer::QUaServer` target:
 
 ```cmake
 cmake_minimum_required(VERSION 3.21)
 project(my_project LANGUAGES C CXX)
 
-set(QUASERVER_EVENTS ON CACHE BOOL "" FORCE)
-add_subdirectory(QUaServer)
+set(QUASERVER_EVENTS ON)
+set(QUASERVER_ENCRYPTION ON)
+
+include(FetchContent)
+FetchContent_Declare(QUaServer
+    GIT_REPOSITORY https://github.com/sanny32/QUaServer.git
+    GIT_TAG        <commit or tag>
+)
+FetchContent_MakeAvailable(QUaServer)
+# or, with the sources in the project tree:
+# add_subdirectory(QUaServer)
 
 add_executable(my_project main.cpp)
 target_link_libraries(my_project PRIVATE QUaServer::QUaServer)
+# Windows only: copies the OpenSSL DLLs next to the executable when encryption is enabled
+quaserver_deploy_openssl_runtime(my_project)
 ```
+
+When embedded:
+
+* *QUaServer* and *open62541* are always built as static libraries with position-independent code, regardless of the host project's `BUILD_SHARED_LIBS`, so they can be linked into executables, shared libraries and plugins.
+* Examples are not built by default, and the host project's `cmake --install` installs nothing from *QUaServer* or *open62541*: they are already linked into the host binaries.
+* At run time the application needs the Qt libraries and, with `QUASERVER_ENCRYPTION`, the OpenSSL libraries (see [Encryption](docs/07_encryption.md)); deploy them along with it.
+* The binaries contain third-party code with its own license terms, see [Third-party software](#third-party-software).
 
 ## Documentation
 
