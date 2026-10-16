@@ -1507,6 +1507,10 @@ bool QUaServer::resetConfig()
 		return false;
 	}
 	this->applyServerUrls(config);
+	// open62541 enables SO_REUSEPORT on POSIX and SO_REUSEADDR on Windows,
+	// allowing multiple servers to listen on the same address and port.
+	// Its TCP shutdown path enables reuse before closing sockets for restarts.
+	config->tcpReuseAddr = false;
 
 	// NOTE : open62541 >= 1.4 does not allow user and password on unencrypted
 	//        channels by default, keep previous QUaServer behaviour if no encryption
