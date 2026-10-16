@@ -224,6 +224,12 @@ public:
 	void setRevocationLists(const QList<QByteArray>& revocationLists);
 
 	///
+	/// \brief Returns the client application certificates rejected since the last start(), oldest first.
+	///        open62541 keeps at most 100 of them and drops the whole list when that is exceeded.
+	///
+	QList<QByteArray> rejectedCertificates() const;
+
+	///
 	/// \brief Returns the security policies the server publishes endpoints for.
 	///
 	QUaSecurityPolicies securityPolicies() const;
@@ -503,6 +509,12 @@ signals:
 	void revocationListsChanged      (const QList<QByteArray> &revocationLists    );
 	void securityPoliciesChanged     (const QUaSecurityPolicies &securityPolicies );
 	void securityModesChanged        (const QUaMessageSecurityModes &securityModes);
+	///
+	/// \brief Emitted when a client application certificate fails validation while opening a secure channel.
+	/// \param certificate Rejected DER certificate.
+	/// \param statusCode Reason, e.g. BadCertificateUntrusted.
+	///
+	void clientCertificateRejected   (const QByteArray &certificate, const QUaStatusCode &statusCode);
 #endif
 	void hostnameChanged             (const QString &strHostname          );
 	void maxSecureChannelsChanged    (const quint16 &maxSecureChannels    );
@@ -552,6 +564,9 @@ private:
 	QList<QByteArray>       _listRevocation;
 	QUaSecurityPolicies     _securityPolicies;
 	QUaMessageSecurityModes _securityModes;
+	// default open62541 implementation, wrapped by QUaServer::verifyClientCertificate
+	UA_StatusCode (*_defaultVerifyCertificate)(UA_CertificateGroup *certGroup, const UA_ByteString *certificate);
+	static QHash<const UA_CertificateGroup*, QUaServer*> _hashCertificateGroups;
 #endif
 	QString _strHostname;
 
@@ -859,6 +874,10 @@ private:
 		                               const UA_UsernamePasswordLogin*usernamePasswordLogin,
 		                               void                         **sessionContext,
 		                               void                          *loginContext);
+
+#ifdef UA_ENABLE_ENCRYPTION
+	static UA_StatusCode verifyClientCertificate(UA_CertificateGroup *certGroup, const UA_ByteString *certificate);
+#endif // UA_ENABLE_ENCRYPTION
 
 	static void newSession(QUaServer* server,
 		                   const UA_NodeId* sessionId,
