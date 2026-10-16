@@ -28,6 +28,10 @@ private slots:
     void validationCallbackReplacesPasswordCheck();
     void closingSessionWithSubscriptionKeepsServerAlive();
     void stopDisconnectsClients();
+    void anonymousSessionDescribesItsEndpoint();
+    void userSessionIsNotAnonymous();
+    void sessionDiagnosticsCountSubscriptions();
+    void sessionDiagnosticsOfUnknownSessionAreInvalid();
 
 private:
     QUaServer *_server = nullptr;
@@ -227,6 +231,7 @@ void TestSessionsIntegration::userLoginChecksPassword()
     {
         QTRY_COMPARE(_server->sessions().count(), 1);
         QCOMPARE(_server->sessions().first()->userName(), userName);
+        QVERIFY(!_server->sessions().first()->isAnonymous());
     }
 }
 
@@ -290,6 +295,75 @@ void TestSessionsIntegration::stopDisconnectsClients()
 
     QCOMPARE(disconnectedSpy.count(), 1);
     QVERIFY(_server->sessions().isEmpty());
+}
+
+///
+/// \brief An anonymous session reports itself as anonymous and the unsecured endpoint it was activated on.
+///
+void TestSessionsIntegration::anonymousSessionDescribesItsEndpoint()
+{
+    QVERIFY(TestServer::start(*_server));
+    TestClient client;
+    QCOMPARE(client.connect(TestServer::endpointUrl(*_server)), UA_STATUSCODE_GOOD);
+
+    QTRY_COMPARE(_server->sessions().count(), 1);
+    const QUaSession *session = _server->sessions().first();
+    QVERIFY(session->isAnonymous());
+    QCOMPARE(session->securityMode(), QUaMessageSecurityMode::None);
+    QCOMPARE(session->securityPolicyUri(), QStringLiteral("http://opcfoundation.org/UA/SecurityPolicy#None"));
+    QVERIFY(session->endpointUrl().startsWith(QStringLiteral("opc.tcp://")));
+}
+
+///
+/// \brief A session logged in with a user name is not anonymous.
+///
+void TestSessionsIntegration::userSessionIsNotAnonymous()
+{
+    _server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
+    QVERIFY(TestServer::start(*_server));
+    TestClient client;
+    QCOMPARE(client.connectUsername(TestServer::endpointUrl(*_server), QStringLiteral("alice"), QStringLiteral("secret")),
+             UA_STATUSCODE_GOOD);
+
+    QTRY_COMPARE(_server->sessions().count(), 1);
+    QVERIFY(!_server->sessions().first()->isAnonymous());
+}
+
+///
+/// \brief The diagnostics of a session count its subscriptions and monitored items.
+///
+void TestSessionsIntegration::sessionDiagnosticsCountSubscriptions()
+{
+    QUaBaseDataVariable *variable = _server->objectsFolder()->addBaseDataVariable(
+        QStringLiteral("watched"), QUaNodeId(1, QStringLiteral("watched")));
+    variable->setValue(1);
+    QVERIFY(TestServer::start(*_server));
+    TestClient client;
+    QCOMPARE(client.connect(TestServer::endpointUrl(*_server)), UA_STATUSCODE_GOOD);
+    QTRY_COMPARE(_server->sessions().count(), 1);
+    const QUaSession *session = _server->sessions().first();
+
+    QUaSessionDiagnostics diagnostics = _server->sessionDiagnostics(session);
+    QVERIFY(diagnostics.isValid);
+    QCOMPARE(diagnostics.subscriptionsCount, 0u);
+
+    QCOMPARE(client.monitorValue(variable->nodeId()), UA_STATUSCODE_GOOD);
+    diagnostics = _server->sessionDiagnostics(session);
+    QCOMPARE(diagnostics.subscriptionsCount, 1u);
+    QCOMPARE(diagnostics.monitoredItemsCount, 1u);
+    QVERIFY(diagnostics.connectionTime.isValid());
+    QVERIFY(diagnostics.lastContactTime >= diagnostics.connectionTime);
+}
+
+///
+/// \brief Diagnostics are invalid for a session the server does not know.
+///
+void TestSessionsIntegration::sessionDiagnosticsOfUnknownSessionAreInvalid()
+{
+    QVERIFY(TestServer::start(*_server));
+    QUaSession stranger;
+    QVERIFY(!_server->sessionDiagnostics(&stranger).isValid);
+    QVERIFY(!_server->sessionDiagnostics(nullptr).isValid);
 }
 
 QTEST_GUILESS_MAIN(TestSessionsIntegration)

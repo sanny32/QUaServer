@@ -227,6 +227,8 @@ void TestEncryptionIntegration::encryptedSessionChecksPassword()
     {
         QTRY_COMPARE(_server->sessions().count(), 1);
         QCOMPARE(_server->sessions().first()->userName(), QStringLiteral("alice"));
+        QCOMPARE(_server->sessions().first()->securityMode(), QUaMessageSecurityMode::SignAndEncrypt);
+        QVERIFY(_server->sessions().first()->securityPolicyUri().startsWith(QStringLiteral("http://opcfoundation.org/UA/SecurityPolicy#")));
     }
 }
 

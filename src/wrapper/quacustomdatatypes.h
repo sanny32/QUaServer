@@ -915,6 +915,10 @@ class QUaSession : public QObject
     Q_PROPERTY(QString   address         READ address        )
     Q_PROPERTY(quint16   port            READ port           )
     Q_PROPERTY(QDateTime timestamp       READ timestamp      )
+    Q_PROPERTY(bool      isAnonymous     READ isAnonymous    )
+    Q_PROPERTY(QString   endpointUrl     READ endpointUrl    )
+    Q_PROPERTY(QString   securityPolicyUri READ securityPolicyUri)
+    Q_PROPERTY(QUaMessageSecurityMode securityMode READ securityMode)
 
 public:
 
@@ -929,6 +933,26 @@ public:
     quint16   port           () const;
     QDateTime timestamp      () const;
 
+    ///
+    /// \brief Tells whether the session logged in with an anonymous or empty identity token.
+    ///
+    bool      isAnonymous    () const;
+
+    ///
+    /// \brief Returns the endpoint URL the client asked for when creating the session; empty without UA_ENABLE_DIAGNOSTICS.
+    ///
+    QString   endpointUrl    () const;
+
+    ///
+    /// \brief Returns the security policy URI of the endpoint the session was activated on.
+    ///
+    QString   securityPolicyUri() const;
+
+    ///
+    /// \brief Returns the message security mode of the endpoint the session was activated on.
+    ///
+    QUaMessageSecurityMode securityMode() const;
+
 private:
     QString   _strSessionId;
     QString   _strUserName;
@@ -938,6 +962,27 @@ private:
     QString   _strAddress;
     quint16   _intPort;
     QDateTime _timestamp;
+    bool      _isAnonymous;
+    QString   _strEndpointUrl;
+    QString   _strSecurityPolicyUri;
+    QUaMessageSecurityMode _securityMode;
+};
+
+///
+/// \brief Live counters of a session, read from the server diagnostics (UA_ENABLE_DIAGNOSTICS).
+///
+struct QUaSessionDiagnostics
+{
+    /// Whether the server reported diagnostics for the session; the other members are meaningless otherwise.
+    bool      isValid             = false;
+    /// Subscriptions the session holds.
+    quint32   subscriptionsCount  = 0;
+    /// Monitored items of all its subscriptions.
+    quint32   monitoredItemsCount = 0;
+    /// Time the client created the session.
+    QDateTime connectionTime;
+    /// Time of the last request of the client.
+    QDateTime lastContactTime;
 };
 
 
