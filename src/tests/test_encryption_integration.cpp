@@ -1,4 +1,5 @@
 #include <QFile>
+#include <QSignalSpy>
 #include <QTest>
 
 #include <QUaServer>
@@ -72,6 +73,8 @@ private slots:
     void passwordOverUnencryptedChannelIsRejected();
     void clientTrust_data();
     void clientTrust();
+    void rejectedClientCertificateIsReported();
+    void acceptedClientCertificateIsNotReported();
     void securityPoliciesAndModesFilterEndpoints();
     void noMatchingEndpointFailsToStart();
     void userCertificateTokenNeedsCallback_data();
@@ -297,6 +300,50 @@ void TestEncryptionIntegration::clientTrust()
     {
         QCOMPARE(_server->sessions().count(), 0);
     }
+}
+
+///
+/// \brief A client certificate that fails validation is announced and kept in the rejected list.
+///
+void TestEncryptionIntegration::rejectedClientCertificateIsReported()
+{
+    _server->setCertificate(_certificate);
+    _server->setPrivateKey(_privateKey);
+    _server->setTrustedCertificates({ _untrustedCertificate });
+    _server->setAnonymousLoginAllowed(false);
+    _server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
+    QSignalSpy rejectedSpy(_server, &QUaServer::clientCertificateRejected);
+    QVERIFY(TestServer::start(*_server));
+
+    QVERIFY(connectAsAlice(_client) != UA_STATUSCODE_GOOD);
+
+    QTRY_VERIFY(rejectedSpy.count() >= 1);
+    QCOMPARE(rejectedSpy.first().at(0).toByteArray(), _client.certificate);
+    QVERIFY(UA_StatusCode(rejectedSpy.first().at(1).value<QUaStatusCode>()) != UA_STATUSCODE_GOOD);
+    QCOMPARE(_server->rejectedCertificates(), QList<QByteArray>{ _client.certificate });
+
+    _server->stop();
+    QVERIFY(_server->start());
+    QVERIFY(_server->rejectedCertificates().isEmpty());
+}
+
+///
+/// \brief A client certificate that passes validation is neither announced nor kept.
+///
+void TestEncryptionIntegration::acceptedClientCertificateIsNotReported()
+{
+    _server->setCertificate(_certificate);
+    _server->setPrivateKey(_privateKey);
+    _server->setTrustedCertificates({ _client.certificate });
+    _server->setIssuerCertificates({ _caCertificate });
+    _server->setAnonymousLoginAllowed(false);
+    _server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
+    QSignalSpy rejectedSpy(_server, &QUaServer::clientCertificateRejected);
+    QVERIFY(TestServer::start(*_server));
+
+    QCOMPARE(connectAsAlice(_client), UA_STATUSCODE_GOOD);
+    QCOMPARE(rejectedSpy.count(), 0);
+    QVERIFY(_server->rejectedCertificates().isEmpty());
 }
 
 void TestEncryptionIntegration::securityPoliciesAndModesFilterEndpoints()

@@ -679,6 +679,9 @@ QUaServer * QUaServer::getServerNodeContext(UA_Server * server)
 
 QString QUaServer::_anonUser      = QObject::tr("[Anonymous]");
 QString QUaServer::_anonUserToken = QObject::tr("[Anonymous:EmptyToken]");
+#ifdef UA_ENABLE_ENCRYPTION
+QHash<const UA_CertificateGroup*, QUaServer*> QUaServer::_hashCertificateGroups;
+#endif // UA_ENABLE_ENCRYPTION
 QStringList QUaServer::_anonUsers = QStringList() 
 	<< QUaServer::_anonUser
 	<< QUaServer::_anonUserToken;
@@ -1339,6 +1342,7 @@ QUaServer::QUaServer(QObject* parent/* = 0*/)
 	_bytePrivateKeyInternal = QByteArray();
 	_securityPolicies = QUaSecurityPolicy::All;
 	_securityModes = QUaMessageSecurityMode::All;
+	_defaultVerifyCertificate = nullptr;
 #endif
 #ifdef UA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS
 	_conditionsRefreshRequired = false;
@@ -1513,6 +1517,12 @@ bool QUaServer::resetConfig()
 		{
 			UA_LOG_ERROR(config->logging, UA_LOGCATEGORY_SERVER,
 				"Could not configure encryption with the given certificates : %s", UA_StatusCode_name(st));
+		}
+		else
+		{
+			_defaultVerifyCertificate = config->secureChannelPKI.verifyCertificate;
+			config->secureChannelPKI.verifyCertificate = &QUaServer::verifyClientCertificate;
+			QUaServer::_hashCertificateGroups.insert(&config->secureChannelPKI, this);
 		}
 	}
 	else
@@ -1988,6 +1998,9 @@ QUaServer::~QUaServer()
 		delete this->children().at(0);
 	}
 	// cleanup open62541
+#ifdef UA_ENABLE_ENCRYPTION
+	QUaServer::_hashCertificateGroups.remove(&UA_Server_getConfig(this->_server)->secureChannelPKI);
+#endif // UA_ENABLE_ENCRYPTION
 	UA_Server_delete(this->_server);
 	// custom data types are not owned by open62541
 	for (auto custType : _customDataTypes)
@@ -2086,6 +2099,46 @@ void QUaServer::setRevocationLists(const QList<QByteArray>& revocationLists)
 {
 	_listRevocation = revocationLists;
 	emit this->revocationListsChanged(_listRevocation);
+}
+
+///
+/// \brief Returns the client application certificates rejected since the last start(), oldest first.
+///        open62541 keeps at most 100 of them and drops the whole list when that is exceeded.
+///
+QList<QByteArray> QUaServer::rejectedCertificates() const
+{
+	QList<QByteArray> certificates;
+	UA_CertificateGroup *group = &UA_Server_getConfig(_server)->secureChannelPKI;
+	UA_ByteString *list = nullptr;
+	size_t listSize = 0;
+	if (!group->getRejectedList || group->getRejectedList(group, &list, &listSize) != UA_STATUSCODE_GOOD)
+	{
+		return certificates;
+	}
+	for (size_t i = 0; i < listSize; i++)
+	{
+		certificates << QByteArray(reinterpret_cast<const char*>(list[i].data), static_cast<qsizetype>(list[i].length));
+	}
+	UA_Array_delete(list, listSize, &UA_TYPES[UA_TYPES_BYTESTRING]);
+	return certificates;
+}
+
+///
+/// \brief Wraps the open62541 secure channel certificate check to report the certificates it rejects.
+///
+UA_StatusCode QUaServer::verifyClientCertificate(UA_CertificateGroup *certGroup, const UA_ByteString *certificate)
+{
+	QUaServer *srv = QUaServer::_hashCertificateGroups.value(certGroup, nullptr);
+	Q_CHECK_PTR(srv);
+	Q_CHECK_PTR(srv->_defaultVerifyCertificate);
+	const UA_StatusCode st = srv->_defaultVerifyCertificate(certGroup, certificate);
+	if (st != UA_STATUSCODE_GOOD)
+	{
+		emit srv->clientCertificateRejected(
+			QByteArray(reinterpret_cast<const char*>(certificate->data), static_cast<qsizetype>(certificate->length)),
+			QUaStatusCode(st));
+	}
+	return st;
 }
 
 ///
