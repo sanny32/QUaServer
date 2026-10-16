@@ -18,6 +18,8 @@ private slots:
     void startAndStopToggleRunning();
     void runningServerKeepsEventLoopResponsive();
     void serverCanBeRestarted();
+    void serverCanBeRestartedAfterClientDisconnects();
+    void startFailsOnPortInUse();
     void anonymousClientConnectsAndDisconnects();
     void anonymousLoginCanBeDisabled();
     void endpointsOfferUserNameToken();
@@ -98,6 +100,42 @@ void TestSessionsIntegration::serverCanBeRestarted()
     QVERIFY(TestServer::start(*_server));
     _server->stop();
     QVERIFY(_server->start());
+
+    TestClient client;
+    QCOMPARE(client.connect(TestServer::endpointUrl(*_server)), UA_STATUSCODE_GOOD);
+}
+
+///
+/// \brief Stopping a server a client was connected to frees its port for an immediate restart.
+///
+void TestSessionsIntegration::serverCanBeRestartedAfterClientDisconnects()
+{
+    QVERIFY(TestServer::start(*_server));
+    {
+        TestClient client;
+        QCOMPARE(client.connect(TestServer::endpointUrl(*_server)), UA_STATUSCODE_GOOD);
+        QCOMPARE(client.disconnect(), UA_STATUSCODE_GOOD);
+    }
+    _server->stop();
+    QVERIFY(_server->start());
+
+    TestClient client;
+    QCOMPARE(client.connect(TestServer::endpointUrl(*_server)), UA_STATUSCODE_GOOD);
+}
+
+///
+/// \brief Regression: on Windows a second server started on a port in use, taking it over.
+///
+void TestSessionsIntegration::startFailsOnPortInUse()
+{
+    QVERIFY(TestServer::start(*_server));
+
+    QUaServer second;
+    second.setPort(_server->port());
+    QSignalSpy runningSpy(&second, &QUaServer::isRunningChanged);
+    QVERIFY(!second.start());
+    QVERIFY(!second.isRunning());
+    QCOMPARE(runningSpy.count(), 0);
 
     TestClient client;
     QCOMPARE(client.connect(TestServer::endpointUrl(*_server)), UA_STATUSCODE_GOOD);
