@@ -57,9 +57,11 @@ using quaSocket = int;
 
 #include <QFile>
 #include <QMetaProperty>
+#include <QSaveFile>
 #include <QTimer>
 
 #include "quanodesetloader.h"
+#include "quanodesetwriter.h"
 
 #ifdef UA_ENABLE_ENCRYPTION
 namespace {
@@ -2494,6 +2496,44 @@ QUaNodeSetResult QUaServer::loadNodeSet(QIODevice* device)
 {
 	QUaNodeSetLoader loader(this);
 	return loader.load(device);
+}
+
+bool QUaNodeSetExportResult::isOk() const
+{
+	return errorString.isEmpty();
+}
+
+///
+/// \brief Writes the nodes of \a namespaceUris, every namespace but 0 when empty, to a NodeSet2 XML file that
+///        loadNodeSet() reads back: their attributes, values, references and data type definitions. The NodeSet
+///        lists all server namespaces, so its namespace indexes are the server ones.
+/// \return The exported nodes and warnings, or an error when a namespace is unknown or the file cannot be written.
+///
+QUaNodeSetExportResult QUaServer::exportNodeSet(const QString& fileName, const QStringList& namespaceUris) const
+{
+	QSaveFile file(fileName);
+	if (!file.open(QIODevice::WriteOnly))
+	{
+		QUaNodeSetExportResult result;
+		result.errorString = QStringLiteral("Cannot open %1: %2").arg(fileName, file.errorString());
+		return result;
+	}
+	QUaNodeSetExportResult result = this->exportNodeSet(&file, namespaceUris);
+	if (result.isOk() && !file.commit())
+	{
+		result.errorString = QStringLiteral("Cannot write %1: %2").arg(fileName, file.errorString());
+		result.exportedNodes.clear();
+	}
+	return result;
+}
+
+///
+/// \brief Same as exportNodeSet(const QString&, const QStringList&), writing the NodeSet2 XML to an open \a device.
+///
+QUaNodeSetExportResult QUaServer::exportNodeSet(QIODevice* device, const QStringList& namespaceUris) const
+{
+	QUaNodeSetWriter writer(this);
+	return writer.write(device, namespaceUris);
 }
 
 ///

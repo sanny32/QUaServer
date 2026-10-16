@@ -11,7 +11,7 @@ Features:
 
 * Objects, variables, properties and folders, with custom object and variable types
 * Scalar, array and multi-dimensional array values, and custom structured data types
-* Loading of information models from NodeSet2 XML files, such as the OPC UA companion specifications
+* Loading of information models from NodeSet2 XML files, such as the OPC UA companion specifications, and exporting the address space to NodeSet2
 * Validation of client writes before they are applied
 * Methods callable by clients, from callbacks, lambdas or `Q_INVOKABLE` methods
 * Custom non-hierarchical references

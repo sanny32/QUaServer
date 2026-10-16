@@ -51,6 +51,21 @@ QList<QUaNode*> fed = machine->findReferences({ "Feeds", "FedBy" });
 * Objects and variables of event types, and of types derived from abstract types such as `BaseVariableType`, have no C++ instance.
 * The models a NodeSet requires (`RequiredModel`) are not checked.
 
+## Exporting
+
+`exportNodeSet()` writes the nodes of the given namespaces, or of every namespace but 0, to a NodeSet2 file that `loadNodeSet()` reads back, for instance to save nodes created in C++ or by clients and serve them again later:
+
+```c++
+QUaNodeSetExportResult result = server.exportNodeSet("machines.NodeSet2.xml",
+                                                     { "http://quaserver.example/machines/" });
+if (!result.isOk())
+{
+	qWarning() << result.errorString;
+}
+```
+
+The file holds the attributes, references and values of the nodes and the `Definition` of their structures and enumerations. Nodes of the exported namespaces are found from the *Root* folder and through any reference between them, so also nodes nothing organizes, such as encodings and `DesignToolOnly` instances. The file lists all namespaces of the server, so its namespace indexes are the server ones. Values whose data type cannot be written as XML, such as `DataValue`, `Variant`, `DiagnosticInfo` and unions, are left out with a warning; `exportedNodes` lists the nodes that were written.
+
 ## NodeSets Example
 
 Build and run the [12_nodesets](../examples/12_nodesets/main.cpp) example to learn more.
