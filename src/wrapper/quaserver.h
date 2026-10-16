@@ -124,9 +124,28 @@ struct QUaNodeSetResult
 	bool isOk() const;
 };
 
+///
+/// \brief Outcome of QUaServer::exportNodeSet().
+///
+struct QUaNodeSetExportResult
+{
+	/// Why the NodeSet could not be written, empty on success.
+	QString errorString;
+	/// Nodes written to the NodeSet, in the order they were written.
+	QList<QUaNodeId> exportedNodes;
+	/// Nodes and values that were left out while the rest of the NodeSet was written.
+	QStringList warnings;
+
+	///
+	/// \brief Tells whether the NodeSet was written, possibly with warnings.
+	///
+	bool isOk() const;
+};
+
 class QUaServer : public QObject
 {
 	friend class QUaNodeSetLoader;
+	friend class QUaNodeSetWriter;
 	friend class QUaNode;
 	friend class QUaBaseVariable;
 	friend class QUaBaseObject;
@@ -337,6 +356,17 @@ public:
 	/// \brief Same as loadNodeSet(const QString&), reading the NodeSet2 XML from an open \a device.
 	///
 	QUaNodeSetResult loadNodeSet(QIODevice* device);
+	///
+	/// \brief Writes the nodes of \a namespaceUris, every namespace but 0 when empty, to a NodeSet2 XML file that
+	///        loadNodeSet() reads back: their attributes, values, references and data type definitions. The NodeSet
+	///        lists all server namespaces, so its namespace indexes are the server ones.
+	/// \return The exported nodes and warnings, or an error when a namespace is unknown or the file cannot be written.
+	///
+	QUaNodeSetExportResult exportNodeSet(const QString& fileName, const QStringList& namespaceUris = QStringList()) const;
+	///
+	/// \brief Same as exportNodeSet(const QString&, const QStringList&), writing the NodeSet2 XML to an open \a device.
+	///
+	QUaNodeSetExportResult exportNodeSet(QIODevice* device, const QStringList& namespaceUris = QStringList()) const;
 	///
 	/// \brief Returns the namespace URIs; the position of a URI is its namespace index.
 	///
