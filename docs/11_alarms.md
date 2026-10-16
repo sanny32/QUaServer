@@ -47,7 +47,11 @@ motionAlarm->setConfirmRequired(true);
 For the alarm to start generating events, first it has to be **enabled**. This can be done by calling the `Enable` method of the alarm object through the network using an OPC client or programmatically using the C++ `Enable()` method.
 
 <p align="center">
-  <img src="img/11_alarms_01_offnormal.gif">
+  <img src="img/11_alarms_01_offnormal_tree.jpg" alt="OpenUaExplorer: 11_alarms_01_offnormal_tree.jpg">
+  <br>
+  <img src="img/11_alarms_01_offnormal_value.gif" alt="OpenUaExplorer: 11_alarms_01_offnormal_value.gif">
+  <br>
+  <img src="img/11_alarms_01_offnormal.gif" alt="OpenUaExplorer: 11_alarms_01_offnormal.gif">
 </p>
 
 ## QUaExclusiveLevelAlarm
@@ -106,7 +110,11 @@ void setLowLowLimit(const double& lowLowLimit);
 For the alarm to start generating events, first it has to be **enabled**. This can be done by calling the `Enable` method of the alarm object through the network using an OPC client or programmatically using the C++ `Enable()` method.
 
 <p align="center">
-  <img src="img/11_alarms_02_level.gif">
+  <img src="img/11_alarms_02_level_tree.jpg" alt="OpenUaExplorer: 11_alarms_02_level_tree.jpg">
+  <br>
+  <img src="img/11_alarms_02_level_value.gif" alt="OpenUaExplorer: 11_alarms_02_level_value.gif">
+  <br>
+  <img src="img/11_alarms_02_level.gif" alt="OpenUaExplorer: 11_alarms_02_level.gif">
 </p>
 
 ## Branches

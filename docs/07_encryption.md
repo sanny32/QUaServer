@@ -61,8 +61,10 @@ Now when the client browses for the server, there should be a new option to conn
 Once encryption is available, user names and passwords are only accepted over encrypted connections, so the login credentials (see the [Users](06_users.md) section) are never sent in plain text.
 
 <p align="center">
-  <img src="img/07_encryption_02.jpg">
+  <img src="img/07_encryption_02.jpg" alt="OpenUaExplorer: 07_encryption_02.jpg">
 </p>
+
+In OpenUaExplorer, use `File -> New Connection` and `Discover Endpoints`, then select an endpoint with `Sign & Encrypt`. Choose `Username/Password` and enter a server account. Configure certificate trust as described in the [Server](05_server.md) section before connecting.
 
 ## Trusting Clients
 

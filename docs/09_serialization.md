@@ -25,7 +25,7 @@ objsFolder->addMethod("DestroyVariable", [objsFolder](QString strVariableName) {
 });
 ```
 
-Note it is possible to make *UaExpert* refresh the *Address Space* automatically, by compiling the snippet above with the `QUASERVER_EVENTS` CMake option.
+In *OpenUaExplorer*, select the parent node and use `Server -> Refresh` to browse the updated *Address Space* after creating or deleting a variable. Compiling the snippet above with the `QUASERVER_EVENTS` CMake option also enables model change events for clients that support them.
 
 All the nodes created at *runtime* exist only in memory, so if the server program is restarted, all those nodes will be lost.
 

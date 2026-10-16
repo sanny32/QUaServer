@@ -43,27 +43,29 @@ Now when trying to connect to the server application without credentials, an err
 Error 'BadIdentityTokenInvalid' was returned during ActivateSession
 ```
 
-To connect to the server it is necessary now to provide credentials. For example, with the *UA Expert* client right click the server and select `Properties ...`:
+To connect with *OpenUaExplorer*, choose `File -> New Connection`, enter the server endpoint URL, and click `Discover Endpoints`:
 
 <p align="center">
-  <img src="img/06_users_01.jpg">
+  <img src="img/06_users_01.jpg" alt="OpenUaExplorer: 06_users_01.jpg">
 </p>
 
-Then in *Authentication Settings* select *Username Password* and introduce the username, and click `OK`:
+Select an endpoint, then choose `Username/Password` in *Authentication* and enter the username and password:
+
+The illustrated server also loads a certificate and private key as described in [Encryption](07_encryption.md). If the selected endpoint does not offer `Username/Password`, configure those first and discover the endpoints again.
 
 <p align="center">
-  <img src="img/06_users_02.jpg">
+  <img src="img/06_users_02.jpg" alt="OpenUaExplorer: 06_users_02.jpg">
 </p>
 
-Now when connecting, the password will be requested. It is likely that the client will issue a warning:
+Click `Connect` to open the authenticated session:
 
 <p align="center">
-  <img src="img/06_users_03.jpg">
+  <img src="img/06_users_03.jpg" alt="OpenUaExplorer: 06_users_03.jpg">
 </p>
 
-The reason is that communications are **not yet encrypted**, therefore the username and password will be sent in **plain text**. So any application that monitors the network (such as [Wireshark](https://www.wireshark.org/)) can read such messages and read the login credentials.
+With an unencrypted endpoint and an unencrypted user token policy, the username and password are sent in **plain text**. An application that monitors the network (such as [Wireshark](https://www.wireshark.org/)) can read these credentials.
 
-For the moment ignore the warning by clicking `Ignore` to connect to the server. In the [Encryption](07_encryption.md) section it is detailed how to encrypt communications such that the login credentials are protected from [eavesdropping](https://en.wikipedia.org/wiki/Eavesdropping) applications.
+The [Encryption](07_encryption.md) section explains how to configure encrypted communication to protect login credentials from [eavesdropping](https://en.wikipedia.org/wiki/Eavesdropping).
 
 Having a list of login credentials does not only limit access to the server, but it is also possible to limit access to individual resources on a **per-user** basis using the `setUserAccessLevelCallback()` available in the `QUaNode` API:
 

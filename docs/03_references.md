@@ -18,22 +18,28 @@ objSupl1->addReference({ "Supplies", "IsSuppliedBy" }, objSensor1);
 
 The `registerReferenceType()` method *registers* the new reference type as a *subtype* of the *NonHierarchicalReferences*. If the reference type is not registered before its first use, it is registered automatically by `addReference()`. Optionally, a custom `NodeId` for the reference type can be passed as the second argument. The `referenceTypes()` and `referenceTypeRegistered()` methods list and check the registered reference types.
 
-The registered reference can be observed when the server is running by browsing to `/Root/Types/ReferenceTypes/NonHierarchicalReferences`. There should be a new entry corresponding to the custom reference.
+The registered reference can be observed in OpenUaExplorer by browsing to `/Root/Types/ReferenceTypes/References/NonHierarchicalReferences`. There should be a new entry corresponding to the custom reference.
 
 <p align="center">
-  <img src="img/03_references_01.jpg">
+  <img src="img/03_references_01.jpg" alt="OpenUaExplorer: 03_references_01.jpg">
+  <br>
+  <img src="img/03_references_01_detail.jpg" alt="OpenUaExplorer: 03_references_01_detail.jpg">
 </p>
 
-The references for the supplier object should list the *Supplies* reference:
+Select the supplier object and open the *References* tab in *Node Details* to see the *Supplies* references. OpenUaExplorer may display a custom reference type by its `NodeId`; select that type in the address space to inspect its `BrowseName` and `InverseName` attributes.
 
 <p align="center">
-  <img src="img/03_references_02.jpg">
+  <img src="img/03_references_02.jpg" alt="OpenUaExplorer: 03_references_02.jpg">
+  <br>
+  <img src="img/03_references_02_detail.jpg" alt="OpenUaExplorer: 03_references_02_detail.jpg">
 </p>
 
 The references for the sensor object should list the *IsSuppliedBy* reference:
 
 <p align="center">
-  <img src="img/03_references_03.jpg">
+  <img src="img/03_references_03.jpg" alt="OpenUaExplorer: 03_references_03.jpg">
+  <br>
+  <img src="img/03_references_03_detail.jpg" alt="OpenUaExplorer: 03_references_03_detail.jpg">
 </p>
 
 The `registerReferenceType()` method receives a `QUaReferenceType` instance as an argument, which is defined as:
@@ -58,7 +64,9 @@ objSensor2->addReference({ "Supplies", "IsSuppliedBy" }, objSupl1, false);
 In the example above, both sensors are supplied by the same supplier:
 
 <p align="center">
-  <img src="img/03_references_04.jpg">
+  <img src="img/03_references_04.jpg" alt="OpenUaExplorer: 03_references_04.jpg">
+  <br>
+  <img src="img/03_references_04_detail.jpg" alt="OpenUaExplorer: 03_references_04_detail.jpg">
 </p>
 
 Programmatically, references can be added, removed and browsed using the following *QUaNode* API methods:

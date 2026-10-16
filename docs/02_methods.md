@@ -30,7 +30,9 @@ int main(int argc, char *argv[])
 Which can be remotely executed using a client.
 
 <p align="center">
-  <img src="img/02_methods_01.jpg">
+  <img src="img/02_methods_01.jpg" alt="OpenUaExplorer: 02_methods_01.jpg">
+  <br>
+  <img src="img/02_methods_01_detail.jpg" alt="OpenUaExplorer: 02_methods_01_detail.jpg">
 </p>
 
 Note that the *QUaServer* library automatically deduces the arguments and return types. But only the types supported by the `setDataType()` method (see the [Basics](01_basics.md) section), and `QList<T>` or `QVector<T>` of them, are supported by the `addMethod()` API.
@@ -45,7 +47,9 @@ objsFolder->addMethod("increaseNumber", [](double input) {
 ```
 
 <p align="center">
-  <img src="img/02_methods_02.jpg">
+  <img src="img/02_methods_02.jpg" alt="OpenUaExplorer: 02_methods_02.jpg">
+  <br>
+  <img src="img/02_methods_02_detail.jpg" alt="OpenUaExplorer: 02_methods_02_detail.jpg">
 </p>
 
 Using the *Lambda Capture* it is possible to change *Objects* or *Variables* (the pointer is captured by reference so that the `deleteNumber` method below can reset it):
@@ -68,7 +72,9 @@ objsFolder->addMethod("incrementNumberBy", [&varNumber](double increment) {
 ```
 
 <p align="center">
-  <img src="img/02_methods_03.jpg">
+  <img src="img/02_methods_03.jpg" alt="OpenUaExplorer: 02_methods_03.jpg">
+  <br>
+  <img src="img/02_methods_03_detail.jpg" alt="OpenUaExplorer: 02_methods_03_detail.jpg">
 </p>
 
 Using methods we can even **delete** *Objects* or *Variables*:
@@ -85,7 +91,9 @@ objsFolder->addMethod("deleteNumber", [&varNumber]() {
 ```
 
 <p align="center">
-  <img src="img/02_methods_04.jpg">
+  <img src="img/02_methods_04.jpg" alt="OpenUaExplorer: 02_methods_04.jpg">
+  <br>
+  <img src="img/02_methods_04_detail.jpg" alt="OpenUaExplorer: 02_methods_04_detail.jpg">
 </p>
 
 ## Methods Example

@@ -91,24 +91,18 @@ openssl x509 -in server/server.crt -inform pem -out server/server.crt.der -outfo
 
 ## Use Certificates
 
-First the CA's certificate and CRL must be copied to the client's software. 
+First copy the CA's certificate and CRL to OpenUaExplorer's PKI store. Use `Server -> Certificates...` to inspect the client's certificates.
 
-In the case of *UA Expert*, in the user interface go to `Settings -> Manage Certificates...`. Then click the `Open Certificate Location`, which opens the file explorer to a location similar to:
+OpenUaExplorer stores its PKI under the platform's generic data directory in `Open UaExplorer/pki`. On Windows this is `%LOCALAPPDATA%/Open UaExplorer/pki`; on Linux it is `${XDG_DATA_HOME:-$HOME/.local/share}/Open UaExplorer/pki`.
 
-```
-$SOME_PATH/unifiedautomation/uaexpert/PKI/trusted/certs
-```
-
-The CA's certificate must be copied to this path:
+Set `CLIENT_PKI` to that directory. Copy the CA certificate into `trusted/certs` and its CRL into `trusted/crl`:
 
 ```bash
-cp ca/ca.crt.der $SOME_PATH/unifiedautomation/uaexpert/PKI/trusted/certs/ca.crt.der
-```
-
-Going one directory up, then in `crl` is where the CRL must be copied to:
-
-```bash
-cp ca/ca.der.crl $SOME_PATH/unifiedautomation/uaexpert/PKI/trusted/crl/ca.der.crl
+# Linux example; on other platforms use the corresponding data directory
+CLIENT_PKI="${XDG_DATA_HOME:-$HOME/.local/share}/Open UaExplorer/pki"
+mkdir -p "$CLIENT_PKI/trusted/certs" "$CLIENT_PKI/trusted/crl"
+cp ca/ca.crt.der "$CLIENT_PKI/trusted/certs/ca.crt.der"
+cp ca/ca.der.crl "$CLIENT_PKI/trusted/crl/ca.der.crl"
 ```
 
 Now the *server certificate* must be copied next to the *QUaServer* application:
@@ -173,7 +167,9 @@ These methods should be called **before** starting the server, else the changes 
 This information is then made available to the clients through the *Server Object* that can be found by browsing to `/Root/Objects/Server/ServerStatus/BuildInfo`.
 
 <p align="center">
-  <img src="img/05_server_01.jpg">
+  <img src="img/05_server_01.jpg" alt="OpenUaExplorer: 05_server_01.jpg">
+  <br>
+  <img src="img/05_server_01_detail.jpg" alt="OpenUaExplorer: 05_server_01_detail.jpg">
 </p>
 
 ## Hostname

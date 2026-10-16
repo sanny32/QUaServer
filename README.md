@@ -22,7 +22,7 @@ Features:
 * Serialization of the address space
 * Historizing of data and events
 
-Test the library properly before using it in production. Please report any issue with a minimal working example that reproduces it. To browse a running server, a client such as [UaExpert](https://www.unified-automation.com/downloads/opc-ua-clients.html) is recommended.
+Test the library properly before using it in production. Please report any issue with a minimal working example that reproduces it. To browse a running server, use [OpenUaExplorer](https://github.com/sanny32/OpenUaExplorer).
 
 ## Quick Start
 

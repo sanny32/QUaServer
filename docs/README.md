@@ -2,6 +2,8 @@
 
 Each chapter builds on the previous ones and has a matching example in [`examples`](../examples). Chapters marked with a CMake option need the library to be configured with it (see [Build options](../README.md#build-options)).
 
+The client illustrations use [OpenUaExplorer](https://github.com/sanny32/OpenUaExplorer). Start the relevant example, choose `File -> New Connection`, enter `opc.tcp://localhost:4840`, and click `Discover Endpoints`. Select an endpoint and click `Connect`. The captures use port **4841** to avoid a running server on the default port; call `server.setPort(4841)` before `start()` to use the same port.
+
 | # | Chapter | Content | Example | Option |
 |---|---|---|---|---|
 | 1 | [Basics](01_basics.md) | Create the server, objects and variables, and access their attributes | [01_basics](../examples/01_basics/main.cpp) | |
