@@ -1507,6 +1507,11 @@ bool QUaServer::resetConfig()
 		return false;
 	}
 	this->applyServerUrls(config);
+#ifdef Q_OS_WIN
+	// NOTE : on Windows SO_REUSEADDR lets a listen socket take over a port another process
+	//        listens on, so start() would succeed on a port that is in use
+	config->tcpReuseAddr = false;
+#endif // Q_OS_WIN
 
 	// NOTE : open62541 >= 1.4 does not allow user and password on unencrypted
 	//        channels by default, keep previous QUaServer behaviour if no encryption
