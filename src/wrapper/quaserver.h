@@ -481,6 +481,12 @@ public:
 
     QList<const QUaSession*> sessions() const;
 
+	///
+	/// \brief Reads the live counters of a session from the SessionDiagnosticsArray of the server.
+	/// \return Invalid diagnostics when the session is unknown or the server is built without UA_ENABLE_DIAGNOSTICS.
+	///
+	QUaSessionDiagnostics sessionDiagnostics(const QUaSession *session) const;
+
 #ifdef UA_ENABLE_HISTORIZING
     // Historizing API
     template<typename T>
@@ -863,6 +869,10 @@ private:
 	static void newSession(QUaServer* server,
 		                   const UA_NodeId* sessionId,
 		                   const UA_UInt32 &secureChannelId);
+
+#ifdef UA_ENABLE_DIAGNOSTICS
+	bool readSessionDiagnostics(const UA_NodeId &sessionId, UA_SessionDiagnosticsDataType &diagnostics) const;
+#endif // UA_ENABLE_DIAGNOSTICS
 
 	static void secureChannelNotificationCallback(UA_Server                     *server,
 		                                          UA_ApplicationNotificationType type,

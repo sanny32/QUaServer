@@ -87,6 +87,11 @@ QUaSecurityPolicies securityPolicyFromUri(const UA_String& policyUri)
 	return it == policies.constEnd() ? QUaSecurityPolicies() : QUaSecurityPolicies(it.value());
 }
 
+} // namespace
+#endif // UA_ENABLE_ENCRYPTION
+
+namespace {
+
 ///
 /// \brief Maps an open62541 message security mode to its QUaMessageSecurityMode flag.
 ///
@@ -105,8 +110,16 @@ QUaMessageSecurityModes securityModeFromUa(const UA_MessageSecurityMode mode)
 	}
 }
 
+///
+/// \brief Maps an open62541 message security mode to a single QUaMessageSecurityMode, None when unknown.
+///
+QUaMessageSecurityMode securityModeOf(const UA_MessageSecurityMode mode)
+{
+	const QUaMessageSecurityModes flags = securityModeFromUa(mode);
+	return flags ? static_cast<QUaMessageSecurityMode>(flags.toInt()) : QUaMessageSecurityMode::None;
+}
+
 } // namespace
-#endif // UA_ENABLE_ENCRYPTION
 
 /* helper null log for avoiding startup messages */
 void UA_Log_Discard_log(void *context,
@@ -742,7 +755,14 @@ UA_StatusCode QUaServer::activateSession(UA_Server                    * server,
 	{
 		srv->_hashSessions.insert(*sessionId, new QUaSession(srv));
 	}
-	srv->_hashSessions[*sessionId]->_strUserName = strUserName;
+	QUaSession *session = srv->_hashSessions[*sessionId];
+	session->_strUserName = strUserName;
+	session->_isAnonymous = QUaServer::_anonUsers.contains(strUserName);
+	if (endpointDescription)
+	{
+		session->_strSecurityPolicyUri = QUaTypesConverter::uaStringToQString(endpointDescription->securityPolicyUri);
+		session->_securityMode         = securityModeOf(endpointDescription->securityMode);
+	}
 	// NOTE : QUaServer::newSession is called when the session activated notification arrives
 	/* No userdata atm */
 	*sessionContext = nullptr;
@@ -830,6 +850,14 @@ void QUaServer::newSession(QUaServer* server,
 	session->_strProductUri      = strProductUri;
 	session->_strAddress         = strAddress;
 	session->_intPort            = intPort;
+#ifdef UA_ENABLE_DIAGNOSTICS
+	UA_SessionDiagnosticsDataType diagnostics;
+	if (server->readSessionDiagnostics(*sessionId, diagnostics))
+	{
+		session->_strEndpointUrl = QUaTypesConverter::uaStringToQString(diagnostics.endpointUrl);
+		UA_SessionDiagnosticsDataType_clear(&diagnostics);
+	}
+#endif // UA_ENABLE_DIAGNOSTICS
 	// emit new client connected event
 	emit server->clientConnected(session);
 }
@@ -3898,6 +3926,58 @@ QList<const QUaSession*> QUaServer::sessions() const
     }
     return listConstSessions;
 }
+
+///
+/// \brief Reads the live counters of a session from the SessionDiagnosticsArray of the server.
+/// \return Invalid diagnostics when the session is unknown or the server is built without UA_ENABLE_DIAGNOSTICS.
+///
+QUaSessionDiagnostics QUaServer::sessionDiagnostics(const QUaSession *session) const
+{
+	QUaSessionDiagnostics diagnostics;
+#ifdef UA_ENABLE_DIAGNOSTICS
+	const UA_NodeId sessionId = _hashSessions.key(const_cast<QUaSession*>(session), UA_NODEID_NULL);
+	UA_SessionDiagnosticsDataType item;
+	if (UA_NodeId_isNull(&sessionId) || !this->readSessionDiagnostics(sessionId, item))
+	{
+		return diagnostics;
+	}
+	diagnostics.isValid             = true;
+	diagnostics.subscriptionsCount  = item.currentSubscriptionsCount;
+	diagnostics.monitoredItemsCount = item.currentMonitoredItemsCount;
+	diagnostics.connectionTime      = QUaTypesConverter::uaVariantToQVariantScalar<QDateTime, UA_DateTime>(&item.clientConnectionTime);
+	diagnostics.lastContactTime     = QUaTypesConverter::uaVariantToQVariantScalar<QDateTime, UA_DateTime>(&item.clientLastContactTime);
+	UA_SessionDiagnosticsDataType_clear(&item);
+#else
+	Q_UNUSED(session);
+#endif // UA_ENABLE_DIAGNOSTICS
+	return diagnostics;
+}
+
+#ifdef UA_ENABLE_DIAGNOSTICS
+///
+/// \brief Copies the entry of a session from the SessionDiagnosticsArray of the server.
+/// \return False when the array has no entry for the session; the caller clears diagnostics otherwise.
+///
+bool QUaServer::readSessionDiagnostics(const UA_NodeId &sessionId, UA_SessionDiagnosticsDataType &diagnostics) const
+{
+	UA_Variant value;
+	UA_Variant_init(&value);
+	const UA_NodeId arrayId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER_SERVERDIAGNOSTICS_SESSIONSDIAGNOSTICSSUMMARY_SESSIONDIAGNOSTICSARRAY);
+	bool found = false;
+	if (UA_Server_readValue(_server, arrayId, &value) == UA_STATUSCODE_GOOD &&
+		value.type == &UA_TYPES[UA_TYPES_SESSIONDIAGNOSTICSDATATYPE])
+	{
+		const auto *items = static_cast<const UA_SessionDiagnosticsDataType*>(value.data);
+		for (size_t i = 0; i < value.arrayLength && !found; i++)
+		{
+			found = UA_NodeId_equal(&items[i].sessionId, &sessionId) &&
+				UA_SessionDiagnosticsDataType_copy(&items[i], &diagnostics) == UA_STATUSCODE_GOOD;
+		}
+	}
+	UA_Variant_clear(&value);
+	return found;
+}
+#endif // UA_ENABLE_DIAGNOSTICS
 
 UA_NodeId QUaServer::getReferenceTypeId(const QMetaObject & parentMetaObject, const QMetaObject & childMetaObject)
 {

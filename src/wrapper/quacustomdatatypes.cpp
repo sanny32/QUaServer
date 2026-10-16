@@ -620,7 +620,9 @@ QString QUaChangeStructureDataType::toString() const
 QUaSession::QUaSession(QObject* parent/* = 0*/) :
 	QObject(parent),
 	_intPort(0),
-	_timestamp(QDateTime::currentDateTimeUtc())
+	_timestamp(QDateTime::currentDateTimeUtc()),
+	_isAnonymous(false),
+	_securityMode(QUaMessageSecurityMode::None)
 {
 }
 
@@ -662,6 +664,38 @@ quint16 QUaSession::port() const
 QDateTime QUaSession::timestamp() const
 {
 	return _timestamp;
+}
+
+///
+/// \brief Tells whether the session logged in with an anonymous or empty identity token.
+///
+bool QUaSession::isAnonymous() const
+{
+	return _isAnonymous;
+}
+
+///
+/// \brief Returns the endpoint URL the client asked for when creating the session; empty without UA_ENABLE_DIAGNOSTICS.
+///
+QString QUaSession::endpointUrl() const
+{
+	return _strEndpointUrl;
+}
+
+///
+/// \brief Returns the security policy URI of the endpoint the session was activated on.
+///
+QString QUaSession::securityPolicyUri() const
+{
+	return _strSecurityPolicyUri;
+}
+
+///
+/// \brief Returns the message security mode of the endpoint the session was activated on.
+///
+QUaMessageSecurityMode QUaSession::securityMode() const
+{
+	return _securityMode;
 }
 
 QUaLocalizedText::QUaLocalizedText()
