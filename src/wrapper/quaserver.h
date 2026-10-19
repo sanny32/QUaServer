@@ -175,6 +175,7 @@ class QUaServer : public QObject
 	Q_PROPERTY(QList<QByteArray>       trustedCertificates READ trustedCertificates WRITE setTrustedCertificates NOTIFY trustedCertificatesChanged)
 	Q_PROPERTY(QList<QByteArray>       issuerCertificates  READ issuerCertificates  WRITE setIssuerCertificates  NOTIFY issuerCertificatesChanged )
 	Q_PROPERTY(QList<QByteArray>       revocationLists     READ revocationLists     WRITE setRevocationLists     NOTIFY revocationListsChanged    )
+	Q_PROPERTY(bool rejectUntrustedCertificates READ rejectUntrustedCertificates WRITE setRejectUntrustedCertificates NOTIFY rejectUntrustedCertificatesChanged)
 	Q_PROPERTY(QUaSecurityPolicies     securityPolicies    READ securityPolicies    WRITE setSecurityPolicies    NOTIFY securityPoliciesChanged   )
 	Q_PROPERTY(QUaMessageSecurityModes securityModes       READ securityModes       WRITE setSecurityModes       NOTIFY securityModesChanged      )
 #endif
@@ -216,8 +217,8 @@ public:
 	QList<QByteArray> trustedCertificates() const;
 	///
 	/// \brief Sets the DER certificates of the clients and CAs that the server trusts.
-	///        While the list is empty, the server accepts any client certificate.
-	///        Applied on the next start().
+	///        While the list is empty, the server accepts any client certificate
+	///        unless rejectUntrustedCertificates() is set. Applied on the next start().
 	///
 	void setTrustedCertificates(const QList<QByteArray>& trustedCertificates);
 
@@ -241,6 +242,16 @@ public:
 	///        Ignored while the trusted certificates list is empty. Applied on the next start().
 	///
 	void setRevocationLists(const QList<QByteArray>& revocationLists);
+
+	///
+	/// \brief Tells whether client certificates outside the trusted list are rejected even while that list is empty.
+	///
+	bool rejectUntrustedCertificates() const;
+	///
+	/// \brief Rejects client certificates outside the trusted list even while that list is empty,
+	///        instead of accepting any client. Applied on the next start().
+	///
+	void setRejectUntrustedCertificates(bool reject);
 
 	///
 	/// \brief Returns the client application certificates rejected since the last start(), oldest first.
@@ -543,6 +554,7 @@ signals:
 	void trustedCertificatesChanged  (const QList<QByteArray> &trustedCertificates);
 	void issuerCertificatesChanged   (const QList<QByteArray> &issuerCertificates );
 	void revocationListsChanged      (const QList<QByteArray> &revocationLists    );
+	void rejectUntrustedCertificatesChanged(bool reject);
 	void securityPoliciesChanged     (const QUaSecurityPolicies &securityPolicies );
 	void securityModesChanged        (const QUaMessageSecurityModes &securityModes);
 	///
@@ -598,11 +610,13 @@ private:
 	QList<QByteArray>       _listTrusted;
 	QList<QByteArray>       _listIssuers;
 	QList<QByteArray>       _listRevocation;
+	bool                    _rejectUntrusted;
 	QUaSecurityPolicies     _securityPolicies;
 	QUaMessageSecurityModes _securityModes;
 	// default open62541 implementation, wrapped by QUaServer::verifyClientCertificate
 	UA_StatusCode (*_defaultVerifyCertificate)(UA_CertificateGroup *certGroup, const UA_ByteString *certificate);
 	static QHash<const UA_CertificateGroup*, QUaServer*> _hashCertificateGroups;
+	UA_StatusCode applyEmptyTrustList(UA_ServerConfig* config) const;
 #endif
 	QString _strHostname;
 

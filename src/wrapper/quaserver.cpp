@@ -1344,6 +1344,7 @@ QUaServer::QUaServer(QObject* parent/* = 0*/)
 	_bytePrivateKeyInternal = QByteArray();
 	_securityPolicies = QUaSecurityPolicy::All;
 	_securityModes = QUaMessageSecurityMode::All;
+	_rejectUntrusted = false;
 	_defaultVerifyCertificate = nullptr;
 #endif
 #ifdef UA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS
@@ -1515,6 +1516,10 @@ bool QUaServer::resetConfig()
 			revocation.constData(),
 			static_cast<size_t>(revocation.size())
 		);
+		if (st == UA_STATUSCODE_GOOD && _rejectUntrusted && trusted.isEmpty())
+		{
+			st = this->applyEmptyTrustList(config);
+		}
 		if (st != UA_STATUSCODE_GOOD)
 		{
 			UA_LOG_ERROR(config->logging, UA_LOGCATEGORY_SERVER,
@@ -2101,6 +2106,54 @@ void QUaServer::setRevocationLists(const QList<QByteArray>& revocationLists)
 {
 	_listRevocation = revocationLists;
 	emit this->revocationListsChanged(_listRevocation);
+}
+
+///
+/// \brief Tells whether client certificates outside the trusted list are rejected even while that list is empty.
+///
+bool QUaServer::rejectUntrustedCertificates() const
+{
+	return _rejectUntrusted;
+}
+
+///
+/// \brief Rejects client certificates outside the trusted list even while that list is empty,
+///        instead of accepting any client. Applied on the next start().
+///
+void QUaServer::setRejectUntrustedCertificates(bool reject)
+{
+	_rejectUntrusted = reject;
+	emit this->rejectUntrustedCertificatesChanged(_rejectUntrusted);
+}
+
+///
+/// \brief Replaces the accept-all certificate groups open62541 installs for an empty trust list
+///        with in-memory stores that trust no client, keeping the issuer certificates.
+/// \return Status of creating the stores.
+///
+UA_StatusCode QUaServer::applyEmptyTrustList(UA_ServerConfig* config) const
+{
+	UA_TrustListDataType list;
+	UA_TrustListDataType_init(&list);
+	list.specifiedLists = UA_TRUSTLISTMASKS_TRUSTEDCERTIFICATES;
+	const QVector<UA_ByteString> issuers = QUaServer::toByteStringArray(_listIssuers);
+	if (!issuers.isEmpty())
+	{
+		list.specifiedLists |= UA_TRUSTLISTMASKS_ISSUERCERTIFICATES;
+		list.issuerCertificates     = const_cast<UA_ByteString*>(issuers.constData());
+		list.issuerCertificatesSize = static_cast<size_t>(issuers.size());
+	}
+	UA_NodeId applicationGroup = UA_NS0ID(SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
+	UA_NodeId userTokenGroup   = UA_NS0ID(SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTUSERTOKENGROUP);
+	config->secureChannelPKI.clear(&config->secureChannelPKI);
+	UA_StatusCode st = UA_CertificateGroup_Memorystore(&config->secureChannelPKI, &applicationGroup, &list,
+		config->logging, nullptr);
+	if (st == UA_STATUSCODE_GOOD)
+	{
+		config->sessionPKI.clear(&config->sessionPKI);
+		st = UA_CertificateGroup_Memorystore(&config->sessionPKI, &userTokenGroup, &list, config->logging, nullptr);
+	}
+	return st;
 }
 
 ///

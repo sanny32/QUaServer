@@ -75,6 +75,8 @@ private slots:
     void clientTrust();
     void rejectedClientCertificateIsReported();
     void acceptedClientCertificateIsNotReported();
+    void emptyTrustListAcceptsAnyClient();
+    void emptyTrustListRejectsWhenRequested();
     void securityPoliciesAndModesFilterEndpoints();
     void noMatchingEndpointFailsToStart();
     void userCertificateTokenNeedsCallback_data();
@@ -344,6 +346,42 @@ void TestEncryptionIntegration::acceptedClientCertificateIsNotReported()
     QCOMPARE(connectAsAlice(_client), UA_STATUSCODE_GOOD);
     QCOMPARE(rejectedSpy.count(), 0);
     QVERIFY(_server->rejectedCertificates().isEmpty());
+}
+
+///
+/// \brief Without rejectUntrustedCertificates() an empty trusted list accepts any client certificate.
+///
+void TestEncryptionIntegration::emptyTrustListAcceptsAnyClient()
+{
+    _server->setCertificate(_certificate);
+    _server->setPrivateKey(_privateKey);
+    _server->setAnonymousLoginAllowed(false);
+    _server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
+    QVERIFY(!_server->rejectUntrustedCertificates());
+    QVERIFY(TestServer::start(*_server));
+
+    QCOMPARE(connectAsAlice(_client), UA_STATUSCODE_GOOD);
+}
+
+///
+/// \brief With rejectUntrustedCertificates() an empty trusted list rejects and reports every client certificate.
+///
+void TestEncryptionIntegration::emptyTrustListRejectsWhenRequested()
+{
+    _server->setCertificate(_certificate);
+    _server->setPrivateKey(_privateKey);
+    _server->setAnonymousLoginAllowed(false);
+    _server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
+    QSignalSpy changedSpy(_server, &QUaServer::rejectUntrustedCertificatesChanged);
+    _server->setRejectUntrustedCertificates(true);
+    QCOMPARE(changedSpy.count(), 1);
+    QSignalSpy rejectedSpy(_server, &QUaServer::clientCertificateRejected);
+    QVERIFY(TestServer::start(*_server));
+
+    QVERIFY(connectAsAlice(_client) != UA_STATUSCODE_GOOD);
+    QTRY_VERIFY(rejectedSpy.count() >= 1);
+    QCOMPARE(rejectedSpy.first().at(0).toByteArray(), _client.certificate);
+    QCOMPARE(_server->rejectedCertificates(), QList<QByteArray>{ _client.certificate });
 }
 
 void TestEncryptionIntegration::securityPoliciesAndModesFilterEndpoints()
