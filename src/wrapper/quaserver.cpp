@@ -4103,6 +4103,58 @@ QUaSessionDiagnostics QUaServer::sessionDiagnostics(const QUaSession *session) c
 	return diagnostics;
 }
 
+///
+/// \brief Reads the subscriptions of a session from the SubscriptionDiagnosticsArray of the server.
+/// \return Subscriptions in the order the server lists them; empty when the session is unknown, holds none
+///         or the server is built without UA_ENABLE_DIAGNOSTICS.
+///
+QList<QUaSubscriptionDiagnostics> QUaServer::subscriptionDiagnostics(const QUaSession *session) const
+{
+	QList<QUaSubscriptionDiagnostics> subscriptions;
+#ifdef UA_ENABLE_DIAGNOSTICS
+	const UA_NodeId sessionId = _hashSessions.key(const_cast<QUaSession*>(session), UA_NODEID_NULL);
+	if (UA_NodeId_isNull(&sessionId))
+	{
+		return subscriptions;
+	}
+	UA_Variant value;
+	UA_Variant_init(&value);
+	const UA_NodeId arrayId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER_SERVERDIAGNOSTICS_SUBSCRIPTIONDIAGNOSTICSARRAY);
+	if (UA_Server_readValue(_server, arrayId, &value) == UA_STATUSCODE_GOOD &&
+		value.type == &UA_TYPES[UA_TYPES_SUBSCRIPTIONDIAGNOSTICSDATATYPE])
+	{
+		const auto *items = static_cast<const UA_SubscriptionDiagnosticsDataType*>(value.data);
+		for (size_t i = 0; i < value.arrayLength; i++)
+		{
+			const UA_SubscriptionDiagnosticsDataType &item = items[i];
+			if (!UA_NodeId_equal(&item.sessionId, &sessionId))
+			{
+				continue;
+			}
+			QUaSubscriptionDiagnostics subscription;
+			subscription.subscriptionId               = item.subscriptionId;
+			subscription.priority                     = item.priority;
+			subscription.publishingInterval           = item.publishingInterval;
+			subscription.maxKeepAliveCount            = item.maxKeepAliveCount;
+			subscription.maxLifetimeCount             = item.maxLifetimeCount;
+			subscription.maxNotificationsPerPublish   = item.maxNotificationsPerPublish;
+			subscription.publishingEnabled            = item.publishingEnabled;
+			subscription.monitoredItemCount           = item.monitoredItemCount;
+			subscription.disabledMonitoredItemCount   = item.disabledMonitoredItemCount;
+			subscription.publishRequestCount          = item.publishRequestCount;
+			subscription.dataChangeNotificationsCount = item.dataChangeNotificationsCount;
+			subscription.eventNotificationsCount      = item.eventNotificationsCount;
+			subscription.notificationsCount           = item.notificationsCount;
+			subscriptions.append(subscription);
+		}
+	}
+	UA_Variant_clear(&value);
+#else
+	Q_UNUSED(session);
+#endif // UA_ENABLE_DIAGNOSTICS
+	return subscriptions;
+}
+
 #ifdef UA_ENABLE_DIAGNOSTICS
 ///
 /// \brief Copies the entry of a session from the SessionDiagnosticsArray of the server.

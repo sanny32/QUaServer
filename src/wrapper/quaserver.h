@@ -534,6 +534,13 @@ public:
 	///
 	QUaSessionDiagnostics sessionDiagnostics(const QUaSession *session) const;
 
+	///
+	/// \brief Reads the subscriptions of a session from the SubscriptionDiagnosticsArray of the server.
+	/// \return Subscriptions in the order the server lists them; empty when the session is unknown, holds none
+	///         or the server is built without UA_ENABLE_DIAGNOSTICS.
+	///
+	QList<QUaSubscriptionDiagnostics> subscriptionDiagnostics(const QUaSession *session) const;
+
 #ifdef UA_ENABLE_HISTORIZING
     // Historizing API
     template<typename T>
