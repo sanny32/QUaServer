@@ -32,6 +32,8 @@ private slots:
     void userSessionIsNotAnonymous();
     void sessionDiagnosticsCountSubscriptions();
     void sessionDiagnosticsOfUnknownSessionAreInvalid();
+    void subscriptionDiagnosticsListSessionSubscriptions();
+    void subscriptionDiagnosticsOfUnknownSessionAreEmpty();
 
 private:
     QUaServer *_server = nullptr;
@@ -364,6 +366,48 @@ void TestSessionsIntegration::sessionDiagnosticsOfUnknownSessionAreInvalid()
     QUaSession stranger;
     QVERIFY(!_server->sessionDiagnostics(&stranger).isValid);
     QVERIFY(!_server->sessionDiagnostics(nullptr).isValid);
+}
+
+///
+/// \brief The subscription diagnostics of a session list only its own subscriptions with their settings.
+///
+void TestSessionsIntegration::subscriptionDiagnosticsListSessionSubscriptions()
+{
+    QUaBaseDataVariable *variable = _server->objectsFolder()->addBaseDataVariable(
+        QStringLiteral("watched"), QUaNodeId(1, QStringLiteral("watched")));
+    variable->setValue(1);
+    QVERIFY(TestServer::start(*_server));
+    TestClient watcher;
+    QCOMPARE(watcher.connect(TestServer::endpointUrl(*_server)), UA_STATUSCODE_GOOD);
+    QTRY_COMPARE(_server->sessions().count(), 1);
+    const QUaSession *watching = _server->sessions().first();
+    QVERIFY(_server->subscriptionDiagnostics(watching).isEmpty());
+
+    TestClient idle;
+    QCOMPARE(idle.connect(TestServer::endpointUrl(*_server)), UA_STATUSCODE_GOOD);
+    QTRY_COMPARE(_server->sessions().count(), 2);
+    const QUaSession *idling = _server->sessions().first() == watching ? _server->sessions().last()
+                                                                       : _server->sessions().first();
+
+    QCOMPARE(watcher.monitorValue(variable->nodeId()), UA_STATUSCODE_GOOD);
+    const QList<QUaSubscriptionDiagnostics> subscriptions = _server->subscriptionDiagnostics(watching);
+    QCOMPARE(subscriptions.count(), 1);
+    QVERIFY(subscriptions.first().subscriptionId > 0);
+    QVERIFY(subscriptions.first().publishingInterval > 0.0);
+    QVERIFY(subscriptions.first().publishingEnabled);
+    QCOMPARE(subscriptions.first().monitoredItemCount, 1u);
+    QVERIFY(_server->subscriptionDiagnostics(idling).isEmpty());
+}
+
+///
+/// \brief Subscription diagnostics are empty for a session the server does not know.
+///
+void TestSessionsIntegration::subscriptionDiagnosticsOfUnknownSessionAreEmpty()
+{
+    QVERIFY(TestServer::start(*_server));
+    QUaSession stranger;
+    QVERIFY(_server->subscriptionDiagnostics(&stranger).isEmpty());
+    QVERIFY(_server->subscriptionDiagnostics(nullptr).isEmpty());
 }
 
 QTEST_GUILESS_MAIN(TestSessionsIntegration)

@@ -985,6 +985,39 @@ struct QUaSessionDiagnostics
     QDateTime lastContactTime;
 };
 
+///
+/// \brief Settings and counters of one subscription, read from the server diagnostics (UA_ENABLE_DIAGNOSTICS).
+///
+struct QUaSubscriptionDiagnostics
+{
+    /// Server-assigned subscription id.
+    quint32 subscriptionId               = 0;
+    /// Relative priority the client requested.
+    quint8  priority                     = 0;
+    /// Revised publishing interval in milliseconds.
+    double  publishingInterval           = 0.0;
+    /// Keep-alive count the server revised.
+    quint32 maxKeepAliveCount            = 0;
+    /// Lifetime count the server revised.
+    quint32 maxLifetimeCount             = 0;
+    /// Maximum notifications per publish response; 0 means no limit.
+    quint32 maxNotificationsPerPublish   = 0;
+    /// Whether publishing is enabled.
+    bool    publishingEnabled            = false;
+    /// Monitored items of the subscription.
+    quint32 monitoredItemCount           = 0;
+    /// Monitored items whose monitoring mode is Disabled.
+    quint32 disabledMonitoredItemCount   = 0;
+    /// Publish requests the client sent.
+    quint32 publishRequestCount          = 0;
+    /// Data change notifications sent.
+    quint32 dataChangeNotificationsCount = 0;
+    /// Event notifications sent.
+    quint32 eventNotificationsCount      = 0;
+    /// All notifications sent.
+    quint32 notificationsCount           = 0;
+};
+
 
 struct QUaReferenceType
 {
