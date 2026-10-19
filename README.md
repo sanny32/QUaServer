@@ -80,7 +80,7 @@ The examples are built by default and placed in `build/bin`. On Windows, make su
 | `QUASERVER_EVENTS` | `OFF` | Events support (implies `QUASERVER_NAMESPACE_FULL`) |
 | `QUASERVER_ALARMS_CONDITIONS` | `OFF` | Alarms and conditions support (implies `QUASERVER_EVENTS`) |
 | `QUASERVER_HISTORIZING` | `OFF` | Historizing support |
-| `QUASERVER_BUILD_EXAMPLES` | `ON` (top level) | Build the examples |
+| `QUASERVER_BUILD_EXAMPLES` | `ON` when built standalone, `OFF` when included as a subproject | Build the examples |
 | `QUASERVER_BUILD_TESTS` | `OFF` | Build the tests |
 
 The full namespace zero makes the binaries considerably larger. When changing options of an existing build directory, rebuild the complete project.
