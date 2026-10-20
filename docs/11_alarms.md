@@ -117,6 +117,29 @@ For the alarm to start generating events, first it has to be **enabled**. This c
   <img src="img/11_alarms_02_level.gif" alt="OpenUaExplorer: 11_alarms_02_level.gif">
 </p>
 
+## Suppression, Service, Silence and Latching
+
+The optional [AlarmConditionType](https://reference.opcfoundation.org/Core/Part9/v105/docs/5.8.2) states are disabled by default. Enabling one adds its state variable and its methods, including the OPC UA 1.05 variants that take a `Comment`, to the alarm:
+
+```c++
+// SuppressedState with Suppress, Suppress2, Unsuppress and Unsuppress2
+motionAlarm->setSuppressionSupported(true);
+// OutOfServiceState with RemoveFromService, RemoveFromService2, PlaceInService and PlaceInService2
+motionAlarm->setOutOfServiceSupported(true);
+// SilenceState with Silence; activation un-silences the alarm, acknowledging silences it
+motionAlarm->setSilenceSupported(true);
+// LatchedState with Reset and Reset2; the alarm stays retained after returning to normal until reset
+motionAlarm->setLatchingSupported(true);
+```
+
+The server can also change these states programmatically with `setSuppressed`, `setOutOfService`, `setSilenced` and `setLatched`. `SuppressedOrShelved` follows the suppressed and out of service states.
+
+Every alarm exposes `GetGroupMemberships`, which returns the objects referencing the alarm with an `AlarmGroupMember` reference:
+
+```c++
+alarmGroup->addReference({ "AlarmGroupMember", "MemberOfAlarmGroup" }, motionAlarm);
+```
+
 ## Branches
 
 Support for [branches](https://reference.opcfoundation.org/v104/Core/docs/Part9/5.5.3/) in `QUaServer` is disabled by default. To enable branches call the `setBranchQueueSize` method with a value larger than `0`. This will create a branch queue in the alarm which will keep the given number of branches in memory. If more branches are created than the size of the queue, the oldest branch will be deleted automatically to avoid memory saturation.

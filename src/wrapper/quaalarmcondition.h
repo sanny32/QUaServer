@@ -11,6 +11,11 @@ class QUaAlarmCondition : public QUaAcknowledgeableCondition
 {
     Q_OBJECT
 
+	Q_PROPERTY(bool suppressionSupported  READ suppressionSupported  WRITE setSuppressionSupported)
+	Q_PROPERTY(bool outOfServiceSupported READ outOfServiceSupported WRITE setOutOfServiceSupported)
+	Q_PROPERTY(bool silenceSupported      READ silenceSupported      WRITE setSilenceSupported)
+	Q_PROPERTY(bool latchingSupported     READ latchingSupported     WRITE setLatchingSupported)
+
 friend class QUaServer;
 
 public:
@@ -43,22 +48,35 @@ public:
 	// Helper
 	virtual void setInputNode(QUaBaseVariable* inputNode);
 
-	// TODO : SuppressedState
-	// TODO : OutOfServiceState
+	// NOTE : the optional states below only work if the matching *Supported() == true;
+	//        setters trigger an event when the state changes
+
+	// suppressed by the server for system specific reasons, or by the Suppress methods
+	bool suppressed() const;
+	void setSuppressed(const bool& suppressed);
+	// removed from service by maintenance personnel
+	bool outOfService() const;
+	void setOutOfService(const bool& outOfService);
+	// cleared when the alarm activates, set by Silence or by acknowledging
+	bool silenced() const;
+	void setSilenced(const bool& silenced);
+	// set when the alarm activates, keeps it retained until Reset
+	bool latched() const;
+	void setLatched(const bool& latched);
+
 	// TODO : ShelvingState
 
+	// NOTE : kept in sync with SuppressedState and OutOfServiceState
 	bool suppressedOrShelve() const;
 	void setSuppressedOrShelve(const bool& suppressedOrShelve);
 
 	// TODO : MaxTimeShelved
 	// TODO : AudibleEnabled
 	// TODO : AudibleSound
-	// TODO : SilenceState
 	// TODO : OnDelay
 	// TODO : OffDelay
 	// TODO : FirstInGroupFlag
 	// TODO : FirstInGroup
-	// TODO : LatchedState
 	// TODO : <AlarmGroup>
 	// TODO : ReAlarmTime
 	// TODO : ReAlarmRepeatCount
@@ -66,21 +84,47 @@ public:
 	// methods
 
 	Q_INVOKABLE void Silence();
-	
-	Q_INVOKABLE void Suppress();
-	
-	Q_INVOKABLE void Unsuppress();
-	
-	Q_INVOKABLE void RemoveFromService();
-	
-	Q_INVOKABLE void PlaceInService();
-	
-	Q_INVOKABLE void Reset();
 
+	Q_INVOKABLE void Suppress();
+	Q_INVOKABLE void Suppress2(QUaLocalizedText Comment);
+
+	Q_INVOKABLE void Unsuppress();
+	Q_INVOKABLE void Unsuppress2(QUaLocalizedText Comment);
+
+	Q_INVOKABLE void RemoveFromService();
+	Q_INVOKABLE void RemoveFromService2(QUaLocalizedText Comment);
+
+	Q_INVOKABLE void PlaceInService();
+	Q_INVOKABLE void PlaceInService2(QUaLocalizedText Comment);
+
+	Q_INVOKABLE void Reset();
+	Q_INVOKABLE void Reset2(QUaLocalizedText Comment);
+
+	// AlarmGroups referencing this alarm through AlarmGroupMember
+	Q_INVOKABLE QList<QUaNodeId> GetGroupMemberships();
+
+	// helpers
+
+	// SuppressedState with Suppress, Suppress2, Unsuppress and Unsuppress2
+	bool suppressionSupported() const;
+	void setSuppressionSupported(const bool& suppressionSupported);
+	// OutOfServiceState with RemoveFromService, RemoveFromService2, PlaceInService and PlaceInService2
+	bool outOfServiceSupported() const;
+	void setOutOfServiceSupported(const bool& outOfServiceSupported);
+	// SilenceState with Silence
+	bool silenceSupported() const;
+	void setSilenceSupported(const bool& silenceSupported);
+	// LatchedState with Reset and Reset2
+	bool latchingSupported() const;
+	void setLatchingSupported(const bool& latchingSupported);
 
 signals:
 	void activated();
 	void deactivated();
+	void suppressedChanged();
+	void outOfServiceChanged();
+	void silencedChanged();
+	void latchedChanged();
 
 protected:
 	QUaBaseVariable* _inputNode;
@@ -91,8 +135,16 @@ protected:
 	// NodeId
 	QUaProperty* getInputNode();
 
-	// TODO : LocalizedText, getSuppressedState
-	// TODO : LocalizedText, getOutOfServiceState
+	// NOTE : optional, nullptr unless supported
+	// LocalizedText
+	QUaTwoStateVariable* getSuppressedState();
+	// LocalizedText
+	QUaTwoStateVariable* getOutOfServiceState();
+	// LocalizedText
+	QUaTwoStateVariable* getSilenceState();
+	// LocalizedText
+	QUaTwoStateVariable* getLatchedState();
+
 	// TODO : ShelvedStateMachineType, getShelvingState
 
 	// Boolean
@@ -103,14 +155,11 @@ protected:
 	// TODO : Boolean, getAudibleEnabled
 	// TODO : AudioDataType, AudibleSound
 
-	// TODO : LocalizedText, getSilenceState
-
 	// TODO : Duration, getOnDelay
 	// TODO : Duration, getOffDelay
 
 	// TODO : Boolean, getFirstInGroupFlag
 	// TODO : AlarmGroupType, getFirstInGroup
-	// TODO : LocalizedText, getLatchedState
 
 	// TODO : AlarmGroupType, get<AlarmGroup>
 
@@ -123,6 +172,22 @@ protected:
 	virtual bool requiresAttention() const;
 	// reimplement to reset type internals (QUaAlarmCondition::Reset)
 	virtual void resetInternals();
+
+private:
+	QUaTwoStateVariable* optionalState(const QUaQualifiedName& stateName) const;
+	void setStateSupported(
+		const QUaQualifiedName& stateName,
+		const QUaLocalizedText& trueState,
+		const QUaLocalizedText& falseState,
+		const QList<QUaQualifiedName>& methods,
+		const bool& supported
+	);
+	bool changeState(QUaTwoStateVariable* state, const bool& id);
+	void triggerStateChange(QUaTwoStateVariable* state);
+	bool checkMethodSupported(const bool& supported);
+	void applyComment(const QUaLocalizedText& comment, const bool& stateChanges);
+	void updateSuppressedOrShelve();
+	void silenceOnAcknowledge();
 };
 
 class QUaAlarmConditionBranch : public QUaAcknowledgeableConditionBranch

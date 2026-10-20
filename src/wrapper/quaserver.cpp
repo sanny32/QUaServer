@@ -1867,6 +1867,7 @@ void QUaServer::setupServer()
 	_hashRefTypes.insert({ QStringLiteral("HasCause")          , QStringLiteral("MayBeCausedBy")     }, UA_NODEID_NUMERIC(0, UA_NS0ID_HASCAUSE)); // Part 5 - B.4.13
 	_hashRefTypes.insert({ QStringLiteral("HasEffect")         , QStringLiteral("MayBeEffectedBy")   }, UA_NODEID_NUMERIC(0, UA_NS0ID_HASEFFECT)); // Part 5 - B.4.14
 	_hashRefTypes.insert({ QStringLiteral("HasSubStateMachine"), QStringLiteral("SubStateMachineOf") }, UA_NODEID_NUMERIC(0, UA_NS0ID_HASSUBSTATEMACHINE)); // Part 5 - B.4.15
+	_hashRefTypes.insert({ QStringLiteral("AlarmGroupMember")  , QStringLiteral("MemberOfAlarmGroup")}, UA_NODEID_NUMERIC(0, UA_NS0ID_ALARMGROUPMEMBER)); // Part 9 - 5.4.5
 #endif // UA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS
 	for (auto it = _hashHierRefTypes.constBegin(); it != _hashHierRefTypes.constEnd(); ++it)
 		_hashRefTypes.insert(it.key(), it.value());

@@ -26,6 +26,26 @@ private slots:
     void conditionRefreshResendsRetainedAlarm();
     void conditionRefreshRejectsMissingSubscriptionId();
     void conditionRefresh2ValidatesIds();
+    void operatorStatesAreOptional();
+    void unsupportedOperatorMethodIsInvalid();
+    void supportExposesOperatorMethods();
+    void withdrawnSupportRemovesOperatorMethods();
+    void suppress2SuppressesWithComment();
+    void unsuppress2ClearsSuppression();
+    void nullCommentKeepsCurrentComment();
+    void removeFromService2TakesAlarmOutOfService();
+    void placeInService2ReturnsAlarmToService();
+    void suppressedOrShelveFollowsSuppressionAndService();
+    void silenceSilencesAudibleAlarm();
+    void acknowledgeSilencesAlarm();
+    void activationClearsSilence();
+    void latchedAlarmIsRetainedUntilReset2();
+    void resetRejectsActiveAlarm();
+    void resetRejectsUnacknowledgedAlarm();
+    void resetRejectsUnlatchedAlarm();
+    void getGroupMembershipsIsExposedOnAlarms();
+    void getGroupMembershipsListsAlarmGroups();
+    void cloneKeepsOperatorStates();
 
 private:
     QUaServer *_server = nullptr;
@@ -36,6 +56,9 @@ private:
 
     static QList<QUaBrowsePath> selectClauses();
     QVariantList lastAlarmEvent(const QList<QVariantList> &events) const;
+    UA_StatusCode callAlarm(const QUaNodeId &methodId, const QVariantList &inputs = {});
+    UA_StatusCode callAlarm(const QUaNodeId &methodId, const QVariantList &inputs, QVariantList &outputs);
+    QList<QUaNodeId> alarmComponents();
 };
 
 namespace {
@@ -55,6 +78,21 @@ const QUaNodeId ConditionRefresh2Method(0, quint32(UA_NS0ID_CONDITIONTYPE_CONDIT
 const QUaNodeId OffNormalAlarmType(0, quint32(UA_NS0ID_OFFNORMALALARMTYPE));
 const QUaNodeId RefreshStartEventType(0, quint32(UA_NS0ID_REFRESHSTARTEVENTTYPE));
 const QUaNodeId RefreshEndEventType(0, quint32(UA_NS0ID_REFRESHENDEVENTTYPE));
+const QUaNodeId HasComponent(0, quint32(UA_NS0ID_HASCOMPONENT));
+const QUaNodeId SilenceMethod(0, quint32(UA_NS0ID_ALARMCONDITIONTYPE_SILENCE));
+const QUaNodeId SuppressMethod(0, quint32(UA_NS0ID_ALARMCONDITIONTYPE_SUPPRESS));
+const QUaNodeId Suppress2Method(0, quint32(UA_NS0ID_ALARMCONDITIONTYPE_SUPPRESS2));
+const QUaNodeId Unsuppress2Method(0, quint32(UA_NS0ID_ALARMCONDITIONTYPE_UNSUPPRESS2));
+const QUaNodeId RemoveFromService2Method(0, quint32(UA_NS0ID_ALARMCONDITIONTYPE_REMOVEFROMSERVICE2));
+const QUaNodeId PlaceInService2Method(0, quint32(UA_NS0ID_ALARMCONDITIONTYPE_PLACEINSERVICE2));
+const QUaNodeId ResetMethod(0, quint32(UA_NS0ID_ALARMCONDITIONTYPE_RESET));
+const QUaNodeId Reset2Method(0, quint32(UA_NS0ID_ALARMCONDITIONTYPE_RESET2));
+const QUaNodeId GetGroupMembershipsMethod(0, quint32(UA_NS0ID_ALARMCONDITIONTYPE_GETGROUPMEMBERSHIPS));
+
+QVariant comment(const QString &text)
+{
+    return QVariant::fromValue(QUaLocalizedText(QStringLiteral("en"), text));
+}
 
 } // namespace
 
@@ -130,6 +168,38 @@ QVariantList TestAlarmsIntegration::lastAlarmEvent(const QList<QVariantList> &ev
         }
     }
     return {};
+}
+
+///
+/// \brief Calls the method \a methodId of the test alarm, discarding its outputs.
+///
+UA_StatusCode TestAlarmsIntegration::callAlarm(const QUaNodeId &methodId, const QVariantList &inputs)
+{
+    QVariantList outputs;
+    return callAlarm(methodId, inputs, outputs);
+}
+
+///
+/// \brief Calls the method \a methodId of the test alarm.
+///
+UA_StatusCode TestAlarmsIntegration::callAlarm(const QUaNodeId &methodId,
+                                                const QVariantList &inputs,
+                                                QVariantList &outputs)
+{
+    return _client->call(_alarm->nodeId(), methodId, inputs, outputs);
+}
+
+///
+/// \brief Returns the components, methods included, a client browsing the test alarm finds.
+///
+QList<QUaNodeId> TestAlarmsIntegration::alarmComponents()
+{
+    QList<QUaNodeId> components;
+    if (_client->browseTargets(_alarm->nodeId(), HasComponent, components) != UA_STATUSCODE_GOOD)
+    {
+        return {};
+    }
+    return components;
 }
 
 ///
@@ -277,6 +347,318 @@ void TestAlarmsIntegration::conditionRefresh2ValidatesIds()
 
     QCOMPARE(badSubscription, UA_STATUSCODE_BADSUBSCRIPTIONIDINVALID);
     QCOMPARE(badItem, UA_STATUSCODE_BADMONITOREDITEMIDINVALID);
+}
+
+///
+/// \brief A new alarm exposes none of the optional operator states or their methods.
+///
+void TestAlarmsIntegration::operatorStatesAreOptional()
+{
+    const QList<QUaNodeId> components = alarmComponents();
+
+    QVERIFY(!_alarm->suppressionSupported());
+    QVERIFY(!_alarm->outOfServiceSupported());
+    QVERIFY(!_alarm->silenceSupported());
+    QVERIFY(!_alarm->latchingSupported());
+    QVERIFY(!components.contains(Suppress2Method));
+    QVERIFY(!components.contains(Reset2Method));
+}
+
+///
+/// \brief An operator method of a state the alarm does not expose is refused.
+///
+void TestAlarmsIntegration::unsupportedOperatorMethodIsInvalid()
+{
+    const UA_StatusCode status = callAlarm(Suppress2Method, { comment(QStringLiteral("hide")) });
+
+    QCOMPARE(status, UA_STATUSCODE_BADMETHODINVALID);
+    QVERIFY(!_alarm->suppressed());
+}
+
+///
+/// \brief Supporting suppression adds SuppressedState and the four suppression methods to the alarm.
+///
+void TestAlarmsIntegration::supportExposesOperatorMethods()
+{
+    _alarm->setSuppressionSupported(true);
+    const QList<QUaNodeId> components = alarmComponents();
+
+    QVERIFY(_alarm->suppressionSupported());
+    QVERIFY(!_alarm->suppressed());
+    QVERIFY(components.contains(SuppressMethod));
+    QVERIFY(components.contains(Suppress2Method));
+    QVERIFY(components.contains(Unsuppress2Method));
+}
+
+///
+/// \brief Regression: methods inherited from AlarmConditionType could not be removed from an alarm subtype.
+///
+void TestAlarmsIntegration::withdrawnSupportRemovesOperatorMethods()
+{
+    _alarm->setLatchingSupported(true);
+
+    _alarm->setLatchingSupported(false);
+    const QList<QUaNodeId> components = alarmComponents();
+
+    QVERIFY(!_alarm->latchingSupported());
+    QVERIFY(!components.contains(ResetMethod));
+    QVERIFY(!components.contains(Reset2Method));
+    QCOMPARE(callAlarm(Reset2Method, { comment(QStringLiteral("clear")) }), UA_STATUSCODE_BADMETHODINVALID);
+}
+
+///
+/// \brief Suppress2 suppresses the alarm and records the operator comment.
+///
+void TestAlarmsIntegration::suppress2SuppressesWithComment()
+{
+    _alarm->setSuppressionSupported(true);
+    QSignalSpy suppressedSpy(_alarm, &QUaAlarmCondition::suppressedChanged);
+
+    const UA_StatusCode status = callAlarm(Suppress2Method, { comment(QStringLiteral("maintenance")) });
+
+    QCOMPARE(status, UA_STATUSCODE_GOOD);
+    QVERIFY(_alarm->suppressed());
+    QCOMPARE(suppressedSpy.count(), 1);
+    QCOMPARE(_alarm->comment().text(), QStringLiteral("maintenance"));
+}
+
+///
+/// \brief Unsuppress2 clears a suppression.
+///
+void TestAlarmsIntegration::unsuppress2ClearsSuppression()
+{
+    _alarm->setSuppressionSupported(true);
+    _alarm->setSuppressed(true);
+
+    const UA_StatusCode status = callAlarm(Unsuppress2Method, { comment(QStringLiteral("back")) });
+
+    QCOMPARE(status, UA_STATUSCODE_GOOD);
+    QVERIFY(!_alarm->suppressed());
+    QCOMPARE(_alarm->comment().text(), QStringLiteral("back"));
+}
+
+///
+/// \brief A null Comment (empty locale and text) leaves the current comment untouched.
+///
+void TestAlarmsIntegration::nullCommentKeepsCurrentComment()
+{
+    _alarm->setSuppressionSupported(true);
+    _alarm->setComment(QUaLocalizedText(QStringLiteral("en"), QStringLiteral("earlier")));
+
+    const UA_StatusCode status = callAlarm(Suppress2Method, { QVariant::fromValue(QUaLocalizedText()) });
+
+    QCOMPARE(status, UA_STATUSCODE_GOOD);
+    QVERIFY(_alarm->suppressed());
+    QCOMPARE(_alarm->comment().text(), QStringLiteral("earlier"));
+}
+
+///
+/// \brief RemoveFromService2 takes the alarm out of service.
+///
+void TestAlarmsIntegration::removeFromService2TakesAlarmOutOfService()
+{
+    _alarm->setOutOfServiceSupported(true);
+    QSignalSpy serviceSpy(_alarm, &QUaAlarmCondition::outOfServiceChanged);
+
+    const UA_StatusCode status = callAlarm(RemoveFromService2Method, { comment(QStringLiteral("repair")) });
+
+    QCOMPARE(status, UA_STATUSCODE_GOOD);
+    QVERIFY(_alarm->outOfService());
+    QCOMPARE(serviceSpy.count(), 1);
+    QCOMPARE(_alarm->comment().text(), QStringLiteral("repair"));
+}
+
+///
+/// \brief PlaceInService2 returns an out of service alarm to service.
+///
+void TestAlarmsIntegration::placeInService2ReturnsAlarmToService()
+{
+    _alarm->setOutOfServiceSupported(true);
+    _alarm->setOutOfService(true);
+
+    const UA_StatusCode status = callAlarm(PlaceInService2Method, { comment(QStringLiteral("fixed")) });
+
+    QCOMPARE(status, UA_STATUSCODE_GOOD);
+    QVERIFY(!_alarm->outOfService());
+}
+
+///
+/// \brief SuppressedOrShelved stays set while the alarm is either suppressed or out of service.
+///
+void TestAlarmsIntegration::suppressedOrShelveFollowsSuppressionAndService()
+{
+    _alarm->setSuppressionSupported(true);
+    _alarm->setOutOfServiceSupported(true);
+
+    _alarm->setSuppressed(true);
+    _alarm->setOutOfService(true);
+    _alarm->setSuppressed(false);
+    const bool whileOutOfService = _alarm->suppressedOrShelve();
+    _alarm->setOutOfService(false);
+
+    QVERIFY(whileOutOfService);
+    QVERIFY(!_alarm->suppressedOrShelve());
+}
+
+///
+/// \brief Silence silences an active alarm.
+///
+void TestAlarmsIntegration::silenceSilencesAudibleAlarm()
+{
+    _alarm->setSilenceSupported(true);
+    _moving->setValue(true);
+    QSignalSpy silencedSpy(_alarm, &QUaAlarmCondition::silencedChanged);
+
+    const UA_StatusCode status = callAlarm(SilenceMethod);
+
+    QCOMPARE(status, UA_STATUSCODE_GOOD);
+    QVERIFY(_alarm->silenced());
+    QCOMPARE(silencedSpy.count(), 1);
+}
+
+///
+/// \brief Acknowledging an alarm also silences it.
+///
+void TestAlarmsIntegration::acknowledgeSilencesAlarm()
+{
+    _alarm->setSilenceSupported(true);
+    _moving->setValue(true);
+
+    _alarm->setAcknowledged(true);
+
+    QVERIFY(_alarm->silenced());
+}
+
+///
+/// \brief A new activation makes a silenced alarm audible again.
+///
+void TestAlarmsIntegration::activationClearsSilence()
+{
+    _alarm->setSilenceSupported(true);
+    _moving->setValue(true);
+    _alarm->setAcknowledged(true);
+    _moving->setValue(false);
+
+    _moving->setValue(true);
+
+    QVERIFY(!_alarm->silenced());
+}
+
+///
+/// \brief A latched alarm stays retained after returning to normal until Reset2 clears the latch.
+///
+void TestAlarmsIntegration::latchedAlarmIsRetainedUntilReset2()
+{
+    _alarm->setLatchingSupported(true);
+    _moving->setValue(true);
+    _alarm->setAcknowledged(true);
+    _moving->setValue(false);
+    const bool latchedWhileNormal = _alarm->latched();
+    const bool retainedWhileNormal = _alarm->retain();
+
+    const UA_StatusCode status = callAlarm(Reset2Method, { comment(QStringLiteral("cleared")) });
+
+    QVERIFY(latchedWhileNormal);
+    QVERIFY(retainedWhileNormal);
+    QCOMPARE(status, UA_STATUSCODE_GOOD);
+    QVERIFY(!_alarm->latched());
+    QVERIFY(!_alarm->retain());
+    QCOMPARE(_alarm->comment().text(), QStringLiteral("cleared"));
+}
+
+///
+/// \brief Reset is refused while the alarm is still active.
+///
+void TestAlarmsIntegration::resetRejectsActiveAlarm()
+{
+    _alarm->setLatchingSupported(true);
+    _moving->setValue(true);
+    _alarm->setAcknowledged(true);
+
+    const UA_StatusCode status = callAlarm(ResetMethod);
+
+    QCOMPARE(status, UA_STATUSCODE_BADINVALIDSTATE);
+    QVERIFY(_alarm->latched());
+}
+
+///
+/// \brief Reset is refused until the alarm is acknowledged.
+///
+void TestAlarmsIntegration::resetRejectsUnacknowledgedAlarm()
+{
+    _alarm->setLatchingSupported(true);
+    _moving->setValue(true);
+    _moving->setValue(false);
+
+    const UA_StatusCode status = callAlarm(ResetMethod);
+
+    QCOMPARE(status, UA_STATUSCODE_BADINVALIDSTATE);
+    QVERIFY(_alarm->latched());
+}
+
+///
+/// \brief Reset is refused when the alarm is not latched.
+///
+void TestAlarmsIntegration::resetRejectsUnlatchedAlarm()
+{
+    _alarm->setLatchingSupported(true);
+
+    const UA_StatusCode status = callAlarm(ResetMethod);
+
+    QCOMPARE(status, UA_STATUSCODE_BADINVALIDSTATE);
+}
+
+///
+/// \brief Every alarm exposes GetGroupMemberships, which needs no optional state.
+///
+void TestAlarmsIntegration::getGroupMembershipsIsExposedOnAlarms()
+{
+    QVERIFY(alarmComponents().contains(GetGroupMembershipsMethod));
+}
+
+///
+/// \brief GetGroupMemberships lists the groups referencing the alarm through AlarmGroupMember.
+///
+void TestAlarmsIntegration::getGroupMembershipsListsAlarmGroups()
+{
+    QVariantList outputs;
+    const UA_StatusCode ungroupedStatus = callAlarm(GetGroupMembershipsMethod, {}, outputs);
+    const QVariantList ungrouped = outputs;
+    QUaBaseObject *group = _server->objectsFolder()->addBaseObject(QStringLiteral("group"));
+    group->addReference({ QStringLiteral("AlarmGroupMember"), QStringLiteral("MemberOfAlarmGroup") }, _alarm);
+
+    const UA_StatusCode groupedStatus = callAlarm(GetGroupMembershipsMethod, {}, outputs);
+    const QUaNodeId groupId = group->nodeId();
+    delete group;
+
+    QCOMPARE(ungroupedStatus, UA_STATUSCODE_GOOD);
+    QCOMPARE(ungrouped.size(), 1);
+    QVERIFY(ungrouped.first().toList().isEmpty());
+    QCOMPARE(groupedStatus, UA_STATUSCODE_GOOD);
+    QCOMPARE(outputs.size(), 1);
+    const QVariantList groups = outputs.first().toList();
+    QCOMPARE(groups.size(), 1);
+    QCOMPARE(groups.first().value<QUaNodeId>(), groupId);
+}
+
+///
+/// \brief A cloned alarm, restored through serialization, keeps its operator states and their methods.
+///
+void TestAlarmsIntegration::cloneKeepsOperatorStates()
+{
+    _alarm->setSuppressionSupported(true);
+    _alarm->setSuppressed(true);
+
+    auto *clone = qobject_cast<QUaOffNormalAlarm *>(_alarm->cloneNode(_sensor, QStringLiteral("clone")));
+
+    QVERIFY(clone);
+    QVERIFY(clone->suppressionSupported());
+    QVERIFY(clone->suppressed());
+    QVERIFY(clone->suppressedOrShelve());
+    QVariantList outputs;
+    QCOMPARE(_client->call(clone->nodeId(), Unsuppress2Method, { comment(QStringLiteral("clone")) }, outputs),
+             UA_STATUSCODE_GOOD);
+    QVERIFY(!clone->suppressed());
 }
 
 QTEST_GUILESS_MAIN(TestAlarmsIntegration)

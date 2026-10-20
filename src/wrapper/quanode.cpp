@@ -1356,46 +1356,7 @@ bool QUaNode::addOptionalMethod(const QUaQualifiedName& methodName)
 	{
 		return true;
 	}
-	UA_NodeId typeNodeId = QUaNode::typeDefinitionNodeId(_nodeId, _qUaServer->_server);
-	UA_NodeId methodNodeId = UA_NODEID_NULL;
-	// look for optional method starting from this type of to base object type
-    static UA_NodeId baseObjType = UA_NODEID_NUMERIC(0, UA_NS0ID_BASEOBJECTTYPE);
-    while (!UA_NodeId_equal(&typeNodeId, &baseObjType))
-		{
-		// get all ua methods of TYPE
-		auto methodsNodeIds = QUaNode::getMethodsNodeIds(typeNodeId, _qUaServer->_server);
-		for (const auto & methNodeId : std::as_const(methodsNodeIds))
-		{
-			// ignore if not optional
-			if (!QUaNode::hasOptionalModellingRule(methNodeId, _qUaServer->_server))
-			{
-				continue;
-			}
-			// ignore if browse name does not match
-			QUaQualifiedName methBrowseName = QUaNode::getBrowseName(methNodeId, _qUaServer->_server);
-			if (methodName != methBrowseName)
-			{
-				continue;
-			}
-			methodNodeId = methNodeId;
-			break;
-		}
-		// cleanup
-		for (auto & methNodeId : methodsNodeIds)
-		{
-			UA_NodeId_clear(&methNodeId);
-		}
-		// check if found
-		if (!UA_NodeId_isNull(&methodNodeId))
-		{
-			break;
-		}
-		UA_NodeId typeNodeIdNew = QUaNode::superTypeDefinitionNodeId(typeNodeId, _qUaServer->_server);
-		UA_NodeId_clear(&typeNodeId);
-		UA_NodeId_copy(&typeNodeIdNew, &typeNodeId);
-		UA_NodeId_clear(&typeNodeIdNew);
-	}
-	UA_NodeId_clear(&typeNodeId);
+	UA_NodeId methodNodeId = this->optionalMethodNodeId(methodName);
 	Q_ASSERT_X(!UA_NodeId_isNull(&methodNodeId),
 		"QUaNode::addOptionalMethod", "Could not find optional method.");
 	if (UA_NodeId_isNull(&methodNodeId))
@@ -1410,6 +1371,7 @@ bool QUaNode::addOptionalMethod(const QUaQualifiedName& methodName)
 		{ methodNodeId, UA_STRING_NULL, 0 },
 		true
 	);
+	UA_NodeId_clear(&methodNodeId);
 	Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	if (st != UA_STATUSCODE_GOOD)
 	{
@@ -1425,36 +1387,11 @@ bool QUaNode::removeOptionalMethod(const QUaQualifiedName& methodName)
 	{
 		return true;
 	}
-	UA_NodeId typeNodeId = QUaNode::typeDefinitionNodeId(_nodeId, _qUaServer->_server);
-	// get all ua methods of TYPE
-	auto methodsNodeIds = QUaNode::getMethodsNodeIds(typeNodeId, _qUaServer->_server);
-	UA_NodeId methodNodeId = UA_NODEID_NULL;
-	for (const auto & methNodeId : std::as_const(methodsNodeIds))
-	{
-		// ignore if not optional
-		if (!QUaNode::hasOptionalModellingRule(methNodeId, _qUaServer->_server))
-		{
-			continue;
-		}
-		// ignore if browse name does not match
-		QUaQualifiedName methBrowseName = QUaNode::getBrowseName(methNodeId, _qUaServer->_server);
-		if (methodName != methBrowseName)
-		{
-			continue;
-		}
-		methodNodeId = methNodeId;
-		break;
-	}
+	UA_NodeId methodNodeId = this->optionalMethodNodeId(methodName);
 	Q_ASSERT_X(!UA_NodeId_isNull(&methodNodeId),
-		"QUaNode::addOptionalMethod", "Could not find optional method.");
+		"QUaNode::removeOptionalMethod", "Could not find optional method.");
 	if (UA_NodeId_isNull(&methodNodeId))
 	{
-		// cleanup
-		for (auto & methodNodeId : methodsNodeIds)
-		{
-			UA_NodeId_clear(&methodNodeId);
-		}
-		UA_NodeId_clear(&typeNodeId);
 		return false;
 	}
 	// remove reference from instance to method
@@ -1466,18 +1403,45 @@ bool QUaNode::removeOptionalMethod(const QUaQualifiedName& methodName)
 		{ methodNodeId, UA_STRING_NULL, 0 },
 		true
 	);
-	// cleanup
-	for (auto & methodNodeId : methodsNodeIds)
-	{
-		UA_NodeId_clear(&methodNodeId);
-	}
-	UA_NodeId_clear(&typeNodeId);
+	UA_NodeId_clear(&methodNodeId);
 	Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	if (st != UA_STATUSCODE_GOOD)
 	{
 		return false;
 	}
 	return true;
+}
+
+UA_NodeId QUaNode::optionalMethodNodeId(const QUaQualifiedName& methodName) const
+{
+	UA_NodeId methodNodeId = UA_NODEID_NULL;
+	UA_NodeId typeNodeId = QUaNode::typeDefinitionNodeId(_nodeId, _qUaServer->_server);
+	// optional methods are declared on the type that introduced them, not repeated on subtypes
+	static UA_NodeId baseObjType = UA_NODEID_NUMERIC(0, UA_NS0ID_BASEOBJECTTYPE);
+	while (UA_NodeId_isNull(&methodNodeId) &&
+		!UA_NodeId_isNull(&typeNodeId) &&
+		!UA_NodeId_equal(&typeNodeId, &baseObjType))
+	{
+		auto methodsNodeIds = QUaNode::getMethodsNodeIds(typeNodeId, _qUaServer->_server);
+		for (const auto & methNodeId : std::as_const(methodsNodeIds))
+		{
+			if (QUaNode::hasOptionalModellingRule(methNodeId, _qUaServer->_server) &&
+				QUaNode::getBrowseName(methNodeId, _qUaServer->_server) == methodName)
+			{
+				UA_NodeId_copy(&methNodeId, &methodNodeId);
+				break;
+			}
+		}
+		for (auto & methNodeId : methodsNodeIds)
+		{
+			UA_NodeId_clear(&methNodeId);
+		}
+		UA_NodeId superTypeNodeId = QUaNode::superTypeDefinitionNodeId(typeNodeId, _qUaServer->_server);
+		UA_NodeId_clear(&typeNodeId);
+		typeNodeId = superTypeNodeId;
+	}
+	UA_NodeId_clear(&typeNodeId);
+	return methodNodeId;
 }
 
 bool QUaNode::inAddressSpace() const

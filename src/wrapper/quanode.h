@@ -327,6 +327,8 @@ private:
 	QHash<uint, QUaNode*> _browseCache;
 
 	void bindChild(QUaNode* child, const QUaQualifiedName& browseName);
+	// NOTE : need to cleanup result after calling this method
+	UA_NodeId optionalMethodNodeId(const QUaQualifiedName& methodName) const;
 
 	// Static Helpers
 

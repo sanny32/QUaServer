@@ -147,6 +147,12 @@ public:
     UA_StatusCode deleteReference(const QUaNodeId &sourceId, const QUaNodeId &referenceTypeId, const QUaNodeId &targetId);
 
     ///
+    /// \brief Browses the forward references of type \a referenceTypeId, subtypes included, from \a nodeId.
+    /// \param targets The nodes the references point to.
+    ///
+    UA_StatusCode browseTargets(const QUaNodeId &nodeId, const QUaNodeId &referenceTypeId, QList<QUaNodeId> &targets);
+
+    ///
     /// \brief Calls the method \a methodId of \a objectId with \a inputs and stores its results in \a outputs.
     ///
     UA_StatusCode call(const QUaNodeId &objectId,

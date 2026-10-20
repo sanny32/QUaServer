@@ -456,6 +456,45 @@ UA_StatusCode TestClient::deleteReference(const QUaNodeId &sourceId, const QUaNo
 }
 
 ///
+/// \brief Browses the forward references of type \a referenceTypeId, subtypes included, from \a nodeId.
+/// \param targets The nodes the references point to.
+///
+UA_StatusCode TestClient::browseTargets(const QUaNodeId &nodeId,
+                                        const QUaNodeId &referenceTypeId,
+                                        QList<QUaNodeId> &targets)
+{
+    UA_BrowseRequest request;
+    UA_BrowseRequest_init(&request);
+    UA_BrowseDescription description;
+    UA_BrowseDescription_init(&description);
+    description.nodeId = nodeId.toUaNodeId();
+    description.referenceTypeId = referenceTypeId.toUaNodeId();
+    description.browseDirection = UA_BROWSEDIRECTION_FORWARD;
+    description.includeSubtypes = true;
+    description.resultMask = UA_BROWSERESULTMASK_NONE;
+    request.nodesToBrowse = &description;
+    request.nodesToBrowseSize = 1;
+    UA_BrowseResponse response;
+    runInWorker([&] { response = UA_Client_Service_browse(_client, request); });
+    UA_BrowseDescription_clear(&description);
+    UA_StatusCode status = response.responseHeader.serviceResult;
+    if (status == UA_STATUSCODE_GOOD && response.resultsSize == 1)
+    {
+        status = response.results[0].statusCode;
+    }
+    targets.clear();
+    if (status == UA_STATUSCODE_GOOD && response.resultsSize == 1)
+    {
+        for (size_t i = 0; i < response.results[0].referencesSize; ++i)
+        {
+            targets << QUaNodeId(response.results[0].references[i].nodeId.nodeId);
+        }
+    }
+    UA_BrowseResponse_clear(&response);
+    return status;
+}
+
+///
 /// \brief Calls the method \a methodId of \a objectId with \a inputs and stores its results in \a outputs.
 ///
 UA_StatusCode TestClient::call(const QUaNodeId &objectId,
