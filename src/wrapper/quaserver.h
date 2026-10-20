@@ -430,6 +430,16 @@ public:
 
     // check if a node id is available (not used), not necessarily by an instance, but could be a type for example
     bool isNodeIdUsed(const QUaNodeId& nodeId) const;
+	///
+	/// \brief Returns the BrowseName of any node, also of a type or another node without a C++ instance.
+	/// \return The BrowseName, or an empty name when the server has no node \a nodeId.
+	///
+	QUaQualifiedName browseName(const QUaNodeId& nodeId) const;
+	///
+	/// \brief Tells whether \a typeId is \a superTypeId or derives from it through HasSubtype references, e.g.
+	///        whether a data type is an enumeration, whose values are encoded as Int32.
+	///
+	bool isSubtypeOf(const QUaNodeId& typeId, const QUaNodeId& superTypeId) const;
 	// create instance of a given (variable or object) type
 	template<typename T>
 	T* createInstance(

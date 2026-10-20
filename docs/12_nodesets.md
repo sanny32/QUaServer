@@ -44,6 +44,14 @@ Non-hierarchical reference types of the NodeSet can be used with `addReference()
 QList<QUaNode*> fed = machine->findReferences({ "Feeds", "FedBy" });
 ```
 
+Types of the NodeSet have no C++ instance, so `nodeById()` does not find them. `browseName()` reads the *BrowseName* of any node, and `isSubtypeOf()` follows the `HasSubtype` references, e.g. to tell an enumeration, whose values are `Int32`, from other data types:
+
+```c++
+QUaNodeId dataType(mode->dataTypeNodeId());
+QString name = server.browseName(dataType).name();
+bool enumeration = server.isSubtypeOf(dataType, QUaNodeId(0, UA_NS0ID_ENUMERATION));
+```
+
 ## Limitations
 
 * Methods of the NodeSet have no implementation, so calling them fails with `BadNotImplemented`.
