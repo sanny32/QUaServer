@@ -13,6 +13,9 @@ QUaAlarmCondition::QUaAlarmCondition(
 	_inputNode = nullptr;
 	// resue rest of defaults 
 	this->resetInternals();
+	this->addOptionalMethod("GetGroupMemberships");
+	QObject::connect(this, &QUaAcknowledgeableCondition::conditionAcknowledged,
+		this, &QUaAlarmCondition::silenceOnAcknowledge);
 }
 
 QUaAlarmCondition::~QUaAlarmCondition()
@@ -106,6 +109,77 @@ void QUaAlarmCondition::setInputNode(QUaBaseVariable* inputNode)
 	});
 }
 
+bool QUaAlarmCondition::suppressed() const
+{
+	auto state = this->optionalState("SuppressedState");
+	return state && state->id();
+}
+
+void QUaAlarmCondition::setSuppressed(const bool& suppressed)
+{
+	auto state = this->getSuppressedState();
+	if (!this->changeState(state, suppressed))
+	{
+		return;
+	}
+	this->updateSuppressedOrShelve();
+	this->triggerStateChange(state);
+	emit this->suppressedChanged();
+}
+
+bool QUaAlarmCondition::outOfService() const
+{
+	auto state = this->optionalState("OutOfServiceState");
+	return state && state->id();
+}
+
+void QUaAlarmCondition::setOutOfService(const bool& outOfService)
+{
+	auto state = this->getOutOfServiceState();
+	if (!this->changeState(state, outOfService))
+	{
+		return;
+	}
+	this->updateSuppressedOrShelve();
+	this->triggerStateChange(state);
+	emit this->outOfServiceChanged();
+}
+
+bool QUaAlarmCondition::silenced() const
+{
+	auto state = this->optionalState("SilenceState");
+	return state && state->id();
+}
+
+void QUaAlarmCondition::setSilenced(const bool& silenced)
+{
+	auto state = this->getSilenceState();
+	if (!this->changeState(state, silenced))
+	{
+		return;
+	}
+	this->triggerStateChange(state);
+	emit this->silencedChanged();
+}
+
+bool QUaAlarmCondition::latched() const
+{
+	auto state = this->optionalState("LatchedState");
+	return state && state->id();
+}
+
+void QUaAlarmCondition::setLatched(const bool& latched)
+{
+	auto state = this->getLatchedState();
+	if (!this->changeState(state, latched))
+	{
+		return;
+	}
+	this->setRetain(this->requiresAttention() || this->hasBranches());
+	this->triggerStateChange(state);
+	emit this->latchedChanged();
+}
+
 bool QUaAlarmCondition::suppressedOrShelve() const
 {
 	return const_cast<QUaAlarmCondition*>(this)->getSuppressedOrShelve()->value<bool>();
@@ -118,32 +192,149 @@ void QUaAlarmCondition::setSuppressedOrShelve(const bool& suppressedOrShelve)
 
 void QUaAlarmCondition::Silence()
 {
-	// TODO 
+	if (!this->checkMethodSupported(this->silenceSupported()))
+	{
+		return;
+	}
+	// spec : ignored if not audible, i.e. already silenced
+	this->setSilenced(true);
 }
 
 void QUaAlarmCondition::Suppress()
 {
-	// TODO 
+	this->Suppress2(QUaLocalizedText());
+}
+
+void QUaAlarmCondition::Suppress2(QUaLocalizedText Comment)
+{
+	if (!this->checkMethodSupported(this->suppressionSupported()))
+	{
+		return;
+	}
+	this->applyComment(Comment, !this->suppressed());
+	this->setSuppressed(true);
 }
 
 void QUaAlarmCondition::Unsuppress()
 {
-	// TODO 
+	this->Unsuppress2(QUaLocalizedText());
+}
+
+void QUaAlarmCondition::Unsuppress2(QUaLocalizedText Comment)
+{
+	if (!this->checkMethodSupported(this->suppressionSupported()))
+	{
+		return;
+	}
+	this->applyComment(Comment, this->suppressed());
+	this->setSuppressed(false);
 }
 
 void QUaAlarmCondition::RemoveFromService()
 {
-	// TODO 
+	this->RemoveFromService2(QUaLocalizedText());
+}
+
+void QUaAlarmCondition::RemoveFromService2(QUaLocalizedText Comment)
+{
+	if (!this->checkMethodSupported(this->outOfServiceSupported()))
+	{
+		return;
+	}
+	this->applyComment(Comment, !this->outOfService());
+	this->setOutOfService(true);
 }
 
 void QUaAlarmCondition::PlaceInService()
 {
-	// TODO 
+	this->PlaceInService2(QUaLocalizedText());
+}
+
+void QUaAlarmCondition::PlaceInService2(QUaLocalizedText Comment)
+{
+	if (!this->checkMethodSupported(this->outOfServiceSupported()))
+	{
+		return;
+	}
+	this->applyComment(Comment, this->outOfService());
+	this->setOutOfService(false);
 }
 
 void QUaAlarmCondition::Reset()
 {
-	// TODO 
+	this->Reset2(QUaLocalizedText());
+}
+
+void QUaAlarmCondition::Reset2(QUaLocalizedText Comment)
+{
+	if (!this->checkMethodSupported(this->latchingSupported()))
+	{
+		return;
+	}
+	if (!this->latched() || this->active() || QUaAcknowledgeableCondition::requiresAttention())
+	{
+		this->setMethodReturnStatusCode(UA_STATUSCODE_BADINVALIDSTATE);
+		return;
+	}
+	this->applyComment(Comment, true);
+	this->setLatched(false);
+}
+
+QList<QUaNodeId> QUaAlarmCondition::GetGroupMemberships()
+{
+	QList<QUaNodeId> groups;
+	const auto groupNodes = this->findReferences({ "AlarmGroupMember", "MemberOfAlarmGroup" }, false);
+	for (auto group : groupNodes)
+	{
+		groups << group->nodeId();
+	}
+	return groups;
+}
+
+bool QUaAlarmCondition::suppressionSupported() const
+{
+	return this->optionalState("SuppressedState") != nullptr;
+}
+
+void QUaAlarmCondition::setSuppressionSupported(const bool& suppressionSupported)
+{
+	this->setStateSupported("SuppressedState", tr("Suppressed"), tr("Unsuppressed"),
+		{ "Suppress", "Suppress2", "Unsuppress", "Unsuppress2" }, suppressionSupported);
+	this->updateSuppressedOrShelve();
+}
+
+bool QUaAlarmCondition::outOfServiceSupported() const
+{
+	return this->optionalState("OutOfServiceState") != nullptr;
+}
+
+void QUaAlarmCondition::setOutOfServiceSupported(const bool& outOfServiceSupported)
+{
+	this->setStateSupported("OutOfServiceState", tr("Out of Service"), tr("In Service"),
+		{ "RemoveFromService", "RemoveFromService2", "PlaceInService", "PlaceInService2" }, outOfServiceSupported);
+	this->updateSuppressedOrShelve();
+}
+
+bool QUaAlarmCondition::silenceSupported() const
+{
+	return this->optionalState("SilenceState") != nullptr;
+}
+
+void QUaAlarmCondition::setSilenceSupported(const bool& silenceSupported)
+{
+	this->setStateSupported("SilenceState", tr("Silenced"), tr("Not Silenced"),
+		{ "Silence" }, silenceSupported);
+}
+
+bool QUaAlarmCondition::latchingSupported() const
+{
+	return this->optionalState("LatchedState") != nullptr;
+}
+
+void QUaAlarmCondition::setLatchingSupported(const bool& latchingSupported)
+{
+	this->setStateSupported("LatchedState", tr("Latched"), tr("Unlatched"),
+		{ "Reset", "Reset2" }, latchingSupported);
 }
 
 bool QUaAlarmCondition::active() const
@@ -169,6 +360,9 @@ void QUaAlarmCondition::setActive(const bool& active, const QString& strMessageA
 	// if active have to retain and reset acknowledged and confirmed
 	if (active)
 	{
+		// part of this activation event, no event of their own
+		this->changeState(this->getLatchedState(), true);
+		this->changeState(this->getSilenceState(), false);
 		this->setRetain(true);
 		// reset aknowledged
 		this->setAckedStateCurrentStateName(this->ackedStateFalseState());
@@ -192,7 +386,8 @@ void QUaAlarmCondition::setActive(const bool& active, const QString& strMessageA
 		QString strMessage = strMessageAppend.isEmpty() ? 
 			tr("Alarm %1.").arg(strActiveStateName) :
 			tr("Alarm %1. %2").arg(strActiveStateName).arg(strMessageAppend);
-		if (this->requiresAttention())
+		// a latch alone keeps the alarm retained but needs no branch to acknowledge
+		if (QUaAcknowledgeableCondition::requiresAttention())
 		{
 			// create branch
 			auto branch = this->createBranch<QUaAlarmConditionBranch>();
@@ -213,7 +408,11 @@ void QUaAlarmCondition::setActive(const bool& active, const QString& strMessageA
 		else
 		{
 			bool hasBranches = this->hasBranches();
-			this->setRetain(hasBranches);
+			this->setRetain(hasBranches || this->latched());
+			if (this->latched())
+			{
+				strMessage += tr(" Requires Reset.");
+			}
 			if (hasBranches)
 			{
 				strMessage += tr(" Has branches.");
@@ -252,15 +451,35 @@ QUaProperty* QUaAlarmCondition::getInputNode()
 
 QUaProperty* QUaAlarmCondition::getSuppressedOrShelve()
 {
-	return this->browseChild<QUaProperty>("SuppressedOrShelve");
+	return this->browseChild<QUaProperty>("SuppressedOrShelved");
+}
+
+QUaTwoStateVariable* QUaAlarmCondition::getSuppressedState()
+{
+	return this->optionalState("SuppressedState");
+}
+
+QUaTwoStateVariable* QUaAlarmCondition::getOutOfServiceState()
+{
+	return this->optionalState("OutOfServiceState");
+}
+
+QUaTwoStateVariable* QUaAlarmCondition::getSilenceState()
+{
+	return this->optionalState("SilenceState");
+}
+
+QUaTwoStateVariable* QUaAlarmCondition::getLatchedState()
+{
+	return this->optionalState("LatchedState");
 }
 
 bool QUaAlarmCondition::requiresAttention() const
 {
 	// base implementation
 	bool requiresAttention = QUaAcknowledgeableCondition::requiresAttention();
-	// if active
-	requiresAttention = requiresAttention || this->active();
+	// if active or waiting for Reset
+	requiresAttention = requiresAttention || this->active() || this->latched();
 	// return result
 	return requiresAttention;
 }
@@ -274,6 +493,110 @@ void QUaAlarmCondition::resetInternals()
 	this->setActiveStateCurrentStateName(tr("Inactive"));
 	this->setActiveStateId(false);
 	this->setActiveStateTransitionTime(this->getActiveState()->serverTimestamp());
+}
+
+QUaTwoStateVariable* QUaAlarmCondition::optionalState(const QUaQualifiedName& stateName) const
+{
+	return const_cast<QUaAlarmCondition*>(this)->browseChild<QUaTwoStateVariable>(stateName);
+}
+
+void QUaAlarmCondition::setStateSupported(
+	const QUaQualifiedName& stateName,
+	const QUaLocalizedText& trueState,
+	const QUaLocalizedText& falseState,
+	const QList<QUaQualifiedName>& methods,
+	const bool& supported)
+{
+	// NOTE : idempotent, deserialization may have instantiated the state already
+	auto state = this->optionalState(stateName);
+	if (!supported)
+	{
+		delete state;
+		for (const auto& method : methods)
+		{
+			this->removeOptionalMethod(method);
+		}
+		return;
+	}
+	if (!state)
+	{
+		state = this->browseChild<QUaTwoStateVariable>(stateName, true);
+		Q_CHECK_PTR(state);
+		state->setFalseState(falseState);
+		state->setTrueState(trueState);
+		state->setCurrentStateName(falseState);
+		state->setId(false);
+		state->setTransitionTime(state->serverTimestamp());
+	}
+	for (const auto& method : methods)
+	{
+		this->addOptionalMethod(method);
+	}
+}
+
+bool QUaAlarmCondition::changeState(QUaTwoStateVariable* state, const bool& id)
+{
+	if (!state || state->id() == id)
+	{
+		return false;
+	}
+	state->setId(id);
+	state->setCurrentStateName(id ? state->trueState() : state->falseState());
+	state->setTransitionTime(QDateTime::currentDateTimeUtc());
+	return true;
+}
+
+void QUaAlarmCondition::triggerStateChange(QUaTwoStateVariable* state)
+{
+	auto time = QDateTime::currentDateTimeUtc();
+	this->setTime(time);
+	this->setReceiveTime(time);
+	this->setMessage(tr("Alarm %1.").arg(state->currentStateName()));
+	this->trigger();
+}
+
+bool QUaAlarmCondition::checkMethodSupported(const bool& supported)
+{
+	// called through the type's method node on an instance that does not expose it
+	if (!supported)
+	{
+		this->setMethodReturnStatusCode(UA_STATUSCODE_BADMETHODINVALID);
+	}
+	return supported;
+}
+
+void QUaAlarmCondition::applyComment(const QUaLocalizedText& comment, const bool& stateChanges)
+{
+	// spec : a null Comment (empty locale and text) leaves the current one untouched
+	if (comment.locale().isEmpty() && comment.text().isEmpty())
+	{
+		return;
+	}
+	if (!stateChanges)
+	{
+		this->setComment(comment);
+		return;
+	}
+	// reported by the state change event
+	this->getComment()->QUaBaseVariable::setValue(comment);
+	auto session = this->currentSession();
+	if (session)
+	{
+		this->setClientUserId(session->userName());
+	}
+}
+
+void QUaAlarmCondition::updateSuppressedOrShelve()
+{
+	this->setSuppressedOrShelve(this->suppressed() || this->outOfService());
+}
+
+void QUaAlarmCondition::silenceOnAcknowledge()
+{
+	if (this->acknowledged())
+	{
+		this->setSilenced(true);
+	}
 }
 /***************************************************************************************
 */
