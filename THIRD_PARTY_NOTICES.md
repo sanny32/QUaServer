@@ -37,7 +37,7 @@ Source: https://code.qt.io/cgit/qt/
 
 ## open62541
 
-Version: 1.5.8, statically linked into QUaServer.
+Version: 1.5.9, statically linked into QUaServer.
 
 Copyright (C) The open62541 authors; contributors retain their individual
 copyright.
@@ -57,7 +57,7 @@ directory, each under its own license:
 | `dtoa` | BSL-1.0 | `licenses/BSL-1.0-open62541.txt` |
 | `pcg_basic` | Apache-2.0 | `licenses/Apache-2.0.txt` |
 
-Source: https://github.com/open62541/open62541/tree/v1.5.8
+Source: https://github.com/open62541/open62541/tree/v1.5.9
 
 ## UA-Nodeset
 

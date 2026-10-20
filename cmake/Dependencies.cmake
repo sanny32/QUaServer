@@ -3,7 +3,7 @@
 
 include(FetchContent)
 
-set(QUASERVER_OPEN62541_VERSION "v1.5.8")
+set(QUASERVER_OPEN62541_VERSION "v1.5.9")
 # deps/ua-nodeset commit pinned by that open62541 release
 set(QUASERVER_UA_NODESET_COMMIT "257db9ad98ee7ba4b67d3500b54bfc9d744a36af")
 
