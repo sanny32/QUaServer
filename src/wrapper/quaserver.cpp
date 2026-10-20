@@ -3921,6 +3921,65 @@ bool QUaServer::isNodeIdUsed(const QUaNodeId& nodeId) const
 	return st == UA_STATUSCODE_GOOD;
 }
 
+///
+/// \brief Returns the BrowseName of any node, also of a type or another node without a C++ instance.
+/// \return The BrowseName, or an empty name when the server has no node \a nodeId.
+///
+QUaQualifiedName QUaServer::browseName(const QUaNodeId& nodeId) const
+{
+	UA_NodeId id = nodeId;
+	UA_QualifiedName name;
+	UA_QualifiedName_init(&name);
+	const UA_StatusCode st = UA_Server_readBrowseName(_server, id, &name);
+	UA_NodeId_clear(&id);
+	QUaQualifiedName result;
+	if (st == UA_STATUSCODE_GOOD)
+	{
+		result = name;
+	}
+	UA_QualifiedName_clear(&name);
+	return result;
+}
+
+///
+/// \brief Tells whether \a typeId is \a superTypeId or derives from it through HasSubtype references, e.g.
+///        whether a data type is an enumeration, whose values are encoded as Int32.
+///
+bool QUaServer::isSubtypeOf(const QUaNodeId& typeId, const QUaNodeId& superTypeId) const
+{
+	UA_BrowseDescription description;
+	UA_BrowseDescription_init(&description);
+	description.nodeId          = typeId;
+	description.referenceTypeId = UA_NODEID_NUMERIC(0, UA_NS0ID_HASSUBTYPE);
+	description.browseDirection = UA_BROWSEDIRECTION_INVERSE;
+	description.includeSubtypes = true;
+	description.resultMask      = UA_BROWSERESULTMASK_NONE;
+	bool found = false;
+	// A type has at most one supertype; the depth limit only guards against a NodeSet with a HasSubtype loop.
+	for (int depth = 0; depth < 64; ++depth)
+	{
+		if (QUaNodeId(description.nodeId) == superTypeId)
+		{
+			found = true;
+			break;
+		}
+		UA_BrowseResult result = UA_Server_browse(_server, 1, &description);
+		const bool hasSupertype = result.statusCode == UA_STATUSCODE_GOOD && result.referencesSize > 0;
+		if (hasSupertype)
+		{
+			UA_NodeId_clear(&description.nodeId);
+			UA_NodeId_copy(&result.references[0].nodeId.nodeId, &description.nodeId);
+		}
+		UA_BrowseResult_clear(&result);
+		if (!hasSupertype)
+		{
+			break;
+		}
+	}
+	UA_BrowseDescription_clear(&description);
+	return found;
+}
+
 QUaFolderObject* QUaServer::objectsFolder() const
 {
 	return _pobjectsFolder;

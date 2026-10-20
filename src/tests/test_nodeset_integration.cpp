@@ -52,6 +52,7 @@ private slots:
     void createsCppInstancesOfLoadedNodes();
     void instancesOfLoadedTypesGetMandatoryChildren();
     void decodesValues();
+    void namesAndRelatesLoadedTypes();
     void clientsReadAndWriteLoadedVariables();
     void loadedMethodsAreNotImplemented();
     void nonHierarchicalReferencesDoNotMakeParents();
@@ -188,6 +189,31 @@ void TestNodeSetIntegration::decodesValues()
     QCOMPARE(value.field(QStringLiteral("Value")).toDouble(), 12.5);
     QCOMPARE(value.field(QStringLiteral("Mode")).toInt(), 1);
     QCOMPARE(value.field(QStringLiteral("Tags")).value<QList<QString>>(), QList<QString>({ QStringLiteral("a"), QStringLiteral("b") }));
+}
+
+///
+/// \brief Types have no C++ instance, so their names and supertypes are read from the server.
+///
+void TestNodeSetIntegration::namesAndRelatesLoadedTypes()
+{
+    const QUaNodeId mode    = this->devicesNodeId(5001);
+    const QUaNodeId reading = this->devicesNodeId(5100);
+    const QUaNodeId enumeration(0, quint32(UA_NS0ID_ENUMERATION));
+    const QUaNodeId structure(0, quint32(UA_NS0ID_STRUCTURE));
+
+    QCOMPARE(m_server->browseName(mode), QUaQualifiedName(this->devicesNamespace(), QStringLiteral("Mode")));
+    QCOMPARE(m_server->browseName(QUaNodeId(0, quint32(UA_NS0ID_DOUBLE))), QUaQualifiedName(0, QStringLiteral("Double")));
+    QVERIFY(m_server->browseName(this->devicesNodeId(9999)).name().isEmpty());
+
+    QVERIFY(m_server->isSubtypeOf(mode, enumeration));
+    QVERIFY(m_server->isSubtypeOf(mode, QUaNodeId(0, quint32(UA_NS0ID_BASEDATATYPE))));
+    QVERIFY(m_server->isSubtypeOf(mode, mode));
+    QVERIFY(!m_server->isSubtypeOf(mode, structure));
+    QVERIFY(m_server->isSubtypeOf(reading, structure));
+    QVERIFY(!m_server->isSubtypeOf(reading, enumeration));
+    QVERIFY(m_server->isSubtypeOf(QUaNodeId(0, quint32(UA_NS0ID_SERVERSTATE)), enumeration));
+    QVERIFY(!m_server->isSubtypeOf(QUaNodeId(0, quint32(UA_NS0ID_DOUBLE)), enumeration));
+    QVERIFY(!m_server->isSubtypeOf(this->devicesNodeId(9999), enumeration));
 }
 
 void TestNodeSetIntegration::clientsReadAndWriteLoadedVariables()
