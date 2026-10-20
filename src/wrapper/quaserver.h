@@ -440,6 +440,22 @@ public:
 	///        whether a data type is an enumeration, whose values are encoded as Int32.
 	///
 	bool isSubtypeOf(const QUaNodeId& typeId, const QUaNodeId& superTypeId) const;
+	///
+	/// \brief Returns the references of any node in both directions, also of a type or another node without a C++
+	///        instance, e.g. the HasSubtype references that make up the type hierarchy.
+	/// \return The references, or none when the server has no node \a nodeId.
+	///
+	QList<QUaNodeReference> references(const QUaNodeId& nodeId) const;
+	///
+	/// \brief Returns the Description attribute of any node, also of a type or another node without a C++ instance.
+	/// \return The description, or an empty text when the server has no node \a nodeId.
+	///
+	QUaLocalizedText description(const QUaNodeId& nodeId) const;
+	///
+	/// \brief Tells whether a type node is abstract, so it has no instances of its own.
+	/// \return The IsAbstract attribute, or false when \a nodeId is no type node.
+	///
+	bool isAbstract(const QUaNodeId& nodeId) const;
 	// create instance of a given (variable or object) type
 	template<typename T>
 	T* createInstance(

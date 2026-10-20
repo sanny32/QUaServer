@@ -52,6 +52,18 @@ QString name = server.browseName(dataType).name();
 bool enumeration = server.isSubtypeOf(dataType, QUaNodeId(0, UA_NS0ID_ENUMERATION));
 ```
 
+`references()` lists the references of any node in both directions, so the type hierarchy can be walked down from a root such as *BaseObjectType*; `description()` and `isAbstract()` read the attributes of a type:
+
+```c++
+for (const QUaNodeReference& reference : server.references(QUaNodeId(0, UA_NS0ID_BASEOBJECTTYPE)))
+{
+    if (reference.isForward && reference.referenceTypeId == QUaNodeId(0, UA_NS0ID_HASSUBTYPE))
+    {
+        qDebug() << server.browseName(reference.targetNodeId).name() << server.isAbstract(reference.targetNodeId);
+    }
+}
+```
+
 ## Limitations
 
 * Methods of the NodeSet have no implementation, so calling them fails with `BadNotImplemented`.

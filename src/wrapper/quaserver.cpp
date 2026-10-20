@@ -3980,6 +3980,68 @@ bool QUaServer::isSubtypeOf(const QUaNodeId& typeId, const QUaNodeId& superTypeI
 	return found;
 }
 
+///
+/// \brief Returns the references of any node in both directions, also of a type or another node without a C++
+///        instance, e.g. the HasSubtype references that make up the type hierarchy.
+/// \return The references, or none when the server has no node \a nodeId.
+///
+QList<QUaNodeReference> QUaServer::references(const QUaNodeId& nodeId) const
+{
+	UA_BrowseDescription description;
+	UA_BrowseDescription_init(&description);
+	description.nodeId          = nodeId;
+	description.browseDirection = UA_BROWSEDIRECTION_BOTH;
+	description.includeSubtypes = true;
+	description.resultMask      = UA_BROWSERESULTMASK_REFERENCETYPEID | UA_BROWSERESULTMASK_ISFORWARD;
+	UA_BrowseResult result = UA_Server_browse(_server, 0, &description);
+	QList<QUaNodeReference> references;
+	if (result.statusCode == UA_STATUSCODE_GOOD)
+	{
+		references.reserve(static_cast<int>(result.referencesSize));
+		for (size_t i = 0; i < result.referencesSize; i++)
+		{
+			const UA_ReferenceDescription& reference = result.references[i];
+			references.append({ reference.referenceTypeId, reference.nodeId.nodeId, reference.isForward });
+		}
+	}
+	UA_BrowseResult_clear(&result);
+	UA_BrowseDescription_clear(&description);
+	return references;
+}
+
+///
+/// \brief Returns the Description attribute of any node, also of a type or another node without a C++ instance.
+/// \return The description, or an empty text when the server has no node \a nodeId.
+///
+QUaLocalizedText QUaServer::description(const QUaNodeId& nodeId) const
+{
+	UA_NodeId id = nodeId;
+	UA_LocalizedText text;
+	UA_LocalizedText_init(&text);
+	const UA_StatusCode st = UA_Server_readDescription(_server, id, &text);
+	UA_NodeId_clear(&id);
+	QUaLocalizedText result;
+	if (st == UA_STATUSCODE_GOOD)
+	{
+		result = QUaLocalizedText(text);
+	}
+	UA_LocalizedText_clear(&text);
+	return result;
+}
+
+///
+/// \brief Tells whether a type node is abstract, so it has no instances of its own.
+/// \return The IsAbstract attribute, or false when \a nodeId is no type node.
+///
+bool QUaServer::isAbstract(const QUaNodeId& nodeId) const
+{
+	UA_NodeId id = nodeId;
+	UA_Boolean abstract = false;
+	const UA_StatusCode st = UA_Server_readIsAbstract(_server, id, &abstract);
+	UA_NodeId_clear(&id);
+	return st == UA_STATUSCODE_GOOD && abstract;
+}
+
 QUaFolderObject* QUaServer::objectsFolder() const
 {
 	return _pobjectsFolder;

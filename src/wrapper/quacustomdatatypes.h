@@ -1045,6 +1045,19 @@ inline size_t qHash(const QUaReferenceType& key, size_t seed)
     return qHash(key.strForwardName, seed) ^ qHash(key.strInverseName, seed);
 }
 
+///
+/// \brief A reference of a node as the server holds it, see QUaServer::references().
+///
+struct QUaNodeReference
+{
+    /// \brief NodeId of the reference type, e.g. HasSubtype.
+    QUaNodeId referenceTypeId;
+    /// \brief Node at the other end of the reference.
+    QUaNodeId targetNodeId;
+    /// \brief Whether the reference points from the node to the target.
+    bool isForward = true;
+};
+
 struct QUaForwardReference
 {
     QUaNodeId targetNodeId;
