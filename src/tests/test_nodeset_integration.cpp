@@ -1,6 +1,8 @@
 #include <QBuffer>
 #include <QTest>
 
+#include <algorithm>
+
 #include <QUaServer>
 
 #include "testclient.h"
@@ -53,6 +55,7 @@ private slots:
     void instancesOfLoadedTypesGetMandatoryChildren();
     void decodesValues();
     void namesAndRelatesLoadedTypes();
+    void readsReferencesAndTypeAttributes();
     void clientsReadAndWriteLoadedVariables();
     void loadedMethodsAreNotImplemented();
     void nonHierarchicalReferencesDoNotMakeParents();
@@ -214,6 +217,36 @@ void TestNodeSetIntegration::namesAndRelatesLoadedTypes()
     QVERIFY(m_server->isSubtypeOf(QUaNodeId(0, quint32(UA_NS0ID_SERVERSTATE)), enumeration));
     QVERIFY(!m_server->isSubtypeOf(QUaNodeId(0, quint32(UA_NS0ID_DOUBLE)), enumeration));
     QVERIFY(!m_server->isSubtypeOf(this->devicesNodeId(9999), enumeration));
+}
+
+///
+/// \brief The references and attributes of types give applications the type hierarchy of a NodeSet.
+///
+void TestNodeSetIntegration::readsReferencesAndTypeAttributes()
+{
+    const QUaNodeId deviceType = this->devicesNodeId(1001);
+    const QList<QUaNodeReference> references = m_server->references(deviceType);
+    const auto has = [&references](quint32 referenceType, const QUaNodeId &target, bool isForward) {
+        return std::any_of(references.cbegin(), references.cend(), [&](const QUaNodeReference &reference) {
+            return reference.referenceTypeId == QUaNodeId(0, referenceType) && reference.targetNodeId == target
+                && reference.isForward == isForward;
+        });
+    };
+    QVERIFY(has(UA_NS0ID_HASSUBTYPE, QUaNodeId(0, quint32(UA_NS0ID_BASEOBJECTTYPE)), false));
+    QVERIFY(has(UA_NS0ID_HASCOMPONENT, this->devicesNodeId(1002), true));
+    QVERIFY(has(UA_NS0ID_HASPROPERTY, this->devicesNodeId(1003), true));
+    QVERIFY(has(UA_NS0ID_HASTYPEDEFINITION, this->devicesNodeId(2001), false));
+    QVERIFY(m_server->references(this->devicesNodeId(9999)).isEmpty());
+
+    QCOMPARE(m_server->description(this->devicesNodeId(2001)).text(), QStringLiteral("First device"));
+    QVERIFY(m_server->description(this->devicesNodeId(9999)).text().isEmpty());
+
+    QVERIFY(m_server->isAbstract(QUaNodeId(0, quint32(UA_NS0ID_BASEVARIABLETYPE))));
+    QVERIFY(m_server->isAbstract(QUaNodeId(0, quint32(UA_NS0ID_BASEDATATYPE))));
+    QVERIFY(!m_server->isAbstract(QUaNodeId(0, quint32(UA_NS0ID_BASEOBJECTTYPE))));
+    QVERIFY(!m_server->isAbstract(deviceType));
+    QVERIFY(!m_server->isAbstract(this->devicesNodeId(2001)));
+    QVERIFY(!m_server->isAbstract(this->devicesNodeId(9999)));
 }
 
 void TestNodeSetIntegration::clientsReadAndWriteLoadedVariables()
