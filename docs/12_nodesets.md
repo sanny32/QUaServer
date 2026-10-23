@@ -64,6 +64,13 @@ for (const QUaNodeReference& reference : server.references(QUaNodeId(0, UA_NS0ID
 }
 ```
 
+`addInstance()` adds an instance of a type by its *NodeId*, so types of the NodeSet and standard types without a C++ class can be instantiated too. The instance gets the C++ class of the closest registered supertype and the mandatory children of the type; abstract types and event types are refused with `nullptr`:
+
+```c++
+auto lathe = server.objectsFolder()->addInstance(QUaQualifiedName(ns, "Lathe2"), QUaNodeId(ns, 1001));
+auto speed = lathe->browseChild<QUaBaseDataVariable>(QUaQualifiedName(ns, "Speed"));
+```
+
 ## Limitations
 
 * Methods of the NodeSet have no implementation, so calling them fails with `BadNotImplemented`.

@@ -454,6 +454,28 @@ QUaFolderObject* QUaNode::addFolderObject(
 	return _qUaServer->createInstance<QUaFolderObject>(this, browseName, nodeId);
 }
 
+///
+/// \brief Adds an instance of any object or variable type, also of a type loaded from a NodeSet without a C++
+///        class; open62541 adds the mandatory children the type declares.
+/// \param browseName Browse name, not yet used by a child of this node.
+/// \param typeDefinitionNodeId Concrete ObjectType or VariableType that is no event type.
+/// \param nodeId Requested node id; a null node id lets the server assign one.
+/// \return The instance, with the C++ class of the closest registered (super)type of \a typeDefinitionNodeId,
+///         or nullptr when that type cannot be instantiated.
+///
+QUaNode* QUaNode::addInstance(
+	const QUaQualifiedName& browseName,
+	const QUaNodeId& typeDefinitionNodeId,
+	const QUaNodeId& nodeId/* = QUaNodeId()*/
+)
+{
+	UA_NodeId instanceNodeId = _qUaServer->createInstanceOfType(typeDefinitionNodeId, this, browseName, nodeId);
+	QUaNode* instance = UA_NodeId_isNull(&instanceNodeId) ?
+		nullptr : QUaNode::getNodeContext(instanceNodeId, _qUaServer->_server);
+	UA_NodeId_clear(&instanceNodeId);
+	return instance;
+}
+
 QUaNodeId QUaNode::typeDefinitionNodeId() const
 {
 	Q_CHECK_PTR(_qUaServer);

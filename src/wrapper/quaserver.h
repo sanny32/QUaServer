@@ -794,6 +794,7 @@ private:
 	// lifecycle
     void registerTypeLifeCycle(const UA_NodeId &typeNodeId, const QMetaObject &metaObject);
     void bindNodeSetType(const UA_NodeId &typeNodeId);
+    QString instanceClassName(const UA_NodeId &typeNodeId) const;
     bool addStructureDataType(const QUaNodeId& typeId, const QUaQualifiedName& browseName,
                               const QList<QUaStructureField>& fields, const QUaNodeId& binaryEncodingId,
                               const QUaNodeId& xmlEncodingId);
@@ -811,6 +812,19 @@ private:
 	UA_NodeId createInstanceInternal(
         const QMetaObject &metaObject, 
         QUaNode * parentNode, 
+        const QUaQualifiedName &browseName,
+        const QUaNodeId &nodeId
+    );
+	UA_NodeId createInstanceInternal(
+        const QMetaObject &metaObject,
+        const UA_NodeId &typeNodeId,
+        QUaNode * parentNode,
+        const QUaQualifiedName &browseName,
+        const QUaNodeId &nodeId
+    );
+	UA_NodeId createInstanceOfType(
+        const QUaNodeId &typeDefinitionNodeId,
+        QUaNode * parentNode,
         const QUaQualifiedName &browseName,
         const QUaNodeId &nodeId
     );
