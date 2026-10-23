@@ -86,6 +86,8 @@ private slots:
     void certificateUserPassesAccessChecks();
     void userCertificateMustBeTrusted_data();
     void userCertificateMustBeTrusted();
+    void startLogsNoConfigurationWarnings();
+    void unpublishedPolicyStillEncryptsPasswords();
 
 private:
     UA_StatusCode connectAsAlice(const ClientIdentity &identity);
@@ -539,6 +541,47 @@ void TestEncryptionIntegration::userCertificateMustBeTrusted()
 
     QCOMPARE(status == UA_STATUSCODE_GOOD, accepted);
     QCOMPARE(calls, accepted ? 1 : 0);
+}
+
+///
+/// rief Regression guard: a restart with the default policies does not repeat the open62541 configuration warnings.
+///
+void TestEncryptionIntegration::startLogsNoConfigurationWarnings()
+{
+    _server->setCertificate(_certificate);
+    _server->setPrivateKey(_privateKey);
+    _server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
+    QStringList warnings;
+    connect(_server, &QUaServer::logMessage, this, [&warnings](const QUaLog &log) {
+        // open62541 logs this unconditionally, although QUaServer replaces the permission callbacks
+        if (log.level >= QUaLogLevel::Warning && !log.message.contains("Unconfigured AccessControl"))
+        {
+            warnings << QString::fromUtf8(log.message);
+        }
+    });
+    QVERIFY(TestServer::start(*_server));
+    _server->stop();
+
+    QVERIFY(_server->start());
+
+    QCOMPARE(warnings, QStringList());
+}
+
+///
+/// rief With only SecurityPolicy None published, passwords are still accepted encrypted with an unpublished policy.
+///
+void TestEncryptionIntegration::unpublishedPolicyStillEncryptsPasswords()
+{
+    _server->setCertificate(_certificate);
+    _server->setPrivateKey(_privateKey);
+    _server->setSecurityPolicies(QUaSecurityPolicy::None);
+    _server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
+    QVERIFY(TestServer::start(*_server));
+    TestClient client;
+    const QString url = TestServer::endpointUrl(*_server);
+
+    QCOMPARE(client.endpointSecurityPolicyUris(url, UA_MESSAGESECURITYMODE_NONE), QStringList{ kNonePolicy });
+    QVERIFY(client.endpointUserTokenTypes(url).contains(UA_USERTOKENTYPE_USERNAME));
 }
 
 QTEST_GUILESS_MAIN(TestEncryptionIntegration)

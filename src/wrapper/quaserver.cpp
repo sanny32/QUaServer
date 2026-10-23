@@ -89,6 +89,56 @@ QUaSecurityPolicies securityPolicyFromUri(const UA_String& policyUri)
 	return it == policies.constEnd() ? QUaSecurityPolicies() : QUaSecurityPolicies(it.value());
 }
 
+///
+/// \brief Adds the encrypting security policies selected in \a policies to \a config.
+///        Policies whose key type does not match \a certificate are skipped with an info message.
+///
+void addSecurityPolicies(UA_ServerConfig* config, const QUaSecurityPolicies& policies,
+	const UA_ByteString* certificate, const UA_ByteString* privateKey)
+{
+	using AddPolicy = UA_StatusCode (*)(UA_ServerConfig*, const UA_ByteString*, const UA_ByteString*);
+	struct PolicyEntry
+	{
+		QUaSecurityPolicy policy;
+		const char*       name;
+		AddPolicy         add;
+	};
+	// Basic256Sha256 comes first because the first encrypting policy also encrypts user tokens
+	static const PolicyEntry entries[] = {
+		{ QUaSecurityPolicy::Basic256Sha256       , "Basic256Sha256"            , &UA_ServerConfig_addSecurityPolicyBasic256Sha256        },
+		{ QUaSecurityPolicy::Aes256Sha256RsaPss   , "Aes256_Sha256_RsaPss"      , &UA_ServerConfig_addSecurityPolicyAes256Sha256RsaPss    },
+		{ QUaSecurityPolicy::Aes128Sha256RsaOaep  , "Aes128_Sha256_RsaOaep"     , &UA_ServerConfig_addSecurityPolicyAes128Sha256RsaOaep   },
+#ifdef UA_ENABLE_ENCRYPTION_OPENSSL
+		{ QUaSecurityPolicy::EccNistP256AesGcm    , "ECC_nistP256_AesGcm"       , &UA_ServerConfig_addSecurityPolicyEccNistP256AesGcm     },
+		{ QUaSecurityPolicy::EccNistP256ChaChaPoly, "ECC_nistP256_ChaChaPoly"   , &UA_ServerConfig_addSecurityPolicyEccNistP256ChaChaPoly },
+		{ QUaSecurityPolicy::EccCurve25519        , "ECC_curve25519"            , &UA_ServerConfig_addSecurityPolicyEccCurve25519         },
+		{ QUaSecurityPolicy::EccCurve448          , "ECC_curve448"              , &UA_ServerConfig_addSecurityPolicyEccCurve448           },
+#endif // UA_ENABLE_ENCRYPTION_OPENSSL
+#ifdef UA_INCLUDE_INSECURE_POLICIES
+		{ QUaSecurityPolicy::Basic128Rsa15        , "Basic128Rsa15"             , &UA_ServerConfig_addSecurityPolicyBasic128Rsa15         },
+		{ QUaSecurityPolicy::Basic256             , "Basic256"                  , &UA_ServerConfig_addSecurityPolicyBasic256              },
+#endif // UA_INCLUDE_INSECURE_POLICIES
+	};
+	for (const PolicyEntry& entry : entries)
+	{
+		if (!(policies & entry.policy))
+		{
+			continue;
+		}
+		const UA_StatusCode st = entry.add(config, certificate, privateKey);
+		if (st == UA_STATUSCODE_BADCERTIFICATEINVALID)
+		{
+			UA_LOG_INFO(config->logging, UA_LOGCATEGORY_SERVER,
+				"SecurityPolicy#%s is not offered, the server certificate key does not suit it", entry.name);
+		}
+		else if (st != UA_STATUSCODE_GOOD)
+		{
+			UA_LOG_WARNING(config->logging, UA_LOGCATEGORY_SERVER,
+				"Could not add SecurityPolicy#%s : %s", entry.name, UA_StatusCode_name(st));
+		}
+	}
+}
+
 } // namespace
 #endif // UA_ENABLE_ENCRYPTION
 
@@ -119,6 +169,23 @@ QUaMessageSecurityMode securityModeOf(const UA_MessageSecurityMode mode)
 {
 	const QUaMessageSecurityModes flags = securityModeFromUa(mode);
 	return flags ? static_cast<QUaMessageSecurityMode>(flags.toInt()) : QUaMessageSecurityMode::None;
+}
+
+///
+/// \brief Returns the URI of the first encrypting security policy of \a config.
+/// \return The URI, or nullptr when only SecurityPolicy None is configured.
+///
+const UA_String* encryptingPolicyUri(const UA_ServerConfig* config)
+{
+	for (size_t i = 0; i < config->securityPoliciesSize; i++)
+	{
+		const UA_String* uri = &config->securityPolicies[i].policyUri;
+		if (!UA_String_equal(uri, &UA_SECURITY_POLICY_NONE_URI))
+		{
+			return uri;
+		}
+	}
+	return nullptr;
 }
 
 } // namespace
@@ -1483,43 +1550,25 @@ bool QUaServer::resetConfig()
 	if (config->accessControl.clear)
 		config->accessControl.clear(&config->accessControl);
 
-	UA_StatusCode st;
-#ifndef UA_ENABLE_ENCRYPTION
-	// convert cert if valid
-	UA_ByteString cert;
-	UA_ByteString* ptrCert = QUaServer::parseCertificate(_byteCertificate, cert, _byteCertificateInternal);
-	st = UA_ServerConfig_setMinimal(config, _port, ptrCert);
+	// open62541 warns when it replaces the server URLs left from the previous configuration
+	UA_Array_delete(config->serverUrls, config->serverUrlsSize, &UA_TYPES[UA_TYPES_STRING]);
+	config->serverUrls     = nullptr;
+	config->serverUrlsSize = 0;
+	// the policies are added one by one, since the open62541 presets try every policy and set up access control twice
+	UA_StatusCode st = UA_ServerConfig_setBasics_withPort(config, _port);
 	Q_ASSERT(st == UA_STATUSCODE_GOOD);
-#else
 	// convert cert if valid (should contain public key)
 	UA_ByteString cert;
 	UA_ByteString* ptrCert = QUaServer::parseCertificate(_byteCertificate, cert, _byteCertificateInternal);
+	st = UA_ServerConfig_addSecurityPolicyNone(config, ptrCert);
+	Q_ASSERT(st == UA_STATUSCODE_GOOD);
+#ifdef UA_ENABLE_ENCRYPTION
 	// convert private key if valid
 	UA_ByteString priv;
 	UA_ByteString* ptrPriv = QUaServer::parseCertificate(_bytePrivateKey, priv, _bytePrivateKeyInternal);
-	// check if valid private key
 	if (ptrCert && ptrPriv)
 	{
-		// create config with port, certificate, private key and trust lists for encryption
-		const QVector<UA_ByteString> trusted    = QUaServer::toByteStringArray(_listTrusted);
-		const QVector<UA_ByteString> issuers    = QUaServer::toByteStringArray(_listIssuers);
-		const QVector<UA_ByteString> revocation = QUaServer::toByteStringArray(_listRevocation);
-		st = UA_ServerConfig_setDefaultWithSecurityPolicies(
-			config,
-			_port,
-			ptrCert,
-			ptrPriv,
-			trusted.constData(),
-			static_cast<size_t>(trusted.size()),
-			issuers.constData(),
-			static_cast<size_t>(issuers.size()),
-			revocation.constData(),
-			static_cast<size_t>(revocation.size())
-		);
-		if (st == UA_STATUSCODE_GOOD && _rejectUntrusted && trusted.isEmpty())
-		{
-			st = this->applyEmptyTrustList(config);
-		}
+		st = this->applyTrustList(config);
 		if (st != UA_STATUSCODE_GOOD)
 		{
 			UA_LOG_ERROR(config->logging, UA_LOGCATEGORY_SERVER,
@@ -1527,16 +1576,12 @@ bool QUaServer::resetConfig()
 		}
 		else
 		{
+			// Basic256Sha256 encrypts user tokens even when only SecurityPolicy None endpoints are published
+			addSecurityPolicies(config, _securityPolicies | QUaSecurityPolicy::Basic256Sha256, ptrCert, ptrPriv);
 			_defaultVerifyCertificate = config->secureChannelPKI.verifyCertificate;
 			config->secureChannelPKI.verifyCertificate = &QUaServer::verifyClientCertificate;
 			QUaServer::_hashCertificateGroups.insert(&config->secureChannelPKI, this);
 		}
-	}
-	else
-	{
-		// create config with port and certificate only (no encryption)
-		st = UA_ServerConfig_setMinimal(config, _port, ptrCert);
-		Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	}
 	if (ptrPriv)
 	{
@@ -1546,6 +1591,10 @@ bool QUaServer::resetConfig()
 	if (ptrCert)
 	{
 		UA_ByteString_clear(ptrCert);
+	}
+	if (st == UA_STATUSCODE_GOOD)
+	{
+		st = UA_ServerConfig_addAllEndpoints(config);
 	}
 	if (st != UA_STATUSCODE_GOOD || !this->applySecurityFilter(config))
 	{
@@ -1570,37 +1619,29 @@ bool QUaServer::resetConfig()
 	UA_UsernamePasswordLogin dummyLogin;
 	dummyLogin.username = UA_STRING_NULL;
 	dummyLogin.password = UA_BYTESTRING_NULL;
-	st = UA_AccessControl_defaultWithLoginCallback(
-		config,
-		_anonymousLoginAllowed,
-		nullptr,
-		1,
-		&dummyLogin,
-		&QUaServer::loginCallback,
-		this
-	);
-	Q_ASSERT(st == UA_STATUSCODE_GOOD);
 	// certificate (x509) user tokens need a callback to map them to users, and a private key to check their signature
 #ifdef UA_ENABLE_ENCRYPTION
 	const bool userCertificatesAllowed = _userCertificateCallback && ptrCert && ptrPriv;
 #else
 	const bool userCertificatesAllowed = false;
 #endif // UA_ENABLE_ENCRYPTION
+	// open62541 offers certificate user tokens whenever the session PKI can verify certificates
+	const auto verifyUserCertificate = config->sessionPKI.verifyCertificate;
 	if (!userCertificatesAllowed)
 	{
-		UA_AccessControl* ac = &config->accessControl;
-		size_t count = 0;
-		for (size_t i = 0; i < ac->userTokenPoliciesSize; i++)
-		{
-			if (ac->userTokenPolicies[i].tokenType == UA_USERTOKENTYPE_CERTIFICATE)
-			{
-				UA_UserTokenPolicy_clear(&ac->userTokenPolicies[i]);
-				continue;
-			}
-			ac->userTokenPolicies[count++] = ac->userTokenPolicies[i];
-		}
-		ac->userTokenPoliciesSize = count;
+		config->sessionPKI.verifyCertificate = nullptr;
 	}
+	st = UA_AccessControl_defaultWithLoginCallback(
+		config,
+		_anonymousLoginAllowed,
+		encryptingPolicyUri(config),
+		1,
+		&dummyLogin,
+		&QUaServer::loginCallback,
+		this
+	);
+	config->sessionPKI.verifyCertificate = verifyUserCertificate;
+	Q_ASSERT(st == UA_STATUSCODE_GOOD);
 
 	// setup server description
 	UA_ApplicationDescription_clear(&config->applicationDescription);
@@ -2128,21 +2169,36 @@ void QUaServer::setRejectUntrustedCertificates(bool reject)
 }
 
 ///
-/// \brief Replaces the accept-all certificate groups open62541 installs for an empty trust list
-///        with in-memory stores that trust no client, keeping the issuer certificates.
+/// \brief Replaces the accept-all certificate groups with in-memory stores of the trusted, issuer and revocation lists.
+///        An empty trusted list keeps accepting any client unless rejectUntrustedCertificates() is set.
 /// \return Status of creating the stores.
 ///
-UA_StatusCode QUaServer::applyEmptyTrustList(UA_ServerConfig* config) const
+UA_StatusCode QUaServer::applyTrustList(UA_ServerConfig* config) const
 {
+	const QVector<UA_ByteString> trusted = QUaServer::toByteStringArray(_listTrusted);
+	if (trusted.isEmpty() && !_rejectUntrusted)
+	{
+		return UA_STATUSCODE_GOOD;
+	}
 	UA_TrustListDataType list;
 	UA_TrustListDataType_init(&list);
 	list.specifiedLists = UA_TRUSTLISTMASKS_TRUSTEDCERTIFICATES;
+	list.trustedCertificates     = const_cast<UA_ByteString*>(trusted.constData());
+	list.trustedCertificatesSize = static_cast<size_t>(trusted.size());
 	const QVector<UA_ByteString> issuers = QUaServer::toByteStringArray(_listIssuers);
 	if (!issuers.isEmpty())
 	{
 		list.specifiedLists |= UA_TRUSTLISTMASKS_ISSUERCERTIFICATES;
 		list.issuerCertificates     = const_cast<UA_ByteString*>(issuers.constData());
 		list.issuerCertificatesSize = static_cast<size_t>(issuers.size());
+	}
+	const QVector<UA_ByteString> revocation =
+		trusted.isEmpty() ? QVector<UA_ByteString>() : QUaServer::toByteStringArray(_listRevocation);
+	if (!revocation.isEmpty())
+	{
+		list.specifiedLists |= UA_TRUSTLISTMASKS_TRUSTEDCRLS;
+		list.trustedCrls     = const_cast<UA_ByteString*>(revocation.constData());
+		list.trustedCrlsSize = static_cast<size_t>(revocation.size());
 	}
 	UA_NodeId applicationGroup = UA_NS0ID(SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
 	UA_NodeId userTokenGroup   = UA_NS0ID(SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTUSERTOKENGROUP);
