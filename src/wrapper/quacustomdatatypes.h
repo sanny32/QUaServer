@@ -908,7 +908,8 @@ class QUaSession : public QObject
     Q_OBJECT
 
     Q_PROPERTY(QString   sessionId       READ sessionId      )
-    Q_PROPERTY(QString   userName        READ userName       )
+    Q_PROPERTY(QString   sessionName     READ sessionName    )
+    Q_PROPERTY(QString   userName       READ userName       )
     Q_PROPERTY(QString   applicationName READ applicationName)
     Q_PROPERTY(QString   applicationUri  READ applicationUri )
     Q_PROPERTY(QString   productUri      READ productUri     )
@@ -925,6 +926,12 @@ public:
     explicit QUaSession(QObject* parent = nullptr);
 
     QString   sessionId     () const;
+
+    ///
+    /// \brief Returns the name the client gave the session, or its session id when the client gave none.
+    ///
+    QString   sessionName    () const;
+
     QString   userName       () const;
     QString   applicationName() const;
     QString   applicationUri () const;
@@ -955,6 +962,7 @@ public:
 
 private:
     QString   _strSessionId;
+    QString   _strSessionName;
     QString   _strUserName;
     QString   _strApplicationName;
     QString   _strApplicationUri;
