@@ -57,6 +57,7 @@ private slots:
     void namesAndRelatesLoadedTypes();
     void readsReferencesAndTypeAttributes();
     void addsInstancesOfTypesWithoutCppClass();
+    void bindsLoadedInstancesOfStandardTypesWithoutCppClass();
     void refusesInstancesOfOtherNodes();
     void childNodeIdCallbackAppliesBeforeStart();
     void clientsReadAndWriteLoadedVariables();
@@ -287,6 +288,46 @@ void TestNodeSetIntegration::addsInstancesOfTypesWithoutCppClass()
     QCOMPARE(analog->typeDefinitionNodeId(), QUaNodeId(0, quint32(UA_NS0ID_ANALOGITEMTYPE)));
     QVERIFY(analog->browseChild<QUaProperty>(QUaQualifiedName(0, QStringLiteral("EURange"))));
 #endif
+}
+
+///
+/// \brief A NodeSet instance of a standard type without a C++ class of its own, such as AnalogItemType, gets the
+///        class of the closest registered supertype; encoding objects of data types stay without one.
+///
+void TestNodeSetIntegration::bindsLoadedInstancesOfStandardTypesWithoutCppClass()
+{
+#ifdef UA_GENERATED_NAMESPACE_ZERO_FULL
+    const QUaNodeSetResult result = loadNodeSet(*m_server, nodeSet(
+        "<UAVariable NodeId=\"ns=1;i=9101\" BrowseName=\"1:Pressure\" DataType=\"i=11\">"
+        "<DisplayName>Pressure</DisplayName>"
+        "<References>"
+        "<Reference ReferenceType=\"i=40\">i=2368</Reference>"
+        "<Reference ReferenceType=\"i=47\" IsForward=\"false\">ns=1;i=2001</Reference>"
+        "</References>"
+        "<Value><uax:Double>2.5</uax:Double></Value>"
+        "</UAVariable>"
+        "<UAVariable NodeId=\"ns=1;i=9102\" BrowseName=\"EURange\" DataType=\"i=884\">"
+        "<DisplayName>EURange</DisplayName>"
+        "<References>"
+        "<Reference ReferenceType=\"i=40\">i=68</Reference>"
+        "<Reference ReferenceType=\"i=46\" IsForward=\"false\">ns=1;i=9101</Reference>"
+        "</References>"
+        "</UAVariable>"));
+    QVERIFY2(result.isOk(), qPrintable(result.errorString));
+    QVERIFY2(result.warnings.isEmpty(), qPrintable(result.warnings.join(QLatin1Char('\n'))));
+
+    auto *pressure = m_server->nodeById<QUaBaseDataVariable>(this->devicesNodeId(9101));
+    QVERIFY(pressure);
+    QCOMPARE(pressure->parent(), m_server->nodeById(this->devicesNodeId(2001)));
+    QCOMPARE(pressure->typeDefinitionNodeId(), QUaNodeId(0, quint32(UA_NS0ID_ANALOGITEMTYPE)));
+    QCOMPARE(pressure->value().toDouble(), 2.5);
+    auto *range = pressure->browseChild<QUaProperty>(QUaQualifiedName(0, QStringLiteral("EURange")));
+    QVERIFY(range);
+    QCOMPARE(range->nodeId(), this->devicesNodeId(9102));
+#else
+    QSKIP("AnalogItemType needs the full namespace zero");
+#endif
+    QVERIFY2(!m_server->nodeById(this->devicesNodeId(5101)), "encoding objects get no C++ instance");
 }
 
 ///

@@ -204,18 +204,47 @@ QUaNodeSetResult QUaNodeSetLoader::load(QIODevice* device)
 			this->addReferences(_nodes.at(index));
 		}
 	}
+	this->bindTypes(sorted, added);
+	this->finishNodes(sorted, added);
+	return _result;
+}
+
+///
+/// \brief Gives the added instances C++ instances: binds the types the NodeSet adds and the types of its objects
+///        and variables, which may be standard types without a C++ class of their own such as AnalogItemType.
+///        Event types and DataTypeEncodingType are left out, as their instances get no C++ instance.
+///
+void QUaNodeSetLoader::bindTypes(const QList<int>& sorted, const QSet<int>& added)
+{
+	static const QUaNodeId baseEventType(0, quint32(UA_NS0ID_BASEEVENTTYPE));
+	static const QUaNodeId encodingType(0, quint32(UA_NS0ID_DATATYPEENCODINGTYPE));
+	QList<QUaNodeId> typeIds;
 	for (int index : sorted)
 	{
 		const Node& node = _nodes.at(index);
 		if (added.contains(index) &&
 		    (node.nodeClass == UA_NODECLASS_OBJECTTYPE || node.nodeClass == UA_NODECLASS_VARIABLETYPE))
 		{
-			UaNodeId typeNodeId(node.nodeId);
-			_server->bindNodeSetType(typeNodeId.id);
+			typeIds << node.nodeId;
 		}
 	}
-	this->finishNodes(sorted, added);
-	return _result;
+	for (int index : sorted)
+	{
+		const Node& node = _nodes.at(index);
+		if (added.contains(index) &&
+		    (node.nodeClass == UA_NODECLASS_OBJECT || node.nodeClass == UA_NODECLASS_VARIABLE) &&
+		    !typeIds.contains(node.typeDefinitionId) &&
+		    node.typeDefinitionId != encodingType &&
+		    !_server->isSubtypeOf(node.typeDefinitionId, baseEventType))
+		{
+			typeIds << node.typeDefinitionId;
+		}
+	}
+	for (const QUaNodeId& typeId : std::as_const(typeIds))
+	{
+		UaNodeId typeNodeId(typeId);
+		_server->bindNodeSetType(typeNodeId.id);
+	}
 }
 
 ///

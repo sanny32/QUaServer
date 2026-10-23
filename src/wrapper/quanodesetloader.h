@@ -82,6 +82,7 @@ private:
 	void registerStructure(const Node& node);
 	QUaNodeId encodingId(const Node& node, const QString& encodingName) const;
 	void addReferences(const Node& node);
+	void bindTypes(const QList<int>& sorted, const QSet<int>& added);
 	void finishNodes(const QList<int>& sorted, const QSet<int>& begun);
 	UA_StatusCode decodeValue(const Node& node, UA_Variant* value);
 	void warn(const Node& node, const QString& message);
