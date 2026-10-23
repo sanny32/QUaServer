@@ -2772,13 +2772,31 @@ void QUaServer::bindNodeSetType(const UA_NodeId& typeNodeId)
 	{
 		return;
 	}
+	const QString strClassName = this->instanceClassName(typeNodeId);
+	if (strClassName.isEmpty())
+	{
+		return;
+	}
+	_hashMandatoryChildren[typeNodeId] = QSet<QUaQualifiedName>();
+	UA_Server_setNodeContext(_server, typeNodeId, static_cast<void*>(this));
+	this->registerTypeLifeCycle(typeNodeId, _hashMetaObjects.value(strClassName));
+}
+
+///
+/// \brief Returns the C++ class of the instances of a type: the class registered for the type itself or, failing
+///        that, for its closest registered supertype.
+/// \return The class name, or empty when that registered type is abstract or no type of the hierarchy is registered.
+///
+QString QUaServer::instanceClassName(const UA_NodeId& typeNodeId) const
+{
 	QString strClassName;
-	UA_NodeId superTypeNodeId = QUaNode::superTypeDefinitionNodeId(typeNodeId, _server);
-	while (!UA_NodeId_isNull(&superTypeNodeId))
+	UA_NodeId currentNodeId;
+	UA_NodeId_copy(&typeNodeId, &currentNodeId);
+	while (!UA_NodeId_isNull(&currentNodeId))
 	{
 		for (auto it = _mapTypes.cbegin(); it != _mapTypes.cend(); ++it)
 		{
-			if (UA_NodeId_equal(&it.value(), &superTypeNodeId))
+			if (UA_NodeId_equal(&it.value(), &currentNodeId))
 			{
 				strClassName = it.key();
 				break;
@@ -2788,19 +2806,13 @@ void QUaServer::bindNodeSetType(const UA_NodeId& typeNodeId)
 		{
 			break;
 		}
-		UA_NodeId nextNodeId = QUaNode::superTypeDefinitionNodeId(superTypeNodeId, _server);
-		UA_NodeId_clear(&superTypeNodeId);
-		superTypeNodeId = nextNodeId;
+		UA_NodeId nextNodeId = QUaNode::superTypeDefinitionNodeId(currentNodeId, _server);
+		UA_NodeId_clear(&currentNodeId);
+		currentNodeId = nextNodeId;
 	}
-	const bool isInstantiable = !strClassName.isEmpty() && _hashConstructors.contains(superTypeNodeId);
-	UA_NodeId_clear(&superTypeNodeId);
-	if (!isInstantiable)
-	{
-		return;
-	}
-	_hashMandatoryChildren[typeNodeId] = QSet<QUaQualifiedName>();
-	UA_Server_setNodeContext(_server, typeNodeId, static_cast<void*>(this));
-	this->registerTypeLifeCycle(typeNodeId, _hashMetaObjects.value(strClassName));
+	const bool isInstantiable = !strClassName.isEmpty() && _hashConstructors.contains(currentNodeId);
+	UA_NodeId_clear(&currentNodeId);
+	return isInstantiable ? strClassName : QString();
 }
 
 void QUaServer::registerTypeInternal(
@@ -3474,6 +3486,52 @@ UA_NodeId QUaServer::createInstanceInternal(
 	// try to get typeNodeId, if null, then register it
 	UA_NodeId typeNodeId = this->typeIdByMetaObject(metaObject);
 	Q_ASSERT(!UA_NodeId_isNull(&typeNodeId));
+	return this->createInstanceInternal(metaObject, typeNodeId, parentNode, browseName, nodeId);
+}
+
+///
+/// \brief Creates an instance of any object or variable type, also of one without a C++ class of its own,
+///        see QUaNode::addInstance().
+/// \return The node id of the instance, or a null node id when \a typeDefinitionNodeId cannot be instantiated.
+///
+UA_NodeId QUaServer::createInstanceOfType(
+	const QUaNodeId& typeDefinitionNodeId,
+	QUaNode* parentNode,
+	const QUaQualifiedName& browseName,
+	const QUaNodeId& nodeId
+)
+{
+	UA_NodeId typeNodeId = typeDefinitionNodeId;
+	UA_NodeClass nodeClass = UA_NODECLASS_UNSPECIFIED;
+	UA_Server_readNodeClass(_server, typeNodeId, &nodeClass);
+	// events and conditions have their own creation API
+	const bool isInstanceType = (nodeClass == UA_NODECLASS_OBJECTTYPE || nodeClass == UA_NODECLASS_VARIABLETYPE)
+		&& !this->isAbstract(typeDefinitionNodeId)
+		&& !this->isSubtypeOf(typeDefinitionNodeId, QUaNodeId(0, quint32(UA_NS0ID_BASEEVENTTYPE)));
+	QString strClassName;
+	if (isInstanceType)
+	{
+		this->bindNodeSetType(typeNodeId);
+		strClassName = this->instanceClassName(typeNodeId);
+	}
+	UA_NodeId instanceNodeId = UA_NODEID_NULL;
+	if (!strClassName.isEmpty())
+	{
+		instanceNodeId = this->createInstanceInternal(
+			_hashMetaObjects.value(strClassName), typeNodeId, parentNode, browseName, nodeId);
+	}
+	UA_NodeId_clear(&typeNodeId);
+	return instanceNodeId;
+}
+
+UA_NodeId QUaServer::createInstanceInternal(
+	const QMetaObject& metaObject,
+	const UA_NodeId& typeNodeId,
+	QUaNode* parentNode,
+	const QUaQualifiedName& browseName,
+	const QUaNodeId& nodeId
+)
+{
 	// adapt parent relation with child according to parent type
 	// NOTE : parent can be null (no address space representation, e.g. events, conditions)
 	UA_NodeId referenceTypeId = parentNode ?

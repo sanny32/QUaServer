@@ -169,6 +169,20 @@ public:
 		const QUaQualifiedName& browseName,
 		const QUaNodeId& nodeId = QUaNodeId()
 	);
+	///
+	/// \brief Adds an instance of any object or variable type, also of a type loaded from a NodeSet without a C++
+	///        class; open62541 adds the mandatory children the type declares.
+	/// \param browseName Browse name, not yet used by a child of this node.
+	/// \param typeDefinitionNodeId Concrete ObjectType or VariableType that is no event type.
+	/// \param nodeId Requested node id; a null node id lets the server assign one.
+	/// \return The instance, with the C++ class of the closest registered (super)type of \a typeDefinitionNodeId,
+	///         or nullptr when that type cannot be instantiated.
+	///
+	QUaNode* addInstance(
+		const QUaQualifiedName& browseName,
+		const QUaNodeId& typeDefinitionNodeId,
+		const QUaNodeId& nodeId = QUaNodeId()
+	);
 
 	// Browse API
 	// (* actually browses using QObject tree)

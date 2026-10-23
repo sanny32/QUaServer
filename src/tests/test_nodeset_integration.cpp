@@ -56,6 +56,8 @@ private slots:
     void decodesValues();
     void namesAndRelatesLoadedTypes();
     void readsReferencesAndTypeAttributes();
+    void addsInstancesOfTypesWithoutCppClass();
+    void refusesInstancesOfOtherNodes();
     void clientsReadAndWriteLoadedVariables();
     void loadedMethodsAreNotImplemented();
     void nonHierarchicalReferencesDoNotMakeParents();
@@ -247,6 +249,60 @@ void TestNodeSetIntegration::readsReferencesAndTypeAttributes()
     QVERIFY(!m_server->isAbstract(deviceType));
     QVERIFY(!m_server->isAbstract(this->devicesNodeId(2001)));
     QVERIFY(!m_server->isAbstract(this->devicesNodeId(9999)));
+}
+
+///
+/// \brief Instances of types without a C++ class get the class of their closest registered supertype and the
+///        mandatory children of the type.
+///
+void TestNodeSetIntegration::addsInstancesOfTypesWithoutCppClass()
+{
+    const quint16 ns = this->devicesNamespace();
+    QUaNode *node = m_server->objectsFolder()->addInstance(QUaQualifiedName(ns, QStringLiteral("Device9")),
+                                                           this->devicesNodeId(1001), this->devicesNodeId(9001));
+    auto *device = qobject_cast<QUaBaseObject *>(node);
+    QVERIFY(device);
+    QCOMPARE(device->nodeId(), this->devicesNodeId(9001));
+    QCOMPARE(device->parent(), m_server->objectsFolder());
+    QCOMPARE(device->typeDefinitionNodeId(), this->devicesNodeId(1001));
+    auto *temperature = device->browseChild<QUaBaseDataVariable>(QUaQualifiedName(ns, QStringLiteral("Temperature")));
+    QVERIFY(temperature);
+    QCOMPARE(temperature->parent(), device);
+    QVERIFY2(!device->browseChild(QUaQualifiedName(ns, QStringLiteral("Serial"))), "optional children are left out");
+
+    auto *second = qobject_cast<QUaBaseObject *>(
+        device->addInstance(QUaQualifiedName(ns, QStringLiteral("Sub")), this->devicesNodeId(1001)));
+    QVERIFY2(second, "a type bound by the first instance is instantiated again");
+    QVERIFY(!second->nodeId().isNull());
+    QCOMPARE(second->parent(), device);
+
+    auto *property = qobject_cast<QUaProperty *>(
+        device->addInstance(QUaQualifiedName(ns, QStringLiteral("Note")), QUaNodeId(0, quint32(UA_NS0ID_PROPERTYTYPE))));
+    QVERIFY2(property, "standard types get their registered class");
+#ifdef UA_GENERATED_NAMESPACE_ZERO_FULL
+    auto *analog = qobject_cast<QUaBaseDataVariable *>(
+        device->addInstance(QUaQualifiedName(ns, QStringLiteral("Level")), QUaNodeId(0, quint32(UA_NS0ID_ANALOGITEMTYPE))));
+    QVERIFY(analog);
+    QCOMPARE(analog->typeDefinitionNodeId(), QUaNodeId(0, quint32(UA_NS0ID_ANALOGITEMTYPE)));
+    QVERIFY(analog->browseChild<QUaProperty>(QUaQualifiedName(0, QStringLiteral("EURange"))));
+#endif
+}
+
+///
+/// \brief Abstract types, event types, data types and instances cannot be instantiated.
+///
+void TestNodeSetIntegration::refusesInstancesOfOtherNodes()
+{
+    QUaFolderObject *objects = m_server->objectsFolder();
+    const auto add = [objects](const QString &name, const QUaNodeId &typeId) {
+        return objects->addInstance(QUaQualifiedName(0, name), typeId);
+    };
+    QVERIFY(!add(QStringLiteral("Abstract"), QUaNodeId(0, quint32(UA_NS0ID_BASEVARIABLETYPE))));
+    QVERIFY(!add(QStringLiteral("Event"), QUaNodeId(0, quint32(UA_NS0ID_BASEEVENTTYPE))));
+    QVERIFY(!add(QStringLiteral("DataType"), QUaNodeId(0, quint32(UA_NS0ID_DOUBLE))));
+    QVERIFY(!add(QStringLiteral("Instance"), this->devicesNodeId(2001)));
+    QVERIFY(!add(QStringLiteral("Unknown"), this->devicesNodeId(9999)));
+    QVERIFY(!objects->hasChild(QUaQualifiedName(0, QStringLiteral("Abstract"))));
 }
 
 void TestNodeSetIntegration::clientsReadAndWriteLoadedVariables()
