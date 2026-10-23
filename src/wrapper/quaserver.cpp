@@ -905,6 +905,21 @@ void QUaServer::newSession(QUaServer* server,
 		strApplicationName = QUaTypesConverter::uaVariantToQVariantScalar<QUaLocalizedText, UA_LocalizedText>(&clientDescription->applicationName);
 	}
 	UA_Variant_clear(&varDescription);
+	QString strSessionName;
+	UA_Variant varSessionName;
+	UA_Variant_init(&varSessionName);
+	st = UA_Server_getSessionAttributeCopy(
+		server->_server,
+		sessionId,
+		UA_QUALIFIEDNAME(0, (char*)"sessionName"),
+		&varSessionName
+	);
+	if (st == UA_STATUSCODE_GOOD &&
+		UA_Variant_hasScalarType(&varSessionName, &UA_TYPES[UA_TYPES_STRING]))
+	{
+		strSessionName = QUaTypesConverter::uaStringToQString(*static_cast<UA_String*>(varSessionName.data));
+	}
+	UA_Variant_clear(&varSessionName);
 	// get connection data
 	QString strAddress = QStringLiteral("Unknown");
 	quint16 intPort    = 0;
@@ -917,6 +932,7 @@ void QUaServer::newSession(QUaServer* server,
 	// store session data
 	auto session = server->_hashSessions[*sessionId];
 	session->_strSessionId       = QUaTypesConverter::nodeIdToQString(*sessionId);
+	session->_strSessionName     = strSessionName;
 	session->_strApplicationName = strApplicationName;
 	session->_strApplicationUri  = strApplicationUri;
 	session->_strProductUri      = strProductUri;

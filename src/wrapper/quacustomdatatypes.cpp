@@ -631,6 +631,11 @@ QString QUaSession::sessionId() const
 	return _strSessionId;
 }
 
+QString QUaSession::sessionName() const
+{
+	return _strSessionName;
+}
+
 QString QUaSession::userName() const
 {
 	return _strUserName;

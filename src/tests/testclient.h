@@ -30,6 +30,11 @@ public:
     TestClient &operator=(const TestClient &) = delete;
 
     ///
+    /// \brief Sets the name the following sessions are created with.
+    ///
+    void setSessionName(const QString &name);
+
+    ///
     /// \brief Opens an anonymous session on \a url.
     ///
     UA_StatusCode connect(const QString &url);

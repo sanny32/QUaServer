@@ -29,6 +29,8 @@ private slots:
     void closingSessionWithSubscriptionKeepsServerAlive();
     void stopDisconnectsClients();
     void anonymousSessionDescribesItsEndpoint();
+    void sessionReportsClientSessionName();
+    void unnamedSessionIsNamedAfterItsId();
     void userSessionIsNotAnonymous();
     void sessionDiagnosticsCountSubscriptions();
     void sessionDiagnosticsOfUnknownSessionAreInvalid();
@@ -314,6 +316,35 @@ void TestSessionsIntegration::anonymousSessionDescribesItsEndpoint()
     QCOMPARE(session->securityMode(), QUaMessageSecurityMode::None);
     QCOMPARE(session->securityPolicyUri(), QStringLiteral("http://opcfoundation.org/UA/SecurityPolicy#None"));
     QVERIFY(session->endpointUrl().startsWith(QStringLiteral("opc.tcp://")));
+}
+
+///
+/// \brief A session reports the name the client created it with.
+///
+void TestSessionsIntegration::sessionReportsClientSessionName()
+{
+    QVERIFY(TestServer::start(*_server));
+    TestClient client;
+    client.setSessionName(QStringLiteral("Explorer@HOST/1234-abcd"));
+    QCOMPARE(client.connect(TestServer::endpointUrl(*_server)), UA_STATUSCODE_GOOD);
+
+    QTRY_COMPARE(_server->sessions().count(), 1);
+    QCOMPARE(_server->sessions().first()->sessionName(), QStringLiteral("Explorer@HOST/1234-abcd"));
+}
+
+///
+/// \brief A session created without a name is named after its session id.
+///
+void TestSessionsIntegration::unnamedSessionIsNamedAfterItsId()
+{
+    QVERIFY(TestServer::start(*_server));
+    TestClient client;
+    client.setSessionName(QString());
+    QCOMPARE(client.connect(TestServer::endpointUrl(*_server)), UA_STATUSCODE_GOOD);
+
+    QTRY_COMPARE(_server->sessions().count(), 1);
+    const QUaSession *session = _server->sessions().first();
+    QCOMPARE(session->sessionName(), session->sessionId());
 }
 
 ///

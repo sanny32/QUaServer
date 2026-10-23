@@ -76,6 +76,16 @@ TestClient::~TestClient()
 }
 
 ///
+/// \brief Sets the name the following sessions are created with.
+///
+void TestClient::setSessionName(const QString &name)
+{
+    UA_ClientConfig *config = UA_Client_getConfig(_client);
+    UA_String_clear(&config->sessionName);
+    config->sessionName = UA_STRING_ALLOC(name.toUtf8().constData());
+}
+
+///
 /// \brief Opens an anonymous session on \a url.
 ///
 UA_StatusCode TestClient::connect(const QString &url)
