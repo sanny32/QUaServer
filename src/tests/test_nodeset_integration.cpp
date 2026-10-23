@@ -58,6 +58,7 @@ private slots:
     void readsReferencesAndTypeAttributes();
     void addsInstancesOfTypesWithoutCppClass();
     void refusesInstancesOfOtherNodes();
+    void childNodeIdCallbackAppliesBeforeStart();
     void clientsReadAndWriteLoadedVariables();
     void loadedMethodsAreNotImplemented();
     void nonHierarchicalReferencesDoNotMakeParents();
@@ -303,6 +304,25 @@ void TestNodeSetIntegration::refusesInstancesOfOtherNodes()
     QVERIFY(!add(QStringLiteral("Instance"), this->devicesNodeId(2001)));
     QVERIFY(!add(QStringLiteral("Unknown"), this->devicesNodeId(9999)));
     QVERIFY(!objects->hasChild(QUaQualifiedName(0, QStringLiteral("Abstract"))));
+}
+
+///
+/// \brief Applications build their address space before starting the server, so the child node ids they choose
+///        must apply then too.
+///
+void TestNodeSetIntegration::childNodeIdCallbackAppliesBeforeStart()
+{
+    QVERIFY(!m_server->isRunning());
+    m_server->setChildNodeIdCallback([](const QUaNodeId &parentId, const QUaQualifiedName &browseName) {
+        return QUaNodeId(1, parentId.toXmlString() + QLatin1Char('.') + browseName.name());
+    });
+    const quint16 ns = this->devicesNamespace();
+    QUaNode *device = m_server->objectsFolder()->addInstance(QUaQualifiedName(ns, QStringLiteral("Device9")),
+                                                             this->devicesNodeId(1001), QUaNodeId(1, QStringLiteral("Device9")));
+    QVERIFY(device);
+    auto *temperature = device->browseChild<QUaBaseDataVariable>(QUaQualifiedName(ns, QStringLiteral("Temperature")));
+    QVERIFY(temperature);
+    QCOMPARE(temperature->nodeId(), QUaNodeId(1, QStringLiteral("ns=1;s=Device9.Temperature")));
 }
 
 void TestNodeSetIntegration::clientsReadAndWriteLoadedVariables()

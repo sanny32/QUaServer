@@ -1448,6 +1448,9 @@ QUaServer::QUaServer(QObject* parent/* = 0*/)
 	Q_UNUSED(st);
 	this->_server = UA_Server_newWithConfig(&config);
 	Q_CHECK_PTR(this->_server);
+	// children instantiated before start() get their node ids from setChildNodeIdCallback() too
+	UA_Server_getConfig(_server)->nodeLifecycle = &_nodeLifecycle;
+	_nodeLifecycle.generateChildNodeId = &QUaServer::generateChildNodeId;
 	// register custom types to be used with Qt (QVariant and stuff)
 	QUaTypesConverter::registerCustomTypes();
 	// setup server (other defaults)
