@@ -649,7 +649,7 @@ private:
 	// default open62541 implementation, wrapped by QUaServer::verifyClientCertificate
 	UA_StatusCode (*_defaultVerifyCertificate)(UA_CertificateGroup *certGroup, const UA_ByteString *certificate);
 	static QHash<const UA_CertificateGroup*, QUaServer*> _hashCertificateGroups;
-	UA_StatusCode applyEmptyTrustList(UA_ServerConfig* config) const;
+	UA_StatusCode applyTrustList(UA_ServerConfig* config) const;
 #endif
 	QString _strHostname;
 
