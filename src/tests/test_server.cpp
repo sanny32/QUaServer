@@ -1,3 +1,4 @@
+#include <QBuffer>
 #include <QSignalSpy>
 #include <QTest>
 
@@ -43,6 +44,11 @@ private slots:
     void referenceTypeRegistersOnce();
     void nodeIdUsageReflectsAddressSpace();
     void objectsFolderIsNamespaceZeroFolder();
+    void readsVariableTypeAttributes_data();
+    void readsVariableTypeAttributes();
+    void readsVariableInstanceAttributes();
+    void invalidVariableAttributesLeaveOutputUnchanged_data();
+    void invalidVariableAttributesLeaveOutputUnchanged();
 };
 
 ///
@@ -376,6 +382,108 @@ void TestServer::objectsFolderIsNamespaceZeroFolder()
     QCOMPARE(objects->nodeId(), QUaNodeId(0, quint32(UA_NS0ID_OBJECTSFOLDER)));
     QCOMPARE(server.nodeById(objects->nodeId()), objects);
     QVERIFY(!server.isRunning());
+}
+
+///
+/// \brief Variable types expose scalar, unrestricted and fixed array constraints without C++ instances.
+///
+void TestServer::readsVariableTypeAttributes_data()
+{
+    QTest::addColumn<int>("rank");
+    QTest::addColumn<QVector<quint32>>("dimensions");
+    QTest::newRow("any") << -2 << QVector<quint32>();
+    QTest::newRow("scalar-or-vector") << -3 << QVector<quint32>();
+    QTest::newRow("scalar") << -1 << QVector<quint32>();
+    QTest::newRow("one-or-more") << 0 << QVector<quint32>();
+    QTest::newRow("vector") << 1 << QVector<quint32> { 0 };
+    QTest::newRow("fixed-vector") << 1 << QVector<quint32> { 3 };
+    QTest::newRow("matrix") << 2 << QVector<quint32> { 2, 3 };
+}
+
+///
+/// \brief Imported variable type attributes are read without instantiating or modifying the type.
+///
+void TestServer::readsVariableTypeAttributes()
+{
+    QFETCH(int, rank);
+    QFETCH(QVector<quint32>, dimensions);
+    QStringList lengths;
+    for (quint32 length : dimensions)
+        lengths.append(QString::number(length));
+    QByteArray xml = QStringLiteral(
+        "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">"
+        "<NamespaceUris><Uri>urn:test:constraints</Uri></NamespaceUris>"
+        "<UAVariableType NodeId=\"ns=1;i=5000\" BrowseName=\"1:Constrained\" DataType=\"i=11\" "
+        "ValueRank=\"%1\" ArrayDimensions=\"%2\">"
+        "<References><Reference ReferenceType=\"i=45\" IsForward=\"false\">i=63</Reference></References>"
+        "</UAVariableType></UANodeSet>").arg(rank).arg(lengths.join(QLatin1Char(','))).toUtf8();
+    QBuffer buffer(&xml);
+    QVERIFY(buffer.open(QIODevice::ReadOnly));
+    QUaServer server;
+    const QUaNodeSetResult loaded = server.loadNodeSet(&buffer);
+    QVERIFY2(loaded.isOk(), qPrintable(loaded.errorString));
+    QVERIFY2(loaded.warnings.isEmpty(), qPrintable(loaded.warnings.join(QLatin1Char('\n'))));
+    const int ns = server.namespaces().indexOf(QStringLiteral("urn:test:constraints"));
+    QVERIFY(ns >= 0);
+    const QUaNodeId id(quint16(ns), quint32(5000));
+    QVERIFY(server.isNodeIdUsed(id));
+    QVERIFY(!server.nodeById(id));
+    QUaVariableAttributes attributes;
+    QVERIFY(server.variableAttributes(id, attributes));
+    QCOMPARE(attributes.dataType, QUaNodeId(0, quint32(UA_NS0ID_DOUBLE)));
+    QCOMPARE(attributes.valueRank, rank);
+    QCOMPARE(attributes.arrayDimensions, dimensions);
+    QVERIFY(!server.nodeById(id));
+    QVERIFY(server.variableAttributes(QUaNodeId(0, quint32(UA_NS0ID_BASEDATAVARIABLETYPE)), attributes));
+    QCOMPARE(attributes.dataType, QUaNodeId(0, quint32(UA_NS0ID_BASEDATATYPE)));
+    QCOMPARE(attributes.valueRank, qint32(UA_VALUERANK_ANY));
+    QVERIFY(attributes.arrayDimensions.isEmpty());
+}
+
+///
+/// \brief Variable instances use the same attribute reader as types.
+///
+void TestServer::readsVariableInstanceAttributes()
+{
+    QUaServer server;
+    auto *variable = server.objectsFolder()->addBaseDataVariable(QStringLiteral("Scalar"));
+    QVERIFY(variable);
+    variable->setValue(quint16(42));
+    QUaVariableAttributes attributes;
+    QVERIFY(server.variableAttributes(variable->nodeId(), attributes));
+    QCOMPARE(attributes.dataType, QUaNodeId(0, quint32(UA_NS0ID_UINT16)));
+    QCOMPARE(attributes.valueRank, variable->valueRank());
+    QCOMPARE(attributes.arrayDimensions, variable->arrayDimensions());
+    QCOMPARE(variable->value().toUInt(), 42u);
+}
+
+///
+/// \brief Missing nodes and nodes of other classes have no variable attributes.
+///
+void TestServer::invalidVariableAttributesLeaveOutputUnchanged_data()
+{
+    QTest::addColumn<QString>("nodeId");
+    QTest::newRow("missing") << "ns=1;s=Missing";
+    QTest::newRow("object") << "i=85";
+    QTest::newRow("object-type") << "i=58";
+    QTest::newRow("data-type") << "i=11";
+}
+
+///
+/// \brief A failed read preserves the caller's previous constraints.
+///
+void TestServer::invalidVariableAttributesLeaveOutputUnchanged()
+{
+    QFETCH(QString, nodeId);
+    QUaServer server;
+    QUaVariableAttributes attributes;
+    attributes.dataType = QUaNodeId(0, quint32(UA_NS0ID_DOUBLE));
+    attributes.valueRank = 1;
+    attributes.arrayDimensions = { 5 };
+    QVERIFY(!server.variableAttributes(QUaNodeId(nodeId), attributes));
+    QCOMPARE(attributes.dataType, QUaNodeId(0, quint32(UA_NS0ID_DOUBLE)));
+    QCOMPARE(attributes.valueRank, 1);
+    QCOMPARE(attributes.arrayDimensions, QVector<quint32> { 5 });
 }
 
 QTEST_GUILESS_MAIN(TestServer)

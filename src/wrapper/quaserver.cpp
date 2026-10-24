@@ -4175,6 +4175,40 @@ bool QUaServer::isAbstract(const QUaNodeId& nodeId) const
 	return st == UA_STATUSCODE_GOOD && abstract;
 }
 
+///
+/// \brief Reads the data type and array constraints of a variable or variable type.
+/// \param nodeId Node whose attributes are read; no C++ instance is required.
+/// \param attributes Receives the constraints on success; unchanged on failure.
+/// \return False when the node is missing or has no variable attributes.
+///
+bool QUaServer::variableAttributes(const QUaNodeId& nodeId, QUaVariableAttributes& attributes) const
+{
+    UA_NodeId id = nodeId;
+    UA_NodeId type = UA_NODEID_NULL;
+    UA_Variant dimensions;
+    UA_Variant_init(&dimensions);
+    UA_Int32 rank = UA_VALUERANK_ANY;
+    const UA_StatusCode typeStatus = UA_Server_readDataType(_server, id, &type);
+    const UA_StatusCode rankStatus = UA_Server_readValueRank(_server, id, &rank);
+    const UA_StatusCode dimensionsStatus = UA_Server_readArrayDimensions(_server, id, &dimensions);
+    const bool success = typeStatus == UA_STATUSCODE_GOOD && rankStatus == UA_STATUSCODE_GOOD
+        && dimensionsStatus == UA_STATUSCODE_GOOD;
+    if (success)
+    {
+        QUaVariableAttributes result;
+        result.dataType = QUaNodeId(type);
+        result.valueRank = rank;
+        const auto* lengths = static_cast<const UA_UInt32*>(dimensions.data);
+        for (size_t index = 0; index < dimensions.arrayLength; ++index)
+            result.arrayDimensions.append(lengths[index]);
+        attributes = result;
+    }
+    UA_Variant_clear(&dimensions);
+    UA_NodeId_clear(&type);
+    UA_NodeId_clear(&id);
+    return success;
+}
+
 QUaFolderObject* QUaServer::objectsFolder() const
 {
 	return _pobjectsFolder;

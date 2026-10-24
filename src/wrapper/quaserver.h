@@ -107,6 +107,19 @@ struct QUaServerLimits
 Q_DECLARE_METATYPE(QUaServerLimits)
 
 ///
+/// \brief Data type and array constraints shared by variables and variable types.
+///
+struct QUaVariableAttributes
+{
+    /// \brief Data type node id, which may name an abstract type such as Number.
+    QUaNodeId dataType;
+    /// \brief OPC UA ValueRank; -2 permits any rank, -1 denotes a scalar.
+    qint32 valueRank = -2;
+    /// \brief Length of each array dimension; zero denotes an unrestricted length.
+    QVector<quint32> arrayDimensions;
+};
+
+///
 /// \brief Outcome of QUaServer::loadNodeSet().
 ///
 struct QUaNodeSetResult
@@ -456,6 +469,13 @@ public:
 	/// \return The IsAbstract attribute, or false when \a nodeId is no type node.
 	///
 	bool isAbstract(const QUaNodeId& nodeId) const;
+	///
+	/// \brief Reads the data type and array constraints of a variable or variable type.
+	/// \param nodeId Node whose attributes are read; no C++ instance is required.
+	/// \param attributes Receives the constraints on success; unchanged on failure.
+	/// \return False when the node is missing or has no variable attributes.
+	///
+	bool variableAttributes(const QUaNodeId& nodeId, QUaVariableAttributes& attributes) const;
 	// create instance of a given (variable or object) type
 	template<typename T>
 	T* createInstance(
