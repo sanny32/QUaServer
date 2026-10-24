@@ -88,7 +88,7 @@ QString nodeIdToQString(const UA_NodeId & id)
 		break;
 	case UA_NODEIDTYPE_STRING:
 		result.append(QLatin1String("s="));
-		result.append(QString::fromLocal8Bit(reinterpret_cast<char *>(id.identifier.string.data), static_cast<int>(id.identifier.string.length)));
+		result.append(uaStringToQString(id.identifier.string));
 		break;
     case UA_NODEIDTYPE_GUID:
         {
@@ -183,7 +183,7 @@ QString nodeClassToQString(const UA_NodeClass & nclass)
 
 QString uaStringToQString(const UA_String & string)
 {
-	return QString::fromLocal8Bit(reinterpret_cast<char *>(string.data), static_cast<int>(string.length));
+	return QString::fromUtf8(reinterpret_cast<char *>(string.data), static_cast<int>(string.length));
 }
 
 UA_String uaStringFromQString(const QString & uaString)

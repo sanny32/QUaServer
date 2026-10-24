@@ -11,6 +11,8 @@ class TestTypesConverter : public QObject
 
 private slots:
     void initTestCase();
+    void utf8StringConversions_data();
+    void utf8StringConversions();
     void scalarRoundTrip_data();
     void scalarRoundTrip();
     void statusCodeIsReadAsNumber();
@@ -43,6 +45,36 @@ private slots:
 void TestTypesConverter::initTestCase()
 {
     QUaTypesConverter::registerCustomTypes();
+}
+
+void TestTypesConverter::utf8StringConversions_data()
+{
+    QTest::addColumn<QString>("text");
+    QTest::newRow("empty") << QString();
+    QTest::newRow("ascii") << QStringLiteral("Plant/Line");
+    QTest::newRow("units") << QStringLiteral("m\u00b3 / \u00b0C");
+    QTest::newRow("cyrillic") << QStringLiteral("\u0422\u0435\u043c\u043f\u0435\u0440\u0430\u0442\u0443\u0440\u0430");
+    QTest::newRow("supplementary") << QString::fromUtf8("\xf0\x9f\x8c\xa1");
+    QTest::newRow("embedded-null") << QString::fromUtf8("a\0\xc2\xb3", 4);
+}
+
+///
+/// \brief OPC UA strings and string NodeIds decode UTF-8 independently of the system code page.
+///
+void TestTypesConverter::utf8StringConversions()
+{
+    QFETCH(QString, text);
+    const QByteArray bytes = text.toUtf8();
+    UA_String string;
+    string.length = size_t(bytes.size());
+    string.data = reinterpret_cast<UA_Byte *>(const_cast<char *>(bytes.constData()));
+    QCOMPARE(QUaTypesConverter::uaStringToQString(string), text);
+
+    UA_NodeId id = UA_NODEID_NULL;
+    id.namespaceIndex = 2;
+    id.identifierType = UA_NODEIDTYPE_STRING;
+    id.identifier.string = string;
+    QCOMPARE(QUaTypesConverter::nodeIdToQString(id), QStringLiteral("ns=2;s=") + text);
 }
 
 void TestTypesConverter::scalarRoundTrip_data()
