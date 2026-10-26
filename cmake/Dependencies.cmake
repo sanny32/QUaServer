@@ -108,6 +108,9 @@ FetchContent_Declare(open62541
     GIT_SHALLOW    TRUE
     # the submodules serve disabled features, except ua-nodeset which is fetched separately
     GIT_SUBMODULES ""
+    PATCH_COMMAND  ${CMAKE_COMMAND}
+                   "-DPATCHES=${CMAKE_CURRENT_LIST_DIR}/patches/open62541-numeric-listen-address.patch"
+                   -P ${CMAKE_CURRENT_LIST_DIR}/patches/apply.cmake
 )
 FetchContent_MakeAvailable(open62541)
 # open62541 is linked into QUaServer, so a host project's install must not ship its headers and library
