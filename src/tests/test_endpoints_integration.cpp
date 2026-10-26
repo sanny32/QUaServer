@@ -1,4 +1,6 @@
 #include <QNetworkInterface>
+#include <QRegularExpression>
+#include <QSignalSpy>
 #include <QTest>
 
 #include <QUaServer>
@@ -33,6 +35,25 @@ bool acceptsSession(const QHostAddress &address, quint16 port)
     return client.connect(QStringLiteral("opc.tcp://%1:%2").arg(address.toString()).arg(port)) == UA_STATUSCODE_GOOD;
 }
 
+///
+/// \brief Returns the addresses open62541 names in the log messages of its wildcard listen sockets.
+/// \param logs Arguments recorded from QUaServer::logMessage.
+///
+QStringList wildcardListenAddresses(const QList<QList<QVariant>> &logs)
+{
+    static const QRegularExpression pattern(QStringLiteral("Creating listen socket for \"([^\"]*)\" \\(with local hostname"));
+    QStringList addresses;
+    for (const QList<QVariant> &arguments : logs)
+    {
+        const QRegularExpressionMatch match = pattern.match(QString::fromUtf8(arguments.at(0).value<QUaLog>().message));
+        if (match.hasMatch())
+        {
+            addresses << match.captured(1);
+        }
+    }
+    return addresses;
+}
+
 } // namespace
 
 class TestEndpointsIntegration : public QObject
@@ -46,6 +67,7 @@ private slots:
     void emptyHostnameListensOnAllInterfaces();
     void hostnameRestrictsListeningInterface();
     void unresolvableHostnameFailsToStart();
+    void listenSocketsLogNumericAddresses();
 
 private:
     QUaServer *_server = nullptr;
@@ -101,6 +123,23 @@ void TestEndpointsIntegration::unresolvableHostnameFailsToStart()
 
     QVERIFY(!TestServer::start(*_server));
     QVERIFY(!_server->isRunning());
+}
+
+///
+/// \brief Listen sockets are logged by numeric address: a reverse DNS lookup per address could stall start() for
+///        seconds each on hosts with unresolvable adapters.
+///
+void TestEndpointsIntegration::listenSocketsLogNumericAddresses()
+{
+    QSignalSpy logs(_server, &QUaServer::logMessage);
+    QVERIFY(TestServer::start(*_server));
+
+    const QStringList addresses = wildcardListenAddresses(logs);
+    QVERIFY(!addresses.isEmpty());
+    for (const QString &address : addresses)
+    {
+        QVERIFY2(!QHostAddress(address).isNull(), qPrintable(address));
+    }
 }
 
 QTEST_GUILESS_MAIN(TestEndpointsIntegration)
