@@ -43,8 +43,6 @@ private:
 	bool          _isOnline;
 	bool          _register2;
 	bool          _encrypted;
-	bool          _channelOpened;
-	bool          _reconnected;
 	bool          _requestSent;
 	bool          _disconnecting;
 	bool          _completed;

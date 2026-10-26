@@ -60,8 +60,6 @@ QUaDiscoveryRegistration::QUaDiscoveryRegistration(QUaServer* server)
 	, _isOnline(true)
 	, _register2(true)
 	, _encrypted(false)
-	, _channelOpened(false)
-	, _reconnected(false)
 	, _requestSent(false)
 	, _disconnecting(false)
 	, _completed(false)
@@ -133,8 +131,6 @@ void QUaDiscoveryRegistration::sendRequest(bool isOnline)
 	}
 	_isOnline      = isOnline;
 	_register2     = true;
-	_channelOpened = false;
-	_reconnected   = false;
 	_requestSent   = false;
 	_disconnecting = false;
 	_completed     = false;
@@ -189,7 +185,6 @@ UA_StatusCode QUaDiscoveryRegistration::createClient()
 	// the application URI must match the one in the certificate of the server
 	UA_String_clear(&config.clientDescription.applicationUri);
 	UA_String_copy(&serverConfig->applicationDescription.applicationUri, &config.clientDescription.applicationUri);
-	config.noReconnect   = true;
 	config.timeout       = kRequestTimeoutMs;
 	config.stateCallback = &QUaDiscoveryRegistration::stateCallback;
 	config.clientContext = this;
@@ -321,22 +316,8 @@ void QUaDiscoveryRegistration::stateCallback(UA_Client* client, UA_SecureChannel
 		{
 			self->complete(self->_statusCode);
 		}
-		else if (connectStatus == UA_STATUSCODE_GOOD)
-		{
-			// a closed channel reported Good is the start of a new connection attempt
-			return;
-		}
-		else if (self->_channelOpened && !self->_requestSent && !self->_reconnected)
-		{
-			// the client closes the channel that read the endpoints, but leaves opening the encrypted one to us
-			self->_reconnected = true;
-			const UA_StatusCode st = UA_Client_connectSecureChannelAsync(client, self->_url.toUtf8().constData());
-			if (st != UA_STATUSCODE_GOOD)
-			{
-				self->complete(st);
-			}
-		}
-		else
+		// a Good close is the client switching to the URL from FindServers or to the selected endpoint
+		else if (connectStatus != UA_STATUSCODE_GOOD)
 		{
 			self->complete(connectStatus);
 		}
@@ -346,7 +327,6 @@ void QUaDiscoveryRegistration::stateCallback(UA_Client* client, UA_SecureChannel
 	{
 		return;
 	}
-	self->_channelOpened = true;
 	if (self->_encrypted)
 	{
 		UA_MessageSecurityMode mode = UA_MESSAGESECURITYMODE_INVALID;
@@ -374,6 +354,12 @@ void QUaDiscoveryRegistration::responseCallback(UA_Client* client, void* userdat
 	}
 	// both response types start with the response header
 	const UA_StatusCode st = static_cast<const UA_ResponseHeader*>(response)->serviceResult;
+	if (st == UA_STATUSCODE_BADSECURECHANNELCLOSED)
+	{
+		// the client closed the channel to reconnect; the request goes again on the next one
+		self->_requestSent = false;
+		return;
+	}
 	if (st != UA_STATUSCODE_GOOD && self->_register2)
 	{
 		self->_register2 = false;

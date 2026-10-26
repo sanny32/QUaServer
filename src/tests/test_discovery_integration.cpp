@@ -174,6 +174,7 @@ private slots:
 #ifdef UA_ENABLE_ENCRYPTION
     void encryptedRegistrationChecksTrust_data();
     void encryptedRegistrationChecksTrust();
+    void registersAtExternalDiscoveryServer();
 #endif // UA_ENABLE_ENCRYPTION
 
 private:
@@ -368,6 +369,32 @@ void TestDiscoveryIntegration::encryptedRegistrationChecksTrust()
     QVERIFY(spy.wait(kWaitMs));
     QCOMPARE(statusOf(spy.first()) == QUaStatus::Good, accepted);
     QCOMPARE(_lds->registeredServers().count(), accepted ? 1 : 0);
+}
+
+///
+/// \brief Registers at the discovery server named by QUASERVER_TEST_LDS_URL, e.g. the OPC Foundation LDS, which
+///        answers FindServers and GetEndpoints with another URL and accepts only encrypted registrations. That
+///        server must trust server.crt.der of the encryption example; skipped when the variable is not set.
+///
+void TestDiscoveryIntegration::registersAtExternalDiscoveryServer()
+{
+    const QString url = qEnvironmentVariable("QUASERVER_TEST_LDS_URL");
+    if (url.isEmpty())
+    {
+        QSKIP("Set QUASERVER_TEST_LDS_URL to register at an external discovery server");
+    }
+    _server->setCertificate(readFile(QStringLiteral("server.crt.der"), false));
+    _server->setPrivateKey(readFile(QStringLiteral("server.key.der"), false));
+    _server->setApplicationUri(QStringLiteral("urn:unconfigured:application"));
+    _server->setDiscoveryServerUrl(url);
+    QSignalSpy spy(_server, &QUaServer::discoveryRegistrationFinished);
+    QVERIFY(TestServer::start(*_server));
+
+    QVERIFY(spy.wait(kWaitMs));
+    QCOMPARE(QString(spy.first().at(1).value<QUaStatusCode>()), QStringLiteral("Good"));
+    _server->stop();
+    QCOMPARE(spy.count(), 2);
+    QCOMPARE(QString(spy.at(1).at(1).value<QUaStatusCode>()), QStringLiteral("Good"));
 }
 #endif // UA_ENABLE_ENCRYPTION
 
