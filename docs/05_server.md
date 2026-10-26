@@ -182,6 +182,20 @@ server.setHostname("192.168.1.18");
 
 The server then also advertises `opc.tcp://<hostname>:<port>` as its discovery URL. If the hostname cannot be resolved, `start()` fails. The hostname must be listed in the `subjectAltName` of the server certificate. Clients that connect through another name (e.g. behind NAT) still get endpoints with the URL they used.
 
+## Discovery Server Registration
+
+To be found through a Local Discovery Server (LDS), set its URL before starting the server:
+
+```c++
+server.setDiscoveryServerUrl("opc.tcp://localhost:4840");
+QObject::connect(&server, &QUaServer::discoveryRegistrationFinished,
+[](bool isOnline, const QUaStatusCode &statusCode) {
+	qDebug() << (isOnline ? "Register:" : "Unregister:") << QString(statusCode);
+});
+```
+
+The server registers when it starts, renews the registration every `discoveryRegistrationInterval()` (10 minutes by default) and unregisters in `stop()`. With a certificate and a private key the registration uses an encrypted channel: the LDS must trust the server certificate, and the LDS certificate must pass the trusted certificates lists of the server, as client certificates do.
+
 ## Limits
 
 The number of secure channels and sessions is set with `setMaxSecureChannels()` and `setMaxSessions()`. The other limits are grouped in `QUaServerLimits`. Start from the current limits, which hold the *open62541* defaults, change the ones of interest and set them **before** starting the server:

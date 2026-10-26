@@ -60,6 +60,7 @@ using quaSocket = int;
 #include <QSaveFile>
 #include <QTimer>
 
+#include "quadiscoveryregistration.h"
 #include "quanodesetloader.h"
 #include "quanodesetwriter.h"
 
@@ -1421,6 +1422,9 @@ QUaServer::QUaServer(QObject* parent/* = 0*/)
 	_methodRetStatusCode = UA_STATUSCODE_GOOD;
 	_childNodeIdCallback = nullptr;
 	_defaultActivateSession = nullptr;
+	_discoveryIntervalMs = 10 * 60 * 1000;
+	_discovery = new QUaDiscoveryRegistration(this);
+	QObject::connect(_discovery, &QUaDiscoveryRegistration::finished, this, &QUaServer::discoveryRegistrationFinished);
 	memset(&_nodeLifecycle, 0, sizeof(UA_GlobalNodeLifecycle));
 #ifdef UA_ENABLE_ENCRYPTION
 	_bytePrivateKey = QByteArray();
@@ -2058,6 +2062,8 @@ QUaServer::~QUaServer()
 	_beingDestroyed = true;
 	// stop if running
 	this->stop();
+	// its client runs on the event loop of the server
+	delete _discovery;
 	// [FIX] : QObject children destructors were called after this one
 	//         and the ~QUaNode destructor makes use of _server
 	//         so we better destroy the children manually before deleting _server
@@ -2194,6 +2200,23 @@ void QUaServer::setRejectUntrustedCertificates(bool reject)
 ///
 UA_StatusCode QUaServer::applyTrustList(UA_ServerConfig* config) const
 {
+	UA_StatusCode st = this->applyTrustList(&config->secureChannelPKI,
+		UA_NS0ID(SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP), config->logging);
+	if (st == UA_STATUSCODE_GOOD)
+	{
+		st = this->applyTrustList(&config->sessionPKI,
+			UA_NS0ID(SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTUSERTOKENGROUP), config->logging);
+	}
+	return st;
+}
+
+///
+/// \brief Replaces \a group with a store of the trusted, issuer and revocation lists; leaves it as it is while
+///        the server accepts any certificate.
+/// \param groupId Certificate group the store belongs to.
+///
+UA_StatusCode QUaServer::applyTrustList(UA_CertificateGroup* group, UA_NodeId groupId, const UA_Logger* logger) const
+{
 	const QVector<UA_ByteString> trusted = QUaServer::toByteStringArray(_listTrusted);
 	if (trusted.isEmpty() && !_rejectUntrusted)
 	{
@@ -2219,17 +2242,8 @@ UA_StatusCode QUaServer::applyTrustList(UA_ServerConfig* config) const
 		list.trustedCrls     = const_cast<UA_ByteString*>(revocation.constData());
 		list.trustedCrlsSize = static_cast<size_t>(revocation.size());
 	}
-	UA_NodeId applicationGroup = UA_NS0ID(SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
-	UA_NodeId userTokenGroup   = UA_NS0ID(SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTUSERTOKENGROUP);
-	config->secureChannelPKI.clear(&config->secureChannelPKI);
-	UA_StatusCode st = UA_CertificateGroup_Memorystore(&config->secureChannelPKI, &applicationGroup, &list,
-		config->logging, nullptr);
-	if (st == UA_STATUSCODE_GOOD)
-	{
-		config->sessionPKI.clear(&config->sessionPKI);
-		st = UA_CertificateGroup_Memorystore(&config->sessionPKI, &userTokenGroup, &list, config->logging, nullptr);
-	}
-	return st;
+	group->clear(group);
+	return UA_CertificateGroup_Memorystore(group, &groupId, &list, logger, nullptr);
 }
 
 ///
@@ -2448,6 +2462,10 @@ bool QUaServer::start()
 	}, Qt::QueuedConnection);
 	// start iterations
 	_iterWaitTimer.start(0);
+	if (!_strDiscoveryServerUrl.isEmpty())
+	{
+		_discovery->start(_strDiscoveryServerUrl, _discoveryIntervalMs);
+	}
 	// emit event
 	emit this->isRunningChanged(_running);
 	return true;
@@ -2462,6 +2480,8 @@ void QUaServer::stop()
 	_running = false;
 	_iterWaitTimer.stop();
 	_iterWaitTimer.disconnect();
+	// shutdown cancels requests under way, so the discovery server is told before it
+	_discovery->stop(QUA_DISCOVERY_STOP_TIMEOUT_MS);
 	// [FIX] force remove sessions (calls QUaServer::closeSession for each one)
 	const auto sessionIds = _hashSessions.keys();
 	for (const auto& sessionId : sessionIds)
@@ -2481,6 +2501,44 @@ void QUaServer::stop()
 bool QUaServer::isRunning() const
 {
 	return _running;
+}
+
+///
+/// \brief Returns the URL of the discovery server the server registers at; empty when it registers nowhere.
+///
+QString QUaServer::discoveryServerUrl() const
+{
+	return _strDiscoveryServerUrl;
+}
+
+///
+/// \brief Sets the discovery server to register at, e.g. a Local Discovery Server at "opc.tcp://localhost:4840";
+///        an empty URL registers nowhere. While running, the server renews the registration every
+///        discoveryRegistrationInterval() and stop() removes it. With a certificate and a private key the
+///        registration is encrypted and the discovery server must pass the trusted certificates lists.
+///        Applied on the next start().
+///
+void QUaServer::setDiscoveryServerUrl(const QString& discoveryServerUrl)
+{
+	_strDiscoveryServerUrl = discoveryServerUrl;
+}
+
+///
+/// \brief Returns the time between two registrations at the discovery server, in milliseconds.
+///
+int QUaServer::discoveryRegistrationInterval() const
+{
+	return _discoveryIntervalMs;
+}
+
+///
+/// \brief Sets the time between two registrations at the discovery server, in milliseconds; it must stay below
+///        the time after which the discovery server drops a server that did not renew. Defaults to 10 minutes.
+///        Applied on the next start().
+///
+void QUaServer::setDiscoveryRegistrationInterval(int intervalMs)
+{
+	_discoveryIntervalMs = intervalMs;
 }
 
 void QUaServer::setIsRunning(const bool& running)
