@@ -235,7 +235,8 @@ public:
 	///
 	/// \brief Sets the DER certificates of the clients and CAs that the server trusts.
 	///        While the list is empty, the server accepts any client certificate
-	///        unless rejectUntrustedCertificates() is set. Applied on the next start().
+	///        unless rejectUntrustedCertificates() is set.
+	///        Applied at once while the server runs; connected clients stay connected.
 	///
 	void setTrustedCertificates(const QList<QByteArray>& trustedCertificates);
 
@@ -246,7 +247,7 @@ public:
 	///
 	/// \brief Sets the DER CA certificates used to build the chain of a client certificate,
 	///        without trusting them. Ignored while the trusted certificates list is empty.
-	///        Applied on the next start().
+	///        Applied at once while the server runs; connected clients stay connected.
 	///
 	void setIssuerCertificates(const QList<QByteArray>& issuerCertificates);
 
@@ -256,7 +257,8 @@ public:
 	QList<QByteArray> revocationLists() const;
 	///
 	/// \brief Sets the DER certificate revocation lists of the trusted and issuer CAs.
-	///        Ignored while the trusted certificates list is empty. Applied on the next start().
+	///        Ignored while the trusted certificates list is empty.
+	///        Applied at once while the server runs; connected clients stay connected.
 	///
 	void setRevocationLists(const QList<QByteArray>& revocationLists);
 
@@ -266,7 +268,8 @@ public:
 	bool rejectUntrustedCertificates() const;
 	///
 	/// \brief Rejects client certificates outside the trusted list even while that list is empty,
-	///        instead of accepting any client. Applied on the next start().
+	///        instead of accepting any client.
+	///        Applied at once while the server runs; connected clients stay connected.
 	///
 	void setRejectUntrustedCertificates(bool reject);
 
@@ -707,6 +710,8 @@ private:
 	static QHash<const UA_CertificateGroup*, QUaServer*> _hashCertificateGroups;
 	UA_StatusCode applyTrustList(UA_ServerConfig* config) const;
 	UA_StatusCode applyTrustList(UA_CertificateGroup* group, UA_NodeId groupId, const UA_Logger* logger) const;
+	void reapplyTrustList();
+	void wrapCertificateVerification(UA_ServerConfig* config);
 #endif
 	QString _strHostname;
 	QString _strDiscoveryServerUrl;

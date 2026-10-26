@@ -84,6 +84,7 @@ server.setRevocationLists({ readFile("ca.crl.der") });
 * A CA certificate must have the `keyCertSign` and `cRLSign` key usages (see the [Server](05_server.md) section), otherwise the clients it signed are rejected.
 * The issuer and revocation lists are ignored while the trusted list is empty.
 * While the trusted list is empty, every client is accepted. Call `server.setRejectUntrustedCertificates(true)` to reject every client until it is trusted, e.g. to collect the certificates of new clients through `clientCertificateRejected` and trust them later.
+* Changing the trusted, issuer or revocation lists or `setRejectUntrustedCertificates()` on a running server applies to the next client at once, without a restart. Clients already connected stay connected.
 * Every entry must be a valid DER (or PEM) certificate or CRL. An invalid entry stops the remaining entries of its list from being loaded.
 
 Rejected clients are reported through the `logMessage` signal.
