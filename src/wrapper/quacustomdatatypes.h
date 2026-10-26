@@ -920,6 +920,7 @@ class QUaSession : public QObject
     Q_PROPERTY(QString   endpointUrl     READ endpointUrl    )
     Q_PROPERTY(QString   securityPolicyUri READ securityPolicyUri)
     Q_PROPERTY(QUaMessageSecurityMode securityMode READ securityMode)
+    Q_PROPERTY(QByteArray clientCertificate READ clientCertificate)
 
 public:
 
@@ -960,6 +961,11 @@ public:
     ///
     QUaMessageSecurityMode securityMode() const;
 
+    ///
+    /// \brief Returns the DER application certificate the client secured its channel with; empty over an unsecured channel.
+    ///
+    QByteArray clientCertificate() const;
+
 private:
     QString   _strSessionId;
     QString   _strSessionName;
@@ -974,6 +980,7 @@ private:
     QString   _strEndpointUrl;
     QString   _strSecurityPolicyUri;
     QUaMessageSecurityMode _securityMode;
+    QByteArray _byteClientCertificate;
 };
 
 ///

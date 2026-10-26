@@ -703,6 +703,14 @@ QUaMessageSecurityMode QUaSession::securityMode() const
 	return _securityMode;
 }
 
+///
+/// \brief Returns the DER application certificate the client secured its channel with; empty over an unsecured channel.
+///
+QByteArray QUaSession::clientCertificate() const
+{
+	return _byteClientCertificate;
+}
+
 QUaLocalizedText::QUaLocalizedText()
 {
 }

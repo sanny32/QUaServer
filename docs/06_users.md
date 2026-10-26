@@ -314,7 +314,7 @@ server.setUserCertificateCallback([userCertificates](const QByteArray &certifica
 
 ## Sessions
 
-The sessions currently open on the server are returned by the `sessions()` method. Each `QUaSession` provides the session id, the user name, the client application name and URI, the client address and port, and the time the session was created. The server notifies when clients connect and disconnect:
+The sessions currently open on the server are returned by the `sessions()` method. Each `QUaSession` provides the session id, the user name, the client application name and URI, the client address and port, and the time the session was created. Over a secured channel `clientCertificate()` returns the DER application certificate of the client; it is empty over an unsecured one. The server notifies when clients connect and disconnect:
 
 ```c++
 QObject::connect(&server, &QUaServer::clientConnected, [](const QUaSession *session) {
