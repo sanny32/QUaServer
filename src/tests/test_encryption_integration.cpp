@@ -76,6 +76,9 @@ private slots:
     void rejectedClientCertificateIsReported();
     void acceptedClientCertificateIsNotReported();
     void encryptedSessionReportsClientCertificate();
+    void trustingClientAppliesWhileRunning();
+    void distrustingClientAppliesWhileRunning();
+    void acceptingAnyClientAppliesWhileRunning();
     void emptyTrustListAcceptsAnyClient();
     void emptyTrustListRejectsWhenRequested();
     void securityPoliciesAndModesFilterEndpoints();
@@ -368,6 +371,63 @@ void TestEncryptionIntegration::encryptedSessionReportsClientCertificate()
              UA_STATUSCODE_GOOD);
     QTRY_COMPARE(_server->sessions().count(), 1);
     QCOMPARE(_server->sessions().first()->clientCertificate(), _client.certificate);
+}
+
+///
+/// \brief A client trusted while the server runs connects without a restart.
+///
+void TestEncryptionIntegration::trustingClientAppliesWhileRunning()
+{
+    _server->setCertificate(_certificate);
+    _server->setPrivateKey(_privateKey);
+    _server->setIssuerCertificates({ _caCertificate });
+    _server->setRejectUntrustedCertificates(true);
+    _server->setAnonymousLoginAllowed(false);
+    _server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
+    QVERIFY(TestServer::start(*_server));
+    QVERIFY(connectAsAlice(_client) != UA_STATUSCODE_GOOD);
+
+    _server->setTrustedCertificates({ _client.certificate });
+    QCOMPARE(connectAsAlice(_client), UA_STATUSCODE_GOOD);
+}
+
+///
+/// \brief A client no longer trusted while the server runs is rejected, and the rejection is still reported.
+///
+void TestEncryptionIntegration::distrustingClientAppliesWhileRunning()
+{
+    _server->setCertificate(_certificate);
+    _server->setPrivateKey(_privateKey);
+    _server->setTrustedCertificates({ _client.certificate });
+    _server->setIssuerCertificates({ _caCertificate });
+    _server->setRejectUntrustedCertificates(true);
+    _server->setAnonymousLoginAllowed(false);
+    _server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
+    QVERIFY(TestServer::start(*_server));
+    QCOMPARE(connectAsAlice(_client), UA_STATUSCODE_GOOD);
+
+    QSignalSpy rejectedSpy(_server, &QUaServer::clientCertificateRejected);
+    _server->setTrustedCertificates({});
+    QVERIFY(connectAsAlice(_client) != UA_STATUSCODE_GOOD);
+    QTRY_VERIFY(rejectedSpy.count() >= 1);
+    QCOMPARE(rejectedSpy.first().at(0).toByteArray(), _client.certificate);
+}
+
+///
+/// \brief Dropping rejectUntrustedCertificates() with an empty trusted list accepts any client again at once.
+///
+void TestEncryptionIntegration::acceptingAnyClientAppliesWhileRunning()
+{
+    _server->setCertificate(_certificate);
+    _server->setPrivateKey(_privateKey);
+    _server->setRejectUntrustedCertificates(true);
+    _server->setAnonymousLoginAllowed(false);
+    _server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
+    QVERIFY(TestServer::start(*_server));
+    QVERIFY(connectAsAlice(_client) != UA_STATUSCODE_GOOD);
+
+    _server->setRejectUntrustedCertificates(false);
+    QCOMPARE(connectAsAlice(_client), UA_STATUSCODE_GOOD);
 }
 
 ///

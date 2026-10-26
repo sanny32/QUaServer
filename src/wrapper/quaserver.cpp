@@ -1604,9 +1604,7 @@ bool QUaServer::resetConfig()
 		{
 			// Basic256Sha256 encrypts user tokens even when only SecurityPolicy None endpoints are published
 			addSecurityPolicies(config, _securityPolicies | QUaSecurityPolicy::Basic256Sha256, ptrCert, ptrPriv);
-			_defaultVerifyCertificate = config->secureChannelPKI.verifyCertificate;
-			config->secureChannelPKI.verifyCertificate = &QUaServer::verifyClientCertificate;
-			QUaServer::_hashCertificateGroups.insert(&config->secureChannelPKI, this);
+			this->wrapCertificateVerification(config);
 		}
 	}
 	if (ptrPriv)
@@ -2133,11 +2131,12 @@ QList<QByteArray> QUaServer::trustedCertificates() const
 ///
 /// \brief Sets the DER certificates of the clients and CAs that the server trusts.
 ///        While the list is empty, the server accepts any client certificate.
-///        Applied on the next start().
+///        Applied at once while the server runs; connected clients stay connected.
 ///
 void QUaServer::setTrustedCertificates(const QList<QByteArray>& trustedCertificates)
 {
 	_listTrusted = trustedCertificates;
+	this->reapplyTrustList();
 	emit this->trustedCertificatesChanged(_listTrusted);
 }
 
@@ -2152,11 +2151,12 @@ QList<QByteArray> QUaServer::issuerCertificates() const
 ///
 /// \brief Sets the DER CA certificates used to build the chain of a client certificate,
 ///        without trusting them. Ignored while the trusted certificates list is empty.
-///        Applied on the next start().
+///        Applied at once while the server runs; connected clients stay connected.
 ///
 void QUaServer::setIssuerCertificates(const QList<QByteArray>& issuerCertificates)
 {
 	_listIssuers = issuerCertificates;
+	this->reapplyTrustList();
 	emit this->issuerCertificatesChanged(_listIssuers);
 }
 
@@ -2170,11 +2170,13 @@ QList<QByteArray> QUaServer::revocationLists() const
 
 ///
 /// \brief Sets the DER certificate revocation lists of the trusted and issuer CAs.
-///        Ignored while the trusted certificates list is empty. Applied on the next start().
+///        Ignored while the trusted certificates list is empty.
+///        Applied at once while the server runs; connected clients stay connected.
 ///
 void QUaServer::setRevocationLists(const QList<QByteArray>& revocationLists)
 {
 	_listRevocation = revocationLists;
+	this->reapplyTrustList();
 	emit this->revocationListsChanged(_listRevocation);
 }
 
@@ -2188,11 +2190,12 @@ bool QUaServer::rejectUntrustedCertificates() const
 
 ///
 /// \brief Rejects client certificates outside the trusted list even while that list is empty,
-///        instead of accepting any client. Applied on the next start().
+///        instead of accepting any client. Applied at once while the server runs; connected clients stay connected.
 ///
 void QUaServer::setRejectUntrustedCertificates(bool reject)
 {
 	_rejectUntrusted = reject;
+	this->reapplyTrustList();
 	emit this->rejectUntrustedCertificatesChanged(_rejectUntrusted);
 }
 
@@ -2214,8 +2217,8 @@ UA_StatusCode QUaServer::applyTrustList(UA_ServerConfig* config) const
 }
 
 ///
-/// \brief Replaces \a group with a store of the trusted, issuer and revocation lists; leaves it as it is while
-///        the server accepts any certificate.
+/// \brief Replaces \a group with a store of the trusted, issuer and revocation lists, or with a group that accepts
+///        any certificate while the server does. A failure leaves \a group as it was.
 /// \param groupId Certificate group the store belongs to.
 ///
 UA_StatusCode QUaServer::applyTrustList(UA_CertificateGroup* group, UA_NodeId groupId, const UA_Logger* logger) const
@@ -2223,6 +2226,8 @@ UA_StatusCode QUaServer::applyTrustList(UA_CertificateGroup* group, UA_NodeId gr
 	const QVector<UA_ByteString> trusted = QUaServer::toByteStringArray(_listTrusted);
 	if (trusted.isEmpty() && !_rejectUntrusted)
 	{
+		UA_CertificateGroup_AcceptAll(group);
+		group->logging = logger;
 		return UA_STATUSCODE_GOOD;
 	}
 	UA_TrustListDataType list;
@@ -2245,8 +2250,58 @@ UA_StatusCode QUaServer::applyTrustList(UA_CertificateGroup* group, UA_NodeId gr
 		list.trustedCrls     = const_cast<UA_ByteString*>(revocation.constData());
 		list.trustedCrlsSize = static_cast<size_t>(revocation.size());
 	}
-	group->clear(group);
-	return UA_CertificateGroup_Memorystore(group, &groupId, &list, logger, nullptr);
+	// built aside, so that a running server keeps checking clients with its current lists when this fails
+	UA_CertificateGroup store;
+	memset(&store, 0, sizeof(store));
+	const UA_StatusCode st = UA_CertificateGroup_Memorystore(&store, &groupId, &list, logger, nullptr);
+	if (st != UA_STATUSCODE_GOOD)
+	{
+		return st;
+	}
+	if (group->clear)
+	{
+		group->clear(group);
+	}
+	*group = store;
+	return UA_STATUSCODE_GOOD;
+}
+
+///
+/// \brief Applies changed trust lists to the running server; clients already connected stay connected.
+///
+void QUaServer::reapplyTrustList()
+{
+	if (!_running)
+	{
+		return;
+	}
+	UA_ServerConfig *config = UA_Server_getConfig(_server);
+	// without a certificate and a private key the server has no secure channels to check
+	if (!QUaServer::_hashCertificateGroups.contains(&config->secureChannelPKI))
+	{
+		return;
+	}
+	const UA_StatusCode st = this->applyTrustList(config);
+	if (st != UA_STATUSCODE_GOOD)
+	{
+		UA_LOG_ERROR(config->logging, UA_LOGCATEGORY_SERVER,
+			"Could not apply the changed trust lists : %s", UA_StatusCode_name(st));
+	}
+	this->wrapCertificateVerification(config);
+}
+
+///
+/// \brief Routes the secure channel certificate check of \a config through verifyClientCertificate(),
+///        which reports the rejected certificates.
+///
+void QUaServer::wrapCertificateVerification(UA_ServerConfig* config)
+{
+	if (config->secureChannelPKI.verifyCertificate != &QUaServer::verifyClientCertificate)
+	{
+		_defaultVerifyCertificate = config->secureChannelPKI.verifyCertificate;
+	}
+	config->secureChannelPKI.verifyCertificate = &QUaServer::verifyClientCertificate;
+	QUaServer::_hashCertificateGroups.insert(&config->secureChannelPKI, this);
 }
 
 ///
