@@ -922,14 +922,9 @@ void QUaServer::newSession(QUaServer* server,
 	}
 	UA_Variant_clear(&varSessionName);
 	// get connection data
-	QString strAddress = QStringLiteral("Unknown");
-	quint16 intPort    = 0;
-	if (server->_hashChannelAddresses.contains(secureChannelId))
-	{
-		const auto &address = server->_hashChannelAddresses[secureChannelId];
-		strAddress = address.first;
-		intPort    = address.second;
-	}
+	QUaChannelInfo channel;
+	channel.address = QStringLiteral("Unknown");
+	channel = server->_hashChannels.value(secureChannelId, channel);
 	// store session data
 	auto session = server->_hashSessions[*sessionId];
 	session->_strSessionId       = QUaTypesConverter::nodeIdToQString(*sessionId);
@@ -937,8 +932,9 @@ void QUaServer::newSession(QUaServer* server,
 	session->_strApplicationName = strApplicationName;
 	session->_strApplicationUri  = strApplicationUri;
 	session->_strProductUri      = strProductUri;
-	session->_strAddress         = strAddress;
-	session->_intPort            = intPort;
+	session->_strAddress         = channel.address;
+	session->_intPort            = channel.port;
+	session->_byteClientCertificate = channel.certificate;
 #ifdef UA_ENABLE_DIAGNOSTICS
 	UA_SessionDiagnosticsDataType diagnostics;
 	if (server->readSessionDiagnostics(*sessionId, diagnostics))
@@ -1000,28 +996,35 @@ void QUaServer::secureChannelNotificationCallback(UA_Server                     
 	}
 	if (type == UA_APPLICATIONNOTIFICATIONTYPE_SECURECHANNEL_CLOSED)
 	{
-		srv->_hashChannelAddresses.remove(*channelId);
+		srv->_hashChannels.remove(*channelId);
 		return;
 	}
 	if (type != UA_APPLICATIONNOTIFICATIONTYPE_SECURECHANNEL_OPENED)
 	{
 		return;
 	}
-	QString strAddress = QStringLiteral("Unknown");
-	quint16 intPort    = 0;
+	QUaChannelInfo channel;
+	channel.address = QStringLiteral("Unknown");
 	// NOTE : for tcp connections the connection id is the socket
 	const UA_UInt64 *connectionId = static_cast<const UA_UInt64*>(UA_KeyValueMap_getScalar(
 		&payload, UA_QUALIFIEDNAME(0, (char*)"connection-id"), &UA_TYPES[UA_TYPES_UINT64]));
-	if (!connectionId || !quaGetPeerAddress(*connectionId, strAddress, intPort))
+	if (!connectionId || !quaGetPeerAddress(*connectionId, channel.address, channel.port))
 	{
 		const UA_String *remoteAddress = static_cast<const UA_String*>(UA_KeyValueMap_getScalar(
 			&payload, UA_QUALIFIEDNAME(0, (char*)"remote-address"), &UA_TYPES[UA_TYPES_STRING]));
 		if (remoteAddress)
 		{
-			strAddress = QUaTypesConverter::uaStringToQString(*remoteAddress);
+			channel.address = QUaTypesConverter::uaStringToQString(*remoteAddress);
 		}
 	}
-	srv->_hashChannelAddresses[*channelId] = qMakePair(strAddress, intPort);
+	const UA_ByteString *remoteCertificate = static_cast<const UA_ByteString*>(UA_KeyValueMap_getScalar(
+		&payload, UA_QUALIFIEDNAME(0, (char*)"remote-certificate"), &UA_TYPES[UA_TYPES_BYTESTRING]));
+	if (remoteCertificate && remoteCertificate->length > 0)
+	{
+		channel.certificate = QByteArray(reinterpret_cast<const char*>(remoteCertificate->data),
+		                                 static_cast<qsizetype>(remoteCertificate->length));
+	}
+	srv->_hashChannels[*channelId] = channel;
 }
 
 void QUaServer::sessionNotificationCallback(UA_Server                     *server,
@@ -2490,7 +2493,7 @@ void QUaServer::stop()
 	}
 	// NOTE : shutdown closes all secure channels and processes all delayed callbacks
 	UA_Server_run_shutdown(_server);
-	_hashChannelAddresses.clear();
+	_hashChannels.clear();
 #ifdef UA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS
 	_hashEventMonitoredItems.clear();
 #endif // UA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS

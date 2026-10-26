@@ -316,6 +316,7 @@ void TestSessionsIntegration::anonymousSessionDescribesItsEndpoint()
     QCOMPARE(session->securityMode(), QUaMessageSecurityMode::None);
     QCOMPARE(session->securityPolicyUri(), QStringLiteral("http://opcfoundation.org/UA/SecurityPolicy#None"));
     QVERIFY(session->endpointUrl().startsWith(QStringLiteral("opc.tcp://")));
+    QVERIFY(session->clientCertificate().isEmpty());
 }
 
 ///

@@ -75,6 +75,7 @@ private slots:
     void clientTrust();
     void rejectedClientCertificateIsReported();
     void acceptedClientCertificateIsNotReported();
+    void encryptedSessionReportsClientCertificate();
     void emptyTrustListAcceptsAnyClient();
     void emptyTrustListRejectsWhenRequested();
     void securityPoliciesAndModesFilterEndpoints();
@@ -348,6 +349,25 @@ void TestEncryptionIntegration::acceptedClientCertificateIsNotReported()
     QCOMPARE(connectAsAlice(_client), UA_STATUSCODE_GOOD);
     QCOMPARE(rejectedSpy.count(), 0);
     QVERIFY(_server->rejectedCertificates().isEmpty());
+}
+
+///
+/// \brief A session over an encrypted channel reports the application certificate of its client.
+///
+void TestEncryptionIntegration::encryptedSessionReportsClientCertificate()
+{
+    _server->setCertificate(_certificate);
+    _server->setPrivateKey(_privateKey);
+    _server->setAnonymousLoginAllowed(false);
+    _server->addUser(QStringLiteral("alice"), QStringLiteral("secret"));
+    QVERIFY(TestServer::start(*_server));
+
+    TestClient client;
+    QCOMPARE(client.connectEncrypted(TestServer::endpointUrl(*_server), _client.certificate, _client.privateKey,
+                                     _client.applicationUri, QStringLiteral("alice"), QStringLiteral("secret")),
+             UA_STATUSCODE_GOOD);
+    QTRY_COMPARE(_server->sessions().count(), 1);
+    QCOMPARE(_server->sessions().first()->clientCertificate(), _client.certificate);
 }
 
 ///

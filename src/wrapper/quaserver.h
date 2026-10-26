@@ -724,8 +724,14 @@ private:
 
 	QHash<QString         , QString      > _hashUsers;
 	QHash<UA_NodeId       , QUaSession*  > _hashSessions;
-	// remote address of open secure channels (key is the secure channel id)
-	QHash<UA_UInt32, QPair<QString, quint16>> _hashChannelAddresses;
+	struct QUaChannelInfo
+	{
+		QString    address;
+		quint16    port = 0;
+		QByteArray certificate;
+	};
+	// remote peer of open secure channels (key is the secure channel id)
+	QHash<UA_UInt32, QUaChannelInfo> _hashChannels;
 	QMap <QString         , UA_NodeId    > _mapTypes;
 	QHash<QString         , QMetaObject  > _hashMetaObjects;
 	QHash<QString         , UA_NodeId    > _hashEnums;
