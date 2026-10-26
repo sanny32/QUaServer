@@ -1,3 +1,4 @@
+#include <atomic>
 #include <thread>
 
 #include <QFile>
@@ -67,8 +68,20 @@ public:
         {
             return false;
         }
+        // listens before returning, so a server started right after does not find the port closed
+        if (UA_Server_run_startup(_server) != UA_STATUSCODE_GOOD)
+        {
+            UA_Server_delete(_server);
+            _server = nullptr;
+            return false;
+        }
         _running = true;
-        _thread = std::thread([this] { UA_Server_run(_server, &_running); });
+        _thread = std::thread([this] {
+            while (_running)
+            {
+                UA_Server_run_iterate(_server, true);
+            }
+        });
         return true;
     }
 
@@ -80,6 +93,7 @@ public:
         }
         _running = false;
         _thread.join();
+        UA_Server_run_shutdown(_server);
         UA_Server_delete(_server);
         _server = nullptr;
     }
@@ -128,7 +142,7 @@ private:
 
     UA_Server *_server = nullptr;
     quint16 _port = 0;
-    volatile UA_Boolean _running = false;
+    std::atomic<bool> _running{ false };
     std::thread _thread;
 };
 
@@ -232,6 +246,7 @@ void TestDiscoveryIntegration::stopRemovesRegistration()
     QSignalSpy spy(_server, &QUaServer::discoveryRegistrationFinished);
     QVERIFY(TestServer::start(*_server));
     QVERIFY(spy.wait(kWaitMs));
+    QCOMPARE(statusOf(spy.first()), QUaStatus::Good);
     QVERIFY(!_lds->registeredServers().isEmpty());
 
     _server->stop();
