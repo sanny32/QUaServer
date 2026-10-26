@@ -12,6 +12,7 @@ set(QUASERVER_SOURCES
     quatypesconverter.cpp
     quanodesetloader.cpp
     quanodesetwriter.cpp
+    quadiscoveryregistration.cpp
 )
 
 set(QUASERVER_HEADERS
@@ -29,6 +30,7 @@ set(QUASERVER_HEADERS
     quatypesconverter.h
     quanodesetloader.h
     quanodesetwriter.h
+    quadiscoveryregistration.h
     QUaServer
     QUaNode
     QUaBaseVariable

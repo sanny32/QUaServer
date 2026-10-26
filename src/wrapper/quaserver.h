@@ -32,6 +32,9 @@ class QUaRefreshRequiredEvent;
 
 #define QUA_MAX_LOG_MESSAGE_SIZE 1024
 #define QUA_ITERATE_TIMEOUT_MS   10
+#define QUA_DISCOVERY_STOP_TIMEOUT_MS 2000
+
+class QUaDiscoveryRegistration;
 
 using QUaChildNodeIdCallback = std::function<QUaNodeId(const QUaNodeId&, const QUaQualifiedName&)>;
 
@@ -162,6 +165,7 @@ class QUaServer : public QObject
 	friend class QUaNode;
 	friend class QUaBaseVariable;
 	friend class QUaBaseObject;
+	friend class QUaDiscoveryRegistration;
 #ifdef UA_ENABLE_SUBSCRIPTIONS_EVENTS
 	friend class QUaBaseEvent;
     friend class QUaServer_Anex;
@@ -324,6 +328,31 @@ public:
 	void stop();
 	bool isRunning() const;
 	void setIsRunning(const bool &running); // same as start/stop, just to complete Qt property
+
+	// Discovery API
+
+	///
+	/// \brief Returns the URL of the discovery server the server registers at; empty when it registers nowhere.
+	///
+	QString discoveryServerUrl() const;
+	///
+	/// \brief Sets the discovery server to register at, e.g. a Local Discovery Server at "opc.tcp://localhost:4840";
+	///        an empty URL registers nowhere. While running, the server renews the registration every
+	///        discoveryRegistrationInterval() and stop() removes it. With a certificate and a private key the
+	///        registration is encrypted and the discovery server must pass the trusted certificates lists.
+	///        Applied on the next start().
+	///
+	void setDiscoveryServerUrl(const QString& discoveryServerUrl);
+	///
+	/// \brief Returns the time between two registrations at the discovery server, in milliseconds.
+	///
+	int discoveryRegistrationInterval() const;
+	///
+	/// \brief Sets the time between two registrations at the discovery server, in milliseconds; it must stay below
+	///        the time after which the discovery server drops a server that did not renew. Defaults to 10 minutes.
+	///        Applied on the next start().
+	///
+	void setDiscoveryRegistrationInterval(int intervalMs);
 
 	// Server Limits API
 
@@ -617,6 +646,13 @@ signals:
 	///
 	void clientCertificateRejected   (const QByteArray &certificate, const QUaStatusCode &statusCode);
 #endif
+	///
+	/// \brief Emitted when the discovery server answered a registration, or its removal on stop().
+	/// \param isOnline True for a registration, false for its removal.
+	/// \param statusCode Good when the discovery server accepted it, otherwise the reason,
+	///        e.g. BadConnectionRejected when no discovery server listens at the URL.
+	///
+	void discoveryRegistrationFinished(bool isOnline, const QUaStatusCode &statusCode);
 	void hostnameChanged             (const QString &strHostname          );
 	void maxSecureChannelsChanged    (const quint16 &maxSecureChannels    );
 	void maxSessionsChanged          (const quint16 &maxSessions          );
@@ -670,8 +706,12 @@ private:
 	UA_StatusCode (*_defaultVerifyCertificate)(UA_CertificateGroup *certGroup, const UA_ByteString *certificate);
 	static QHash<const UA_CertificateGroup*, QUaServer*> _hashCertificateGroups;
 	UA_StatusCode applyTrustList(UA_ServerConfig* config) const;
+	UA_StatusCode applyTrustList(UA_CertificateGroup* group, UA_NodeId groupId, const UA_Logger* logger) const;
 #endif
 	QString _strHostname;
+	QString _strDiscoveryServerUrl;
+	int     _discoveryIntervalMs;
+	QUaDiscoveryRegistration* _discovery;
 
 	QByteArray _byteApplicationName;
 	QByteArray _byteApplicationUri;

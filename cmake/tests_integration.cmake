@@ -7,10 +7,14 @@ function(quaserver_configure_integration_tests)
     quaserver_add_integration_test(quaserver_tests_nodeset_integration test_nodeset_integration.cpp)
     quaserver_add_integration_test(quaserver_tests_nodeset_export_integration test_nodeset_export_integration.cpp)
     quaserver_add_integration_test(quaserver_tests_structures_integration test_structures_integration.cpp)
+    quaserver_add_integration_test(quaserver_tests_discovery_integration test_discovery_integration.cpp)
     target_compile_definitions(quaserver_tests_nodeset_integration PRIVATE
         QUASERVER_TEST_NODESET_DIR="${PROJECT_SOURCE_DIR}/src/tests/nodesets")
     target_compile_definitions(quaserver_tests_nodeset_export_integration PRIVATE
         QUASERVER_TEST_NODESET_DIR="${PROJECT_SOURCE_DIR}/src/tests/nodesets")
+    target_compile_definitions(quaserver_tests_discovery_integration PRIVATE
+        QUASERVER_TEST_CERTIFICATES_DIR="${PROJECT_SOURCE_DIR}/examples/07_encryption"
+        QUASERVER_TEST_PKI_DIR="${PROJECT_SOURCE_DIR}/src/tests/certificates")
     set(locked_tests
         quaserver_tests_sessions_integration
         quaserver_tests_services_integration
@@ -19,7 +23,8 @@ function(quaserver_configure_integration_tests)
         quaserver_tests_nodemanagement_integration
         quaserver_tests_nodeset_integration
         quaserver_tests_nodeset_export_integration
-        quaserver_tests_structures_integration)
+        quaserver_tests_structures_integration
+        quaserver_tests_discovery_integration)
 
     if(QUASERVER_EVENTS)
         quaserver_add_integration_test(quaserver_tests_events_integration test_events_integration.cpp)
