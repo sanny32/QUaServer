@@ -379,11 +379,18 @@ void TestDiscoveryIntegration::encryptedRegistrationChecksTrust()
     }
     _server->setDiscoveryServerUrl(_lds->url());
     QSignalSpy spy(_server, &QUaServer::discoveryRegistrationFinished);
+    QSignalSpy rejected(_server, &QUaServer::discoveryServerCertificateRejected);
     QVERIFY(TestServer::start(*_server));
 
     QVERIFY(spy.wait(kWaitMs));
     QCOMPARE(statusOf(spy.first()) == QUaStatus::Good, accepted);
     QCOMPARE(_lds->registeredServers().count(), accepted ? 1 : 0);
+    QCOMPARE(rejected.count(), accepted ? 0 : 1);
+    if (!accepted)
+    {
+        QCOMPARE(rejected.first().at(0).toByteArray(), ldsCertificate);
+        QCOMPARE(statusOf(rejected.first()), statusOf(spy.first()));
+    }
 }
 
 ///

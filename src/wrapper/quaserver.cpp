@@ -1428,6 +1428,10 @@ QUaServer::QUaServer(QObject* parent/* = 0*/)
 	_discoveryIntervalMs = 10 * 60 * 1000;
 	_discovery = new QUaDiscoveryRegistration(this);
 	QObject::connect(_discovery, &QUaDiscoveryRegistration::finished, this, &QUaServer::discoveryRegistrationFinished);
+#ifdef UA_ENABLE_ENCRYPTION
+	QObject::connect(_discovery, &QUaDiscoveryRegistration::certificateRejected,
+		this, &QUaServer::discoveryServerCertificateRejected);
+#endif
 	memset(&_nodeLifecycle, 0, sizeof(UA_GlobalNodeLifecycle));
 #ifdef UA_ENABLE_ENCRYPTION
 	_bytePrivateKey = QByteArray();

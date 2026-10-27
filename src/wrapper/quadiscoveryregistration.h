@@ -22,6 +22,9 @@ public:
 
 signals:
 	void finished(bool isOnline, const QUaStatusCode& statusCode);
+#ifdef UA_ENABLE_ENCRYPTION
+	void certificateRejected(const QByteArray& certificate, const QUaStatusCode& statusCode);
+#endif
 
 private:
 	void sendRequest(bool isOnline);
