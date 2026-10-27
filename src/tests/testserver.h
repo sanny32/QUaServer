@@ -8,7 +8,8 @@ class QUaServer;
 namespace TestServer {
 
 ///
-/// \brief Returns a TCP port that is currently not bound on this host.
+/// \brief Returns an unused TCP port reserved against other test processes until this process exits.
+/// \return The port, or zero if no port could be reserved.
 ///
 quint16 freePort();
 

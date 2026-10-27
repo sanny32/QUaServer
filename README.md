@@ -93,10 +93,12 @@ The tests use *Qt Test* and *CTest* and live in [`src/tests`](src/tests). Integr
 ```bash
 cmake -S . -B build -DCMAKE_PREFIX_PATH=<path to Qt6> -DQUASERVER_BUILD_TESTS=ON
 cmake --build build --parallel
-ctest --test-dir build --output-on-failure
+ctest --test-dir build --output-on-failure --parallel 4
 ```
 
 The `quaserver_check` target builds and runs all of them at once.
+Integration tests reserve distinct TCP ports across test processes, so they can
+run in parallel as well. Set CTest's `--parallel` value to suit the machine.
 
 With `QUASERVER_BUILD_TESTS=ON`, interprocedural/link-time optimization (IPO/LTO)
 is disabled for this build, including *open62541*, to keep test linking fast.

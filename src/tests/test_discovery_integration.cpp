@@ -33,6 +33,10 @@ public:
                const QString &applicationUri = QString())
     {
         _port = TestServer::freePort();
+        if (_port == 0)
+        {
+            return false;
+        }
         UA_ServerConfig config;
         memset(&config, 0, sizeof(UA_ServerConfig));
         config.logging = UA_Log_Stdout_new(UA_LOGLEVEL_WARNING);
