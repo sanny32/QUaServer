@@ -342,10 +342,33 @@ public:
 	/// \brief Sets the discovery server to register at, e.g. a Local Discovery Server at "opc.tcp://localhost:4840";
 	///        an empty URL registers nowhere. While running, the server renews the registration every
 	///        discoveryRegistrationInterval() and stop() removes it. With a certificate and a private key the
-	///        registration is encrypted and the discovery server must pass the trusted certificates lists.
-	///        Applied on the next start().
+	///        registration is encrypted; see setVerifyDiscoveryServerCertificate() for the check of the discovery
+	///        server. Applied on the next start().
 	///
 	void setDiscoveryServerUrl(const QString& discoveryServerUrl);
+#ifdef UA_ENABLE_ENCRYPTION
+	///
+	/// \brief Tells whether an encrypted registration checks the certificate of the discovery server.
+	///
+	bool verifyDiscoveryServerCertificate() const;
+	///
+	/// \brief Checks the certificate of the discovery server against discoveryServerTrustedCertificates(), completed
+	///        by the issuer and revocation lists, during an encrypted registration instead of accepting any discovery
+	///        server; one that fails is reported through discoveryServerCertificateRejected(). Independent of the
+	///        check of client certificates. Off by default; applied on the next registration.
+	///
+	void setVerifyDiscoveryServerCertificate(bool verify);
+	///
+	/// \brief Returns the DER certificates of the discovery servers and CAs that the server trusts.
+	///
+	QList<QByteArray> discoveryServerTrustedCertificates() const;
+	///
+	/// \brief Sets the DER certificates of the discovery servers and CAs that the server trusts, apart from the
+	///        trusted client certificates. Used while verifyDiscoveryServerCertificate() is set, where an empty list
+	///        rejects every discovery server; applied on the next registration.
+	///
+	void setDiscoveryServerTrustedCertificates(const QList<QByteArray>& certificates);
+#endif
 	///
 	/// \brief Returns the time between two registrations at the discovery server, in milliseconds.
 	///
@@ -649,8 +672,8 @@ signals:
 	///
 	void clientCertificateRejected   (const QByteArray &certificate, const QUaStatusCode &statusCode);
 	///
-	/// \brief Emitted when the certificate of the discovery server fails the trusted certificates lists of the server
-	///        during an encrypted registration, before discoveryRegistrationFinished() reports the failure.
+	/// \brief Emitted when the certificate of the discovery server fails discoveryServerTrustedCertificates() during an
+	///        encrypted registration, before discoveryRegistrationFinished() reports the failure.
 	/// \param certificate Rejected DER certificate.
 	/// \param statusCode Reason, e.g. BadCertificateUntrusted.
 	///
@@ -710,6 +733,8 @@ private:
 	QList<QByteArray>       _listIssuers;
 	QList<QByteArray>       _listRevocation;
 	bool                    _rejectUntrusted;
+	QList<QByteArray>       _listDiscoveryTrusted;
+	bool                    _verifyDiscoveryServer;
 	QUaSecurityPolicies     _securityPolicies;
 	QUaMessageSecurityModes _securityModes;
 	// default open62541 implementation, wrapped by QUaServer::verifyClientCertificate
@@ -717,6 +742,8 @@ private:
 	static QHash<const UA_CertificateGroup*, QUaServer*> _hashCertificateGroups;
 	UA_StatusCode applyTrustList(UA_ServerConfig* config) const;
 	UA_StatusCode applyTrustList(UA_CertificateGroup* group, UA_NodeId groupId, const UA_Logger* logger) const;
+	UA_StatusCode applyTrustList(UA_CertificateGroup* group, UA_NodeId groupId, const QList<QByteArray>& trustedList,
+		bool acceptAllWhenEmpty, const UA_Logger* logger) const;
 	void reapplyTrustList();
 	void wrapCertificateVerification(UA_ServerConfig* config);
 #endif
