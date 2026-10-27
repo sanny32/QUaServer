@@ -37,6 +37,20 @@ option(QUASERVER_BUILD_EXAMPLES      "Build the examples"                       
 option(QUASERVER_BUILD_TESTS         "Build the tests"                                                    OFF)
 option(QUASERVER_USE_PCH             "Use precompiled headers for the library and tests"                  ON)
 
+if(QUASERVER_BUILD_TESTS)
+    # open62541 otherwise enables IPO automatically on supported compilers.
+    # Disable it before creating any targets, including the static dependencies,
+    # so each test executable does not repeat link-time optimization of them.
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
+    foreach(_config IN LISTS CMAKE_CONFIGURATION_TYPES
+            ITEMS "${CMAKE_BUILD_TYPE}" Debug Release RelWithDebInfo MinSizeRel)
+        if(_config)
+            string(TOUPPER "${_config}" _config_upper)
+            set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_${_config_upper} OFF)
+        endif()
+    endforeach()
+endif()
+
 # Alarms & conditions require events, events require the full namespace zero
 if(QUASERVER_ALARMS_CONDITIONS)
     set(QUASERVER_EVENTS ON)

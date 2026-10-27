@@ -98,6 +98,9 @@ ctest --test-dir build --output-on-failure
 
 The `quaserver_check` target builds and runs all of them at once.
 
+With `QUASERVER_BUILD_TESTS=ON`, interprocedural/link-time optimization (IPO/LTO)
+is disabled for this build, including *open62541*, to keep test linking fast.
+
 For a build of just the library and tests, configure with
 `-DQUASERVER_BUILD_EXAMPLES=OFF`. Test client/server helpers are compiled once
 and shared by all test executables. Precompiled headers can be disabled with
