@@ -648,6 +648,13 @@ signals:
 	/// \param statusCode Reason, e.g. BadCertificateUntrusted.
 	///
 	void clientCertificateRejected   (const QByteArray &certificate, const QUaStatusCode &statusCode);
+	///
+	/// \brief Emitted when the certificate of the discovery server fails the trusted certificates lists of the server
+	///        during an encrypted registration, before discoveryRegistrationFinished() reports the failure.
+	/// \param certificate Rejected DER certificate.
+	/// \param statusCode Reason, e.g. BadCertificateUntrusted.
+	///
+	void discoveryServerCertificateRejected(const QByteArray &certificate, const QUaStatusCode &statusCode);
 #endif
 	///
 	/// \brief Emitted when the discovery server answered a registration, or its removal on stop().

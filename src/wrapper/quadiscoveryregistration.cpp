@@ -47,6 +47,27 @@ UA_StatusCode addRsaSecurityPolicies(UA_ClientConfig* config, const UA_ByteStrin
 	}
 	return UA_STATUSCODE_GOOD;
 }
+
+///
+/// \brief Returns the discovery server certificates the trust list of \a client rejected.
+///
+QList<QByteArray> rejectedCertificates(UA_Client* client)
+{
+	QList<QByteArray> certificates;
+	UA_CertificateGroup* group = &UA_Client_getConfig(client)->certificateVerification;
+	UA_ByteString* list = nullptr;
+	size_t listSize = 0;
+	if (!group->getRejectedList || group->getRejectedList(group, &list, &listSize) != UA_STATUSCODE_GOOD)
+	{
+		return certificates;
+	}
+	for (size_t i = 0; i < listSize; i++)
+	{
+		certificates << QByteArray(reinterpret_cast<const char*>(list[i].data), static_cast<qsizetype>(list[i].length));
+	}
+	UA_Array_delete(list, listSize, &UA_TYPES[UA_TYPES_BYTESTRING]);
+	return certificates;
+}
 #endif // UA_ENABLE_ENCRYPTION
 
 } // namespace
@@ -256,7 +277,8 @@ void QUaDiscoveryRegistration::complete(UA_StatusCode statusCode)
 }
 
 ///
-/// \brief Deletes the client of a completed request and reports its result.
+/// \brief Deletes the client of a completed request and reports the discovery server certificates it rejected,
+///        then the result.
 ///
 void QUaDiscoveryRegistration::finish()
 {
@@ -267,10 +289,22 @@ void QUaDiscoveryRegistration::finish()
 	_completed = false;
 	UA_Client* client = _client;
 	_client = nullptr;
+#ifdef UA_ENABLE_ENCRYPTION
+	QList<QByteArray> rejected;
+#endif
 	if (client)
 	{
+#ifdef UA_ENABLE_ENCRYPTION
+		rejected = rejectedCertificates(client);
+#endif
 		UA_Client_delete(client);
 	}
+#ifdef UA_ENABLE_ENCRYPTION
+	for (const QByteArray& certificate : rejected)
+	{
+		emit this->certificateRejected(certificate, _statusCode);
+	}
+#endif
 	emit this->finished(_isOnline, _statusCode);
 }
 

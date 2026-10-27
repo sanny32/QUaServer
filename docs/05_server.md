@@ -194,7 +194,7 @@ QObject::connect(&server, &QUaServer::discoveryRegistrationFinished,
 });
 ```
 
-The server registers when it starts, renews the registration every `discoveryRegistrationInterval()` (10 minutes by default) and unregisters in `stop()`. With a certificate and a private key the registration uses an encrypted channel: the LDS must trust the server certificate, and the LDS certificate must pass the trusted certificates lists of the server, as client certificates do.
+The server registers when it starts, renews the registration every `discoveryRegistrationInterval()` (10 minutes by default) and unregisters in `stop()`. With a certificate and a private key the registration uses an encrypted channel: the LDS must trust the server certificate, and the LDS certificate must pass the trusted certificates lists of the server, as client certificates do. An LDS certificate that fails them is reported through `discoveryServerCertificateRejected`, e.g. to trust it, before `discoveryRegistrationFinished` reports `BadCertificateUntrusted`.
 
 ## Limits
 
