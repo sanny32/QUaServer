@@ -1161,6 +1161,14 @@ QVariant uaVariantToQVariant(const UA_Variant & uaVariant, const ArrayType& arrT
 		asInt32.type = &UA_TYPES[UA_TYPES_INT32];
 		return uaVariantToQVariant(asInt32, arrType);
 	}
+	// open62541 types values of subtypes of built-in types, e.g. Duration, as the subtype; the first UA_TYPES are
+	// the built-in types in the order of their kinds
+	if (uaVariant.type->typeKind <= UA_DATATYPEKIND_DIAGNOSTICINFO && uaVariant.type != &UA_TYPES[uaVariant.type->typeKind])
+	{
+		UA_Variant asBuiltIn = uaVariant;
+		asBuiltIn.type = &UA_TYPES[uaVariant.type->typeKind];
+		return uaVariantToQVariant(asBuiltIn, arrType);
+	}
 	// first check if array
 	if (!UA_Variant_isScalar(&uaVariant))
 	{

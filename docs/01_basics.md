@@ -150,6 +150,7 @@ void              setStatusCode(const QUaStatusCode& statusCode);
 
 QMetaType::Type   dataType() const;
 void              setDataType(const QMetaType::Type &dataType);
+bool              setDataTypeNodeId(const QUaNodeId &dataTypeNodeId);
 
 qint32            valueRank() const;
 void              setValueRank(const qint32 &valueRank);
@@ -199,6 +200,16 @@ QMetaType::QDateTime
 QMetaType::QUuid
 QMetaType::QByteArray
 ```
+
+A data type that is a subtype of one of these, such as `ImagePNG` (a `ByteString`) or `Duration` (a `Double`), is set by its node id with `setDataTypeNodeId()`. Clients then see the subtype, while the value is written and read as the built-in type:
+
+```c++
+QUaProperty * icon = varDouble->addProperty(QUaQualifiedName(0, "Icon"));
+icon->setDataTypeNodeId(QUaNodeId(0, UA_NS0ID_IMAGEPNG));
+icon->setValue(pngBytes); // QByteArray
+```
+
+`setDataTypeNodeId()` returns `false`, leaving the data type unchanged, when the data type is no subtype of a built-in type, e.g. an enumeration or a structure.
 
 ### Multi-dimensional Arrays
 
