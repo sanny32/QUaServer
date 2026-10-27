@@ -114,6 +114,14 @@ target_link_libraries(QUaServer PUBLIC
     open62541::open62541
 )
 
+if(QUASERVER_USE_PCH)
+    # Keep the PCH private: consumers choose their own headers and compiler flags.
+    target_precompile_headers(QUaServer PRIVATE
+        <QtCore/QtCore>
+        "${CMAKE_CURRENT_SOURCE_DIR}/pch_open62541.h"
+    )
+endif()
+
 if(WIN32)
     # quaserver.cpp resolves client addresses with Winsock
     target_link_libraries(QUaServer PRIVATE ws2_32)

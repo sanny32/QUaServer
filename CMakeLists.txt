@@ -35,6 +35,7 @@ option(QUASERVER_ALARMS_CONDITIONS   "Enable alarms & conditions support (ua_ala
 option(QUASERVER_HISTORIZING         "Enable historizing support (ua_historizing)"                        OFF)
 option(QUASERVER_BUILD_EXAMPLES      "Build the examples"                                                 ${PROJECT_IS_TOP_LEVEL})
 option(QUASERVER_BUILD_TESTS         "Build the tests"                                                    OFF)
+option(QUASERVER_USE_PCH             "Use precompiled headers for the library and tests"                  ON)
 
 # Alarms & conditions require events, events require the full namespace zero
 if(QUASERVER_ALARMS_CONDITIONS)

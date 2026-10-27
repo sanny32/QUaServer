@@ -66,7 +66,7 @@ The [open62541](https://github.com/open62541/open62541) library is cloned by CMa
 
 ```bash
 cmake -S . -B build -DCMAKE_PREFIX_PATH=<path to Qt6>
-cmake --build build
+cmake --build build --parallel
 ```
 
 The examples are built by default and placed in `build/bin`. On Windows, make sure Qt's `bin` directory is in `PATH` (or run `windeployqt`) before running them.
@@ -82,6 +82,7 @@ The examples are built by default and placed in `build/bin`. On Windows, make su
 | `QUASERVER_HISTORIZING` | `OFF` | Historizing support |
 | `QUASERVER_BUILD_EXAMPLES` | `ON` when built standalone, `OFF` when included as a subproject | Build the examples |
 | `QUASERVER_BUILD_TESTS` | `OFF` | Build the tests |
+| `QUASERVER_USE_PCH` | `ON` | Use private precompiled headers for the library and a shared precompiled header for tests |
 
 The full namespace zero makes the binaries considerably larger. When changing options of an existing build directory, rebuild the complete project.
 
@@ -91,11 +92,16 @@ The tests use *Qt Test* and *CTest* and live in [`src/tests`](src/tests). Integr
 
 ```bash
 cmake -S . -B build -DCMAKE_PREFIX_PATH=<path to Qt6> -DQUASERVER_BUILD_TESTS=ON
-cmake --build build
+cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
 The `quaserver_check` target builds and runs all of them at once.
+
+For a build of just the library and tests, configure with
+`-DQUASERVER_BUILD_EXAMPLES=OFF`. Test client/server helpers are compiled once
+and shared by all test executables. Precompiled headers can be disabled with
+`-DQUASERVER_USE_PCH=OFF` (or CMake's `-DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON`).
 
 ## Use in Your Project
 
