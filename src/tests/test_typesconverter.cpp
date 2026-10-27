@@ -17,6 +17,7 @@ private slots:
     void scalarRoundTrip();
     void statusCodeIsReadAsNumber();
     void byteArrayMapsToByteString();
+    void builtInSubtypeIsReadAsBuiltInType();
     void listRoundTrip();
     void arrayCanBeReadAsVector();
     void matrixIsEncodedRowMajor();
@@ -156,6 +157,27 @@ void TestTypesConverter::byteArrayMapsToByteString()
     QCOMPARE(type, &UA_TYPES[UA_TYPES_BYTESTRING]);
     QCOMPARE(QUaTypesConverter::uaTypeFromQType(QMetaType::QByteArray), &UA_TYPES[UA_TYPES_BYTESTRING]);
     QCOMPARE(back.toByteArray(), bytes);
+}
+
+///
+/// \brief Values typed as a subtype of a built-in type, as open62541 types them for a variable of that data type,
+///        read as the built-in type.
+///
+void TestTypesConverter::builtInSubtypeIsReadAsBuiltInType()
+{
+    UA_Duration duration = 2.5;
+    UA_Variant scalar;
+    UA_Variant_setScalar(&scalar, &duration, &UA_TYPES[UA_TYPES_DURATION]);
+    UA_Duration durations[] = { 1.0, 2.0 };
+    UA_Variant array;
+    UA_Variant_setArray(&array, durations, 2, &UA_TYPES[UA_TYPES_DURATION]);
+
+    const QVariant scalarBack = QUaTypesConverter::uaVariantToQVariant(scalar);
+    const QVariant arrayBack = QUaTypesConverter::uaVariantToQVariant(array);
+
+    QCOMPARE(scalarBack.metaType().id(), int(QMetaType::Double));
+    QCOMPARE(scalarBack.toDouble(), 2.5);
+    QCOMPARE(arrayBack.value<QList<double>>(), QList<double>({ 1.0, 2.0 }));
 }
 
 ///

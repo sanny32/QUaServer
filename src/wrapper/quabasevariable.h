@@ -128,6 +128,13 @@ public:
 #ifdef UA_GENERATED_NAMESPACE_ZERO_FULL
 	bool              setDataTypeOptionSet(const QString& strOptionSetName);
 #endif
+	///
+	/// \brief Sets the DataType attribute to a subtype of a built-in type, e.g. ImagePNG of ByteString; the value is
+	///        converted to the built-in type as setDataType() converts it, and dataType() returns the built-in type.
+	/// \param dataTypeNodeId Node id of the data type.
+	/// \return False, leaving the data type unchanged, when the data type is no subtype of a built-in type.
+	///
+	bool              setDataTypeNodeId(const QUaNodeId& dataTypeNodeId);
 	// NOTE : includes arrayDimensionsSize
 	qint32            valueRank() const;
 	void              setValueRank(const qint32& valueRank);
@@ -239,6 +246,7 @@ private:
 	                       const QDateTime& serverTimestamp);
 	void runReadCallback();
 	void emitWriteSignals(const UA_DataValue &data);
+	QMetaType::Type builtInSuperType(const UA_NodeId &dataTypeNodeId) const;
 
 	bool _bInternalWrite = false;
 	std::function<QVariant()> _readCallback;

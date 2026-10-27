@@ -59,6 +59,8 @@ private slots:
     void accessLevelFlags();
     void displayNameAndDescriptionNotify();
     void enumDataTypeRequiresRegisteredEnum();
+    void builtInSubtypeDataTypeSurvivesValues();
+    void dataTypeNodeIdRequiresBuiltInSupertype();
     void customTypeInstantiatesPropertyChildren();
     void customTypeTracksInstances();
     void instanceCreatedCallbackFires();
@@ -430,6 +432,50 @@ void TestAddressSpace::enumDataTypeRequiresRegisteredEnum()
 
     QCOMPARE(variable->value().toInt(), 1);
     QCOMPARE(variable->dataTypeNodeId(), QStringLiteral("ns=0;i=%1").arg(UA_NS0ID_INT32));
+}
+
+///
+/// \brief A subtype of a built-in type, such as ImagePNG of ByteString, stays the data type when values of the
+///        built-in type are written.
+///
+void TestAddressSpace::builtInSubtypeDataTypeSurvivesValues()
+{
+    QUaBaseDataVariable *timeout = objects()->addBaseDataVariable(QStringLiteral("timeout"));
+    QVERIFY(timeout->setDataTypeNodeId(QUaNodeId(0, quint32(UA_NS0ID_DURATION))));
+    timeout->setValue(2.5);
+
+    QCOMPARE(timeout->dataTypeNodeId(), QStringLiteral("ns=0;i=%1").arg(UA_NS0ID_DURATION));
+    QCOMPARE(timeout->dataType(), QMetaType::Double);
+    QCOMPARE(timeout->value<double>(), 2.5);
+
+#ifdef UA_GENERATED_NAMESPACE_ZERO_FULL
+    QUaProperty *icon = objects()->addProperty(QUaQualifiedName(0, QStringLiteral("Icon")));
+    const QByteArray png = QByteArrayLiteral("\x89PNG\r\n\x1a\n");
+
+    QVERIFY(icon->setDataTypeNodeId(QUaNodeId(0, quint32(UA_NS0ID_IMAGEPNG))));
+    icon->setValue(png);
+
+    QCOMPARE(icon->dataTypeNodeId(), QStringLiteral("ns=0;i=%1").arg(UA_NS0ID_IMAGEPNG));
+    QCOMPARE(icon->dataType(), QMetaType::QByteArray);
+    QCOMPARE(icon->value().toByteArray(), png);
+#endif
+}
+
+///
+/// \brief Enumerations, structures and BaseDataType are no subtypes of a built-in type and leave the data type as is.
+///
+void TestAddressSpace::dataTypeNodeIdRequiresBuiltInSupertype()
+{
+    QUaBaseDataVariable *variable = objects()->addBaseDataVariable(QStringLiteral("var"));
+    variable->setValue(1.5);
+
+    QVERIFY(!variable->setDataTypeNodeId(QUaNodeId(0, quint32(UA_NS0ID_RANGE))));
+    QVERIFY(!variable->setDataTypeNodeId(QUaNodeId(0, quint32(UA_NS0ID_NODECLASS))));
+    QVERIFY(!variable->setDataTypeNodeId(QUaNodeId(0, quint32(UA_NS0ID_BASEDATATYPE))));
+    QVERIFY(!variable->setDataTypeNodeId(QUaNodeId(1, quint32(424242))));
+
+    QCOMPARE(variable->dataTypeNodeId(), QStringLiteral("ns=0;i=%1").arg(UA_NS0ID_DOUBLE));
+    QCOMPARE(variable->value<double>(), 1.5);
 }
 
 ///

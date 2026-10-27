@@ -844,6 +844,31 @@ void QUaBaseVariable::setDataType(const QMetaType::Type & newTypeConst)
 	Q_ASSERT(this->dataTypeInternal() == _dataType);
 }
 
+///
+/// \brief Sets the DataType attribute to a subtype of a built-in type, e.g. ImagePNG of ByteString; the value is
+///        converted to the built-in type as setDataType() converts it, and dataType() returns the built-in type.
+/// \param dataTypeNodeId Node id of the data type.
+/// \return False, leaving the data type unchanged, when the data type is no subtype of a built-in type.
+///
+bool QUaBaseVariable::setDataTypeNodeId(const QUaNodeId& dataTypeNodeId)
+{
+	Q_CHECK_PTR(_qUaServer);
+	Q_ASSERT(!UA_NodeId_isNull(&_nodeId));
+	UA_NodeId typeId = dataTypeNodeId;
+	const QMetaType::Type builtInType = this->builtInSuperType(typeId);
+	if (builtInType == QMetaType::UnknownType)
+	{
+		UA_NodeId_clear(&typeId);
+		return false;
+	}
+	this->setDataType(builtInType);
+	// open62541 accepts a value of the built-in type for its subtype (see compatibleValueDataType)
+	const auto st = UA_Server_writeDataType(_qUaServer->_server, _nodeId, typeId);
+	UA_NodeId_clear(&typeId);
+	Q_ASSERT(this->dataTypeInternal() == _dataType);
+	return st == UA_STATUSCODE_GOOD;
+}
+
 void QUaBaseVariable::setDataTypeEnum(const QMetaEnum & metaEnum)
 {
 	Q_CHECK_PTR(_qUaServer);
@@ -1038,8 +1063,35 @@ QMetaType::Type QUaBaseVariable::dataTypeInternal() const
 	{
 		type = QMetaType_Structure;
 	}
+	if (type == QMetaType::UnknownType)
+	{
+		type = this->builtInSuperType(outDataType);
+	}
 	UA_NodeId_clear(&outDataType);
 	return type;
+}
+
+///
+/// \brief Returns the Qt type of the closest built-in supertype of a data type, e.g. QByteArray for ImagePNG.
+/// \param dataTypeNodeId Node id of the data type.
+/// \return UnknownType when the closest supertype with a Qt type is BaseDataType or Structure, as for enumerations
+///         and structures.
+///
+QMetaType::Type QUaBaseVariable::builtInSuperType(const UA_NodeId& dataTypeNodeId) const
+{
+	const UA_NodeId hasSubtype = UA_NODEID_NUMERIC(0, UA_NS0ID_HASSUBTYPE);
+	UA_NodeId typeId;
+	UA_NodeId_copy(&dataTypeNodeId, &typeId);
+	QMetaType::Type type = QUaTypesConverter::uaTypeNodeIdToQType(&typeId);
+	while (type == QMetaType::UnknownType && !UA_NodeId_isNull(&typeId))
+	{
+		UA_NodeId superTypeId = QUaNode::getFirstInverseReferenceSource(typeId, hasSubtype, _qUaServer->_server);
+		UA_NodeId_clear(&typeId);
+		typeId = superTypeId;
+		type = QUaTypesConverter::uaTypeNodeIdToQType(&typeId);
+	}
+	UA_NodeId_clear(&typeId);
+	return type == QMetaType::QVariant || type == QMetaType_Structure ? QMetaType::UnknownType : type;
 }
 
 UA_StatusCode QUaBaseVariable::setValueInternal(
