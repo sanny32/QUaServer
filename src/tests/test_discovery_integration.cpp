@@ -336,7 +336,9 @@ void TestDiscoveryIntegration::encryptedRegistrationChecksTrust_data()
     QTest::addColumn<QByteArray>("ldsCertificate");
     QTest::addColumn<QByteArray>("ldsKey");
     QTest::addColumn<QString>("ldsUri");
-    QTest::addColumn<bool>("trustedOnly");
+    QTest::addColumn<bool>("verify");
+    QTest::addColumn<QList<QByteArray>>("discoveryTrusted");
+    QTest::addColumn<QList<QByteArray>>("clientTrusted");
     QTest::addColumn<bool>("accepted");
 
     const QByteArray caSigned = readFile(QStringLiteral("client.crt.der"));
@@ -346,37 +348,43 @@ void TestDiscoveryIntegration::encryptedRegistrationChecksTrust_data()
     const QByteArray foreign = readFile(QStringLiteral("server.crt.der"), false);
     const QByteArray foreignKey = readFile(QStringLiteral("server.key.der"), false);
     const QString foreignUri = QStringLiteral("urn:unconfigured:application");
+    const QList<QByteArray> ca{ readFile(QStringLiteral("ca.crt.der")) };
 
-    QTest::newRow("any discovery server while the trust list is empty")
-        << foreign << foreignKey << foreignUri << false << true;
+    QTest::newRow("any discovery server without the check, even while clients must be trusted")
+        << foreign << foreignKey << foreignUri << false << QList<QByteArray>() << ca << true;
     QTest::newRow("discovery server signed by a trusted CA")
-        << caSigned << caSignedKey << caSignedUri << true << true;
+        << caSigned << caSignedKey << caSignedUri << true << ca << QList<QByteArray>() << true;
     QTest::newRow("untrusted discovery server")
-        << foreign << foreignKey << foreignUri << true << false;
+        << foreign << foreignKey << foreignUri << true << ca << QList<QByteArray>() << false;
+    QTest::newRow("empty discovery trust list rejects every discovery server")
+        << foreign << foreignKey << foreignUri << true << QList<QByteArray>() << QList<QByteArray>() << false;
+    QTest::newRow("trusted client certificates do not trust a discovery server")
+        << caSigned << caSignedKey << caSignedUri << true << QList<QByteArray>() << ca << false;
 }
 
 ///
-/// \brief A server with a certificate registers over an encrypted channel and checks the discovery server against
-///        its trusted certificates, like it checks clients.
+/// \brief A server with a certificate registers over an encrypted channel and, when asked to, checks the discovery
+///        server against its own trusted certificates, apart from the trusted client certificates.
 ///
 void TestDiscoveryIntegration::encryptedRegistrationChecksTrust()
 {
     QFETCH(QByteArray, ldsCertificate);
     QFETCH(QByteArray, ldsKey);
     QFETCH(QString, ldsUri);
-    QFETCH(bool, trustedOnly);
+    QFETCH(bool, verify);
+    QFETCH(QList<QByteArray>, discoveryTrusted);
+    QFETCH(QList<QByteArray>, clientTrusted);
     QFETCH(bool, accepted);
 
     QVERIFY(_lds->start(ldsCertificate, ldsKey, ldsUri));
     _server->setCertificate(readFile(QStringLiteral("server.crt.der"), false));
     _server->setPrivateKey(readFile(QStringLiteral("server.key.der"), false));
     _server->setApplicationUri(QStringLiteral("urn:unconfigured:application"));
-    if (trustedOnly)
-    {
-        _server->setTrustedCertificates({ readFile(QStringLiteral("ca.crt.der")) });
-        _server->setRevocationLists({ readFile(QStringLiteral("ca.crl.der")) });
-        _server->setRejectUntrustedCertificates(true);
-    }
+    _server->setTrustedCertificates(clientTrusted);
+    _server->setRevocationLists({ readFile(QStringLiteral("ca.crl.der")) });
+    _server->setRejectUntrustedCertificates(true);
+    _server->setVerifyDiscoveryServerCertificate(verify);
+    _server->setDiscoveryServerTrustedCertificates(discoveryTrusted);
     _server->setDiscoveryServerUrl(_lds->url());
     QSignalSpy spy(_server, &QUaServer::discoveryRegistrationFinished);
     QSignalSpy rejected(_server, &QUaServer::discoveryServerCertificateRejected);

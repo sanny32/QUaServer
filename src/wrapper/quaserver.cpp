@@ -1439,6 +1439,7 @@ QUaServer::QUaServer(QObject* parent/* = 0*/)
 	_securityPolicies = QUaSecurityPolicy::All;
 	_securityModes = QUaMessageSecurityMode::All;
 	_rejectUntrusted = false;
+	_verifyDiscoveryServer = false;
 	_defaultVerifyCertificate = nullptr;
 #endif
 #ifdef UA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS
@@ -2227,8 +2228,20 @@ UA_StatusCode QUaServer::applyTrustList(UA_ServerConfig* config) const
 ///
 UA_StatusCode QUaServer::applyTrustList(UA_CertificateGroup* group, UA_NodeId groupId, const UA_Logger* logger) const
 {
-	const QVector<UA_ByteString> trusted = QUaServer::toByteStringArray(_listTrusted);
-	if (trusted.isEmpty() && !_rejectUntrusted)
+	return this->applyTrustList(group, groupId, _listTrusted, !_rejectUntrusted, logger);
+}
+
+///
+/// \brief Replaces \a group with a store of \a trustedList and the issuer and revocation lists, or, while
+///        \a trustedList is empty and \a acceptAllWhenEmpty is set, with a group that accepts any certificate.
+///        A failure leaves \a group as it was.
+/// \param groupId Certificate group the store belongs to.
+///
+UA_StatusCode QUaServer::applyTrustList(UA_CertificateGroup* group, UA_NodeId groupId,
+	const QList<QByteArray>& trustedList, bool acceptAllWhenEmpty, const UA_Logger* logger) const
+{
+	const QVector<UA_ByteString> trusted = QUaServer::toByteStringArray(trustedList);
+	if (trusted.isEmpty() && acceptAllWhenEmpty)
 	{
 		UA_CertificateGroup_AcceptAll(group);
 		group->logging = logger;
@@ -2577,13 +2590,52 @@ QString QUaServer::discoveryServerUrl() const
 /// \brief Sets the discovery server to register at, e.g. a Local Discovery Server at "opc.tcp://localhost:4840";
 ///        an empty URL registers nowhere. While running, the server renews the registration every
 ///        discoveryRegistrationInterval() and stop() removes it. With a certificate and a private key the
-///        registration is encrypted and the discovery server must pass the trusted certificates lists.
-///        Applied on the next start().
+///        registration is encrypted; see setVerifyDiscoveryServerCertificate() for the check of the discovery
+///        server. Applied on the next start().
 ///
 void QUaServer::setDiscoveryServerUrl(const QString& discoveryServerUrl)
 {
 	_strDiscoveryServerUrl = discoveryServerUrl;
 }
+
+#ifdef UA_ENABLE_ENCRYPTION
+///
+/// \brief Tells whether an encrypted registration checks the certificate of the discovery server.
+///
+bool QUaServer::verifyDiscoveryServerCertificate() const
+{
+	return _verifyDiscoveryServer;
+}
+
+///
+/// \brief Checks the certificate of the discovery server against discoveryServerTrustedCertificates(), completed
+///        by the issuer and revocation lists, during an encrypted registration instead of accepting any discovery
+///        server; one that fails is reported through discoveryServerCertificateRejected(). Independent of the
+///        check of client certificates. Off by default; applied on the next registration.
+///
+void QUaServer::setVerifyDiscoveryServerCertificate(bool verify)
+{
+	_verifyDiscoveryServer = verify;
+}
+
+///
+/// \brief Returns the DER certificates of the discovery servers and CAs that the server trusts.
+///
+QList<QByteArray> QUaServer::discoveryServerTrustedCertificates() const
+{
+	return _listDiscoveryTrusted;
+}
+
+///
+/// \brief Sets the DER certificates of the discovery servers and CAs that the server trusts, apart from the
+///        trusted client certificates. Used while verifyDiscoveryServerCertificate() is set, where an empty list
+///        rejects every discovery server; applied on the next registration.
+///
+void QUaServer::setDiscoveryServerTrustedCertificates(const QList<QByteArray>& certificates)
+{
+	_listDiscoveryTrusted = certificates;
+}
+#endif // UA_ENABLE_ENCRYPTION
 
 ///
 /// \brief Returns the time between two registrations at the discovery server, in milliseconds.

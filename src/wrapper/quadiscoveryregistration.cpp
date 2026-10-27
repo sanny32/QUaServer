@@ -169,7 +169,7 @@ void QUaDiscoveryRegistration::sendRequest(bool isOnline)
 ///
 /// \brief Creates the client that opens a secure channel, without a session, to the discovery server. It runs
 ///        on the event loop of the server and, when the server has a certificate and a private key, encrypts
-///        with them and checks the discovery server against the trusted certificates of the server.
+///        with them and, when asked to, checks the discovery server against its own trusted certificates.
 /// \return Good, or the reason the client could not be configured.
 ///
 UA_StatusCode QUaDiscoveryRegistration::createClient()
@@ -190,10 +190,11 @@ UA_StatusCode QUaDiscoveryRegistration::createClient()
 		const QVector<UA_ByteString> material =
 			QUaServer::toByteStringArray({ _server->_byteCertificate, _server->_bytePrivateKey });
 		st = addRsaSecurityPolicies(&config, material.at(0), material.at(1));
-		if (st == UA_STATUSCODE_GOOD)
+		if (st == UA_STATUSCODE_GOOD && _server->_verifyDiscoveryServer)
 		{
 			st = _server->applyTrustList(&config.certificateVerification,
-				UA_NS0ID(SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP), config.logging);
+				UA_NS0ID(SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP),
+				_server->_listDiscoveryTrusted, false, config.logging);
 		}
 	}
 #endif // UA_ENABLE_ENCRYPTION
