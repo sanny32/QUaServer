@@ -84,6 +84,11 @@ private slots:
     void invalidUnionValuesAreRejected();
     void clientsReadAndWriteUnions();
     void unionExportRoundTrip();
+    void restoresRoleSetForImportedRoles();
+    void unrelatedModelsDoNotCreateRoleSet();
+    void polymorphicDefinitionsAreReported_data();
+    void polymorphicDefinitionsAreReported();
+    void unsupportedDefinitionsAreNotPublished();
 };
 
 ///
@@ -257,6 +262,145 @@ void TestNodeSetCompatibility::unionExportRoundTrip()
     auto *copy = destination.nodeById<QUaBaseDataVariable>(modelId(destination, 6001));
     QVERIFY(copy);
     QCOMPARE(copy->value().value<QUaStructure>(), choice);
+}
+
+///
+/// \brief Reuses a restored RoleSet when importing multiple roles and preserves their child variables.
+///
+void TestNodeSetCompatibility::restoresRoleSetForImportedRoles()
+{
+#ifndef UA_GENERATED_NAMESPACE_ZERO_FULL
+    QSKIP("RoleSetType and RoleType require the full namespace zero");
+#endif
+    QUaServer server;
+    const QUaNodeId roleSet(0, quint32(UA_NS0ID_SERVER_SERVERCAPABILITIES_ROLESET));
+    QVERIFY(!server.isNodeIdUsed(roleSet));
+    const QUaNodeSetResult first = loadModel(server, QByteArrayLiteral(R"xml(
+      <UAObject NodeId="ns=1;i=95" BrowseName="1:Seeker">
+        <References>
+          <Reference ReferenceType="i=47" IsForward="false">i=15606</Reference>
+          <Reference ReferenceType="i=40">i=15620</Reference>
+        </References>
+      </UAObject>
+      <UAVariable NodeId="ns=1;i=10" BrowseName="Identities" DataType="i=15634" ValueRank="1" ArrayDimensions="0">
+        <References>
+          <Reference ReferenceType="i=46" IsForward="false">ns=1;i=95</Reference>
+          <Reference ReferenceType="i=40">i=68</Reference>
+        </References>
+      </UAVariable>
+    )xml"));
+    QVERIFY2(first.isOk(), qPrintable(first.errorString));
+    QVERIFY2(first.warnings.isEmpty(), qPrintable(first.warnings.join(QLatin1Char('\n'))));
+    QVERIFY(server.isNodeIdUsed(roleSet));
+    QVERIFY(server.isNodeIdUsed(modelId(server, 95)));
+    QVERIFY(server.nodeById<QUaBaseVariable>(modelId(server, 10)));
+    const QUaNodeSetResult second = loadModel(server, QByteArrayLiteral(R"xml(
+      <UAObject NodeId="ns=1;i=96" BrowseName="1:Observer">
+        <References>
+          <Reference ReferenceType="i=47" IsForward="false">i=15606</Reference>
+          <Reference ReferenceType="i=40">i=15620</Reference>
+        </References>
+      </UAObject>
+    )xml"));
+    QVERIFY2(second.isOk(), qPrintable(second.errorString));
+    QVERIFY2(second.warnings.isEmpty(), qPrintable(second.warnings.join(QLatin1Char('\n'))));
+    QVERIFY(TestServer::start(server));
+    TestClient client;
+    QCOMPARE(client.connect(TestServer::endpointUrl(server)), UA_STATUSCODE_GOOD);
+    QList<QUaNodeId> targets;
+    QCOMPARE(client.browseTargets(roleSet, QUaNodeId(0, quint32(UA_NS0ID_HASCOMPONENT)), targets), UA_STATUSCODE_GOOD);
+    QVERIFY(targets.contains(modelId(server, 95)));
+    QVERIFY(targets.contains(modelId(server, 96)));
+}
+
+///
+/// \brief Leaves the standard namespace untouched when models do not reference RoleSet.
+///
+void TestNodeSetCompatibility::unrelatedModelsDoNotCreateRoleSet()
+{
+    QUaServer server;
+    const QUaNodeId roleSet(0, quint32(UA_NS0ID_SERVER_SERVERCAPABILITIES_ROLESET));
+    QVERIFY(!server.isNodeIdUsed(roleSet));
+    const QUaNodeSetResult result = loadModel(server, kTypes);
+    QVERIFY2(result.isOk(), qPrintable(result.errorString));
+    QVERIFY2(result.warnings.isEmpty(), qPrintable(result.warnings.join(QLatin1Char('\n'))));
+    QVERIFY(!server.isNodeIdUsed(roleSet));
+}
+
+///
+/// \brief Distinguishes unsupported polymorphism from ordinary structure and union fields.
+///
+void TestNodeSetCompatibility::polymorphicDefinitionsAreReported_data()
+{
+    QTest::addColumn<QByteArray>("definitionAttributes");
+    QTest::addColumn<QByteArray>("fieldAttributes");
+    QTest::addColumn<bool>("unsupported");
+    QTest::newRow("structure-subtypes") << QByteArray() << QByteArray("AllowSubTypes=\"true\"") << true;
+    QTest::newRow("union-subtypes") << QByteArray("IsUnion=\"true\"") << QByteArray("AllowSubTypes=\"true\"") << true;
+    QTest::newRow("any-rank-subtypes") << QByteArray() << QByteArray("AllowSubTypes=\"true\" ValueRank=\"-2\"") << true;
+    QTest::newRow("numeric-boolean") << QByteArray() << QByteArray("AllowSubTypes=\"1\"") << true;
+    QTest::newRow("ordinary-structure") << QByteArray() << QByteArray("AllowSubTypes=\"false\"") << false;
+    QTest::newRow("ordinary-union") << QByteArray("IsUnion=\"true\"") << QByteArray("AllowSubTypes=\"false\"") << false;
+}
+
+///
+/// \brief Reports unsupported definitions while retaining the rest of the model and its data type nodes.
+///
+void TestNodeSetCompatibility::polymorphicDefinitionsAreReported()
+{
+    QFETCH(QByteArray, definitionAttributes);
+    QFETCH(QByteArray, fieldAttributes);
+    QFETCH(bool, unsupported);
+    QUaServer server;
+    const QByteArray supertype = definitionAttributes.isEmpty() ? QByteArrayLiteral("i=22") : QByteArrayLiteral("i=12756");
+    const QByteArray nodes = QByteArrayLiteral(R"xml(
+      <UADataType NodeId="ns=1;i=3000" BrowseName="1:Point">
+        <References><Reference ReferenceType="i=45" IsForward="false">i=22</Reference></References>
+        <Definition Name="Point"><Field Name="X" DataType="i=11"/></Definition>
+      </UADataType>
+      <UADataType NodeId="ns=1;i=3001" BrowseName="1:Container">
+        <References><Reference ReferenceType="i=45" IsForward="false">)xml") + supertype + QByteArrayLiteral(R"xml(</Reference></References>
+        <Definition Name="Container" )xml") + definitionAttributes + QByteArrayLiteral("><Field Name=\"Value\" DataType=\"ns=1;i=3000\" ") +
+        fieldAttributes + QByteArrayLiteral("/></Definition></UADataType>");
+    const QUaNodeSetResult result = loadModel(server, nodes);
+    QVERIFY2(result.isOk(), qPrintable(result.errorString));
+    QVERIFY(server.isNodeIdUsed(modelId(server, 3001)));
+    QCOMPARE(server.structureFields(modelId(server, 3000)).size(), 1);
+    QCOMPARE(result.warnings.size(), unsupported ? 1 : 0);
+    if (unsupported) {
+        QVERIFY(result.warnings.first().contains(QStringLiteral("ns=1;i=3001")));
+        QVERIFY(result.warnings.first().contains(QStringLiteral("AllowSubTypes is not implemented by open62541")));
+        QVERIFY(server.structureFields(modelId(server, 3001)).isEmpty());
+    } else {
+        QCOMPARE(server.structureFields(modelId(server, 3001)).size(), 1);
+    }
+}
+
+///
+/// \brief Prevents clients from receiving a concrete wire layout for a polymorphic union.
+///
+void TestNodeSetCompatibility::unsupportedDefinitionsAreNotPublished()
+{
+    QUaServer server;
+    const QUaNodeSetResult result = loadModel(server, QByteArrayLiteral(R"xml(
+      <UADataType NodeId="ns=1;i=3000" BrowseName="1:Point">
+        <References><Reference ReferenceType="i=45" IsForward="false">i=22</Reference></References>
+        <Definition Name="Point"><Field Name="X" DataType="i=11"/></Definition>
+      </UADataType>
+      <UADataType NodeId="ns=1;i=3001" BrowseName="1:Union">
+        <References><Reference ReferenceType="i=45" IsForward="false">i=12756</Reference></References>
+        <Definition Name="Union" IsUnion="true"><Field Name="Value" DataType="ns=1;i=3000" AllowSubTypes="true"/></Definition>
+      </UADataType>
+    )xml"));
+    QVERIFY2(result.isOk(), qPrintable(result.errorString));
+    QCOMPARE(result.warnings.size(), 1);
+    QVERIFY(TestServer::start(server));
+    TestClient client;
+    QCOMPARE(client.connect(TestServer::endpointUrl(server)), UA_STATUSCODE_GOOD);
+    QStringList fields;
+    QCOMPARE(client.readDefinitionFieldNames(modelId(server, 3001), fields), UA_STATUSCODE_BADATTRIBUTEIDINVALID);
+    QCOMPARE(client.readDefinitionFieldNames(modelId(server, 3000), fields), UA_STATUSCODE_GOOD);
+    QCOMPARE(fields, QStringList{QStringLiteral("X")});
 }
 
 QTEST_GUILESS_MAIN(TestNodeSetCompatibility)
