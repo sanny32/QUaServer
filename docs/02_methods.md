@@ -96,6 +96,26 @@ objsFolder->addMethod("deleteNumber", [&varNumber]() {
   <img src="img/02_methods_04_detail.jpg" alt="OpenUaExplorer: 02_methods_04_detail.jpg">
 </p>
 
+## Methods Without C++ Callback
+
+Methods that exist without a C++ callback, such as the methods of a loaded NodeSet (see [NodeSets](12_nodesets.md)), fail with `BadNotImplemented` until `QUaServer::setMethodHandler()` gives them a handler. `inputArguments()` and `outputArguments()` read what the method declares:
+
+```c++
+QUaNodeId doseId(ns, 5006);
+qDebug() << server.inputArguments(doseId).first().name; // "Volume"
+
+server.setMethodHandler(doseId, [](const QUaNodeId& objectId, const QVariantList& inputs, QVariantList& outputs) {
+	if (inputs.first().toDouble() <= 0)
+	{
+		return UA_STATUSCODE_BADINVALIDARGUMENT;
+	}
+	outputs = { inputs.first().toDouble() / 1.4 };
+	return UA_STATUSCODE_GOOD;
+});
+```
+
+*open62541* checks the inputs against the `InputArguments` property before the handler runs. The outputs are converted to the data types of the `OutputArguments` property, enumerations to `Int32`; missing ones get the default value of their data type, and one that cannot be converted fails the call with `BadInternalError`. Instances of a type may share the method node of the type, so `objectId` tells which object the method is called on. An empty handler makes the method fail with `BadNotImplemented` again; methods of namespace 0 and methods with a C++ callback are refused.
+
 ## Methods Example
 
 Build and run the [02_methods](../examples/02_methods/main.cpp) example to learn more.

@@ -650,8 +650,67 @@ UA_StatusCode QUaServer::callMetaMethod(
 	return retStatusCode;
 }
 
+///
+/// \brief Answers the calls of methods without implementation, which open62541 would otherwise answer with
+///        BadInternalError.
+///
+UA_StatusCode QUaServer::notImplementedMethod(UA_Server*, const UA_NodeId*, void*, const UA_NodeId*, void*,
+	const UA_NodeId*, void*, size_t, const UA_Variant*, size_t, UA_Variant*)
+{
+	return UA_STATUSCODE_BADNOTIMPLEMENTED;
+}
+
+///
+/// \brief Calls the handler that setMethodHandler() bound to the method and converts its outputs to the types of the
+///        OutputArguments property.
+///
+UA_StatusCode QUaServer::handlerMethodCallback(
+	UA_Server        *server,
+	const UA_NodeId  *sessionId,
+	void             *sessionContext,
+	const UA_NodeId  *methodId,
+	void             *methodContext,
+	const UA_NodeId  *objectId,
+	void             *objectContext,
+	size_t            inputSize,
+	const UA_Variant *input,
+	size_t            outputSize,
+	UA_Variant       *output
+)
+{
+	Q_UNUSED(sessionContext);
+	Q_UNUSED(methodContext);
+	Q_UNUSED(objectContext);
+	QUaServer* srv = QUaServer::getServerNodeContext(server);
+	const QUaNodeId id(*methodId);
+	if (!srv || !srv->_methodHandlers.contains(id))
+	{
+		return UA_STATUSCODE_BADINTERNALERROR;
+	}
+	srv->_currentSession = srv->_hashSessions.value(*sessionId, nullptr);
+	QVariantList inputs;
+	for (size_t index = 0; index < inputSize; ++index)
+	{
+		inputs.append(QUaTypesConverter::uaVariantToQVariant(input[index]));
+	}
+	QVariantList outputs;
+	// a copy keeps the handler alive should it replace itself
+	const QUaMethodHandler handler = srv->_methodHandlers.value(id);
+	const UA_StatusCode status = handler(QUaNodeId(*objectId), inputs, outputs);
+	const QList<QUaMethodArgument> arguments = srv->outputArguments(id);
+	for (size_t index = 0; index < outputSize && index < static_cast<size_t>(arguments.size()); ++index)
+	{
+		if (!srv->methodOutputVariant(arguments.at(static_cast<qsizetype>(index)),
+			outputs.value(static_cast<qsizetype>(index)), output[index]))
+		{
+			return UA_STATUSCODE_BADINTERNALERROR;
+		}
+	}
+	return status;
+}
+
 void QUaServer::bindMethod(
-	QUaServer       *server, 
+	QUaServer       *server,
 	const UA_NodeId *methodNodeId, 
 	const int       &metaMethodIndex)
 {
@@ -4391,6 +4450,194 @@ bool QUaServer::variableAttributes(const QUaNodeId& nodeId, QUaVariableAttribute
     UA_NodeId_clear(&type);
     UA_NodeId_clear(&id);
     return success;
+}
+
+///
+/// \brief Returns the input arguments a method declares in its InputArguments property.
+/// \return The arguments, or none when the method takes none or \a methodId is no method.
+///
+QList<QUaMethodArgument> QUaServer::inputArguments(const QUaNodeId& methodId) const
+{
+	return this->methodArguments(methodId, QStringLiteral("InputArguments"));
+}
+
+///
+/// \brief Returns the output arguments a method declares in its OutputArguments property.
+/// \return The arguments, or none when the method returns none or \a methodId is no method.
+///
+QList<QUaMethodArgument> QUaServer::outputArguments(const QUaNodeId& methodId) const
+{
+	return this->methodArguments(methodId, QStringLiteral("OutputArguments"));
+}
+
+///
+/// \brief Makes \a handler answer the calls of a method that has no C++ method, such as a method of a loaded
+///        NodeSet, which otherwise fails with BadNotImplemented.
+/// \param handler Handler; an empty one makes calls fail with BadNotImplemented again.
+/// \return False when \a methodId is no method, belongs to namespace 0 or is implemented by a C++ method.
+///
+bool QUaServer::setMethodHandler(const QUaNodeId& methodId, const QUaMethodHandler& handler)
+{
+	if (methodId.namespaceIndex() == 0)
+	{
+		return false;
+	}
+	UA_NodeId id = methodId;
+	UA_NodeClass nodeClass = UA_NODECLASS_UNSPECIFIED;
+	void* context = nullptr;
+	const bool isMethod = UA_Server_readNodeClass(_server, id, &nodeClass) == UA_STATUSCODE_GOOD
+		&& nodeClass == UA_NODECLASS_METHOD;
+	// C++ methods keep their object or the server as node context
+	const bool refused = !isMethod
+		|| UA_Server_getNodeContext(_server, id, &context) != UA_STATUSCODE_GOOD
+		|| context
+		|| _hashMethods.contains(id);
+	if (refused)
+	{
+		UA_NodeId_clear(&id);
+		return false;
+	}
+	UA_StatusCode st;
+	if (handler)
+	{
+		_methodHandlers.insert(methodId, handler);
+		st = UA_Server_setMethodNodeCallback(_server, id, &QUaServer::handlerMethodCallback);
+	}
+	else
+	{
+		_methodHandlers.remove(methodId);
+		st = UA_Server_setMethodNodeCallback(_server, id, &QUaServer::notImplementedMethod);
+	}
+	UA_NodeId_clear(&id);
+	return st == UA_STATUSCODE_GOOD;
+}
+
+///
+/// \brief Reads the arguments of a method from its InputArguments or OutputArguments property.
+/// \param propertyName Browse name of the property in namespace 0.
+///
+QList<QUaMethodArgument> QUaServer::methodArguments(const QUaNodeId& methodId, const QString& propertyName) const
+{
+	QList<QUaMethodArgument> arguments;
+	const QUaQualifiedName name(0, propertyName);
+	QUaNodeId propertyId;
+	// UA_Server_browseSimplifiedBrowsePath finds no properties of method nodes
+	for (const QUaNodeReference& reference : this->references(methodId))
+	{
+		if (reference.isForward && reference.referenceTypeId == QUaNodeId(0, UA_NS0ID_HASPROPERTY)
+			&& this->browseName(reference.targetNodeId) == name)
+		{
+			propertyId = reference.targetNodeId;
+			break;
+		}
+	}
+	UA_NodeId id = propertyId;
+	UA_Variant value;
+	UA_Variant_init(&value);
+	if (!propertyId.isNull() && UA_Server_readValue(_server, id, &value) == UA_STATUSCODE_GOOD)
+	{
+		for (size_t index = 0; index < value.arrayLength; ++index)
+		{
+			const UA_Argument* argument = nullptr;
+			if (value.type == &UA_TYPES[UA_TYPES_ARGUMENT])
+			{
+				argument = static_cast<const UA_Argument*>(value.data) + index;
+			}
+			else if (value.type == &UA_TYPES[UA_TYPES_EXTENSIONOBJECT])
+			{
+				const auto& object = static_cast<const UA_ExtensionObject*>(value.data)[index];
+				if (object.encoding >= UA_EXTENSIONOBJECT_DECODED
+					&& object.content.decoded.type == &UA_TYPES[UA_TYPES_ARGUMENT])
+				{
+					argument = static_cast<const UA_Argument*>(object.content.decoded.data);
+				}
+			}
+			if (!argument)
+			{
+				continue;
+			}
+			QUaMethodArgument result;
+			result.name = QUaTypesConverter::uaStringToQString(argument->name);
+			result.dataType = QUaNodeId(argument->dataType);
+			result.valueRank = argument->valueRank;
+			for (size_t dimension = 0; dimension < argument->arrayDimensionsSize; ++dimension)
+			{
+				result.arrayDimensions.append(argument->arrayDimensions[dimension]);
+			}
+			result.description = QUaLocalizedText(argument->description);
+			arguments.append(result);
+		}
+	}
+	UA_Variant_clear(&value);
+	UA_NodeId_clear(&id);
+	return arguments;
+}
+
+///
+/// \brief Converts a handler output to the data type of its argument.
+/// \param value Output of the handler; an invalid one gives the default value of the data type.
+/// \param output Receives the converted value.
+/// \return False when \a value cannot be converted to the data type.
+///
+bool QUaServer::methodOutputVariant(const QUaMethodArgument& argument, const QVariant& value, UA_Variant& output) const
+{
+	UA_NodeId typeId = argument.dataType;
+	const UA_DataType* type = this->isSubtypeOf(argument.dataType, QUaNodeId(0, UA_NS0ID_ENUMERATION))
+		? &UA_TYPES[UA_TYPES_INT32]
+		: UA_Server_findDataType(_server, &typeId);
+	UA_NodeId_clear(&typeId);
+	const bool isArray = value.isValid()
+		? QUaTypesConverter::canConvertQVariantList(value)
+		: argument.valueRank >= UA_VALUERANK_ONE_OR_MORE_DIMENSIONS;
+	if (!value.isValid() || (isArray && value.value<QSequentialIterable>().size() == 0))
+	{
+		// abstract data types such as BaseDataType have no default value
+		if (type)
+		{
+			if (isArray)
+			{
+				UA_Variant_setArray(&output, UA_Array_new(0, type), 0, type);
+			}
+			else
+			{
+				UA_Variant_setScalar(&output, UA_new(type), type);
+			}
+		}
+		return true;
+	}
+	// the first UA_TYPES are the built-in types in the order of their kinds
+	const bool isBuiltIn = type && type->typeKind <= UA_DATATYPEKIND_DIAGNOSTICINFO;
+	if (!isBuiltIn)
+	{
+		output = QUaTypesConverter::uaVariantFromQVariant(value);
+		return true;
+	}
+	const QMetaType qtType(QUaTypesConverter::uaTypeToQType(&UA_TYPES[type->typeKind]));
+	QVariant converted = value;
+	if (isArray)
+	{
+		QVariantList elements;
+		for (QVariant element : value.value<QSequentialIterable>())
+		{
+			if (element.metaType() != qtType && !element.convert(qtType))
+			{
+				return false;
+			}
+			elements.append(element);
+		}
+		converted = elements;
+	}
+	else if (converted.metaType() != qtType && !converted.convert(qtType))
+	{
+		return false;
+	}
+	output = QUaTypesConverter::uaVariantFromQVariant(converted);
+	// keeps subtypes such as Duration, whose values open62541 stores as their built-in type
+	if (output.type && output.type->typeKind == type->typeKind)
+	{
+		output.type = type;
+	}
+	return true;
 }
 
 QUaFolderObject* QUaServer::objectsFolder() const

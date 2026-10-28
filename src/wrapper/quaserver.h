@@ -123,6 +123,35 @@ struct QUaVariableAttributes
 };
 
 ///
+/// \brief Argument of a method as its InputArguments or OutputArguments property declares it.
+///
+struct QUaMethodArgument
+{
+    /// \brief Argument name.
+    QString name;
+    /// \brief Data type node id, which may name an enumeration, a structure or a subtype of a built-in type.
+    QUaNodeId dataType;
+    /// \brief OPC UA ValueRank; -1 denotes a scalar.
+    qint32 valueRank = -1;
+    /// \brief Length of each array dimension; zero denotes an unrestricted length.
+    QVector<quint32> arrayDimensions;
+    /// \brief Argument description.
+    QUaLocalizedText description;
+};
+
+///
+/// \brief Implements a method node that has no C++ method, such as a method of a loaded NodeSet.
+/// \param objectId Object the method is called on; instances of a type share the method node of the type.
+/// \param inputs Input arguments, which open62541 has checked against the InputArguments property.
+/// \param outputs Receives the output arguments in the order of the OutputArguments property, converted to their data
+///        types; missing ones and invalid QVariants get the default value of their data type, and one that cannot be
+///        converted fails the call with BadInternalError.
+/// \return Status code of the call returned to the client.
+///
+using QUaMethodHandler = std::function<UA_StatusCode(const QUaNodeId& objectId, const QVariantList& inputs,
+	QVariantList& outputs)>;
+
+///
 /// \brief Outcome of QUaServer::loadNodeSet().
 ///
 struct QUaNodeSetResult
@@ -531,6 +560,23 @@ public:
 	/// \return False when the node is missing or has no variable attributes.
 	///
 	bool variableAttributes(const QUaNodeId& nodeId, QUaVariableAttributes& attributes) const;
+	///
+	/// \brief Returns the input arguments a method declares in its InputArguments property.
+	/// \return The arguments, or none when the method takes none or \a methodId is no method.
+	///
+	QList<QUaMethodArgument> inputArguments(const QUaNodeId& methodId) const;
+	///
+	/// \brief Returns the output arguments a method declares in its OutputArguments property.
+	/// \return The arguments, or none when the method returns none or \a methodId is no method.
+	///
+	QList<QUaMethodArgument> outputArguments(const QUaNodeId& methodId) const;
+	///
+	/// \brief Makes \a handler answer the calls of a method that has no C++ method, such as a method of a loaded
+	///        NodeSet, which otherwise fails with BadNotImplemented.
+	/// \param handler Handler; an empty one makes calls fail with BadNotImplemented again.
+	/// \return False when \a methodId is no method, belongs to namespace 0 or is implemented by a C++ method.
+	///
+	bool setMethodHandler(const QUaNodeId& methodId, const QUaMethodHandler& handler);
 	// create instance of a given (variable or object) type
 	template<typename T>
 	T* createInstance(
@@ -962,6 +1008,7 @@ private:
     > _hashMethods;
 
     UA_StatusCode _methodRetStatusCode;
+	QHash<QUaNodeId, QUaMethodHandler> _methodHandlers;
 
 	static UA_NodeId getReferenceTypeId(
         const QMetaObject &parentMetaObject, 
@@ -1032,6 +1079,37 @@ private:
         const UA_NodeId *methodNodeId,
         const int       &metaMethodIndex
     );
+
+    static UA_StatusCode notImplementedMethod(
+        UA_Server        *server,
+        const UA_NodeId  *sessionId,
+        void             *sessionContext,
+        const UA_NodeId  *methodId,
+        void             *methodContext,
+        const UA_NodeId  *objectId,
+        void             *objectContext,
+        size_t            inputSize,
+        const UA_Variant *input,
+        size_t            outputSize,
+        UA_Variant       *output
+    );
+
+    static UA_StatusCode handlerMethodCallback(
+        UA_Server        *server,
+        const UA_NodeId  *sessionId,
+        void             *sessionContext,
+        const UA_NodeId  *methodId,
+        void             *methodContext,
+        const UA_NodeId  *objectId,
+        void             *objectContext,
+        size_t            inputSize,
+        const UA_Variant *input,
+        size_t            outputSize,
+        UA_Variant       *output
+    );
+
+    QList<QUaMethodArgument> methodArguments(const QUaNodeId& methodId, const QString& propertyName) const;
+    bool methodOutputVariant(const QUaMethodArgument& argument, const QVariant& value, UA_Variant& output) const;
 
     static QHash<QUaQualifiedName, int> metaMethodIndexes(const QMetaObject& metaObject);
 
