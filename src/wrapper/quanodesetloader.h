@@ -77,6 +77,8 @@ private:
 	void visitNode(int index, QVector<char>& states, QList<int>& sorted) const;
 
 	UA_StatusCode addNode(const Node& node);
+	qint32 variableValueRank(const Node& node) const;
+	QVector<UA_UInt32> variableArrayDimensions(const Node& node, qint32 valueRank) const;
 	void registerReferenceType(const Node& node);
 	void registerDataType(const Node& node);
 	void registerStructure(const Node& node);

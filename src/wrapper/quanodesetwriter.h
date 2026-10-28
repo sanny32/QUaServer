@@ -38,6 +38,7 @@ private:
 		QList<Reference>               references;
 		QByteArray                     value;
 		bool                           hasDefinition = false;
+		bool                           isUnion = false;
 		QString                        definitionName;
 		QList<Field>                   definition;
 	};

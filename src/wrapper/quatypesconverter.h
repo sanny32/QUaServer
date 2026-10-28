@@ -90,6 +90,11 @@ namespace QUaTypesConverter {
 	QVariant uaVariantToQVariantScalar<QVariant, UA_Variant>(const UA_Variant & uaVariant, QMetaType::Type type);
 	template<typename TARGETTYPE, typename UATYPE> // has specializations
 	TARGETTYPE uaVariantToQVariantScalar(const UATYPE *data);
+	///
+	/// \brief Unwraps Variant fields and array elements while preserving their actual data type.
+	///
+	template<>
+	QVariant uaVariantToQVariantScalar<QVariant, UA_Variant>(const UA_Variant *data);
 	QVariant uaVariantToQVariantArray (const UA_Variant &uaVariant, 
 		                               const ArrayType  &arrType = ArrayType::QList);
 	QVariant uaVariantToQVariantList  (const UA_Variant &uaVariant);

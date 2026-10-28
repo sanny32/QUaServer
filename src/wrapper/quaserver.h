@@ -902,7 +902,7 @@ private:
     QString instanceClassName(const UA_NodeId &typeNodeId) const;
     bool addStructureDataType(const QUaNodeId& typeId, const QUaQualifiedName& browseName,
                               const QList<QUaStructureField>& fields, const QUaNodeId& binaryEncodingId,
-                              const QUaNodeId& xmlEncodingId);
+                              const QUaNodeId& xmlEncodingId, bool isUnion = false);
     bool ensureFieldDataType(const QUaNodeId& dataTypeId);
     bool addEnumerationDataType(const QUaNodeId& typeId, const QUaQualifiedName& browseName,
                                 const QList<QPair<qint64, QString>>& values);

@@ -114,6 +114,7 @@ QString typeName(const UA_DataType* type)
 }
 
 bool writeContent(QXmlStreamWriter& writer, const void* data, const UA_DataType* type);
+bool writeVariant(QXmlStreamWriter& writer, const UA_Variant& value);
 
 ///
 /// \brief Writes \a data as an element called \a name holding its content.
@@ -162,9 +163,28 @@ bool writeItems(QXmlStreamWriter& writer, const void* items, size_t count, const
 ///
 bool writeStructure(QXmlStreamWriter& writer, const void* data, const UA_DataType* type)
 {
+	const bool isUnion = type->typeKind == UA_DATATYPEKIND_UNION;
+	UA_UInt32 selection = 0;
+	if (isUnion)
+	{
+		selection = *static_cast<const UA_UInt32*>(data);
+		if (selection > type->membersSize)
+		{
+			return false;
+		}
+		writer.writeTextElement(QStringLiteral("SwitchField"), QString::number(selection));
+	}
 	uintptr_t position = reinterpret_cast<uintptr_t>(data);
 	for (size_t i = 0; i < type->membersSize; i++)
 	{
+		if (isUnion)
+		{
+			if (selection != i + 1)
+			{
+				continue;
+			}
+			position = reinterpret_cast<uintptr_t>(data);
+		}
 		const UA_DataTypeMember& member = type->members[i];
 		const UA_DataType* memberType = member.memberType;
 		const QString name = member.memberName ? QString::fromLatin1(member.memberName) : QString();
@@ -206,8 +226,7 @@ bool writeStructure(QXmlStreamWriter& writer, const void* data, const UA_DataTyp
 
 ///
 /// \brief Writes the content of an element holding \a data, as OPC UA Part 6 defines the XML encoding.
-/// \return False for data types the XML encoding is not implemented for: DataValue, Variant, DiagnosticInfo,
-///         Decimal, unions and bit field clusters.
+/// \return False for data types without XML encoding: DataValue, DiagnosticInfo, Decimal and bit field clusters.
 ///
 bool writeContent(QXmlStreamWriter& writer, const void* data, const UA_DataType* type)
 {
@@ -332,7 +351,16 @@ bool writeContent(QXmlStreamWriter& writer, const void* data, const UA_DataType*
 	}
 	case UA_DATATYPEKIND_STRUCTURE:
 	case UA_DATATYPEKIND_OPTSTRUCT:
+	case UA_DATATYPEKIND_UNION:
 		return writeStructure(writer, data, type);
+	case UA_DATATYPEKIND_VARIANT:
+	{
+		const auto* value = static_cast<const UA_Variant*>(data);
+		writer.writeStartElement(QStringLiteral("Value"));
+		const bool ok = !value->type || writeVariant(writer, *value);
+		writer.writeEndElement();
+		return ok;
+	}
 	default:
 		return false;
 	}
@@ -808,10 +836,7 @@ void QUaNodeSetWriter::describeDefinition(const UA_NodeId& nodeId, Node& node)
 	if (const auto* structure = definition.scalar<UA_StructureDefinition>(&UA_TYPES[UA_TYPES_STRUCTUREDEFINITION]))
 	{
 		node.hasDefinition = true;
-		if (structure->structureType == UA_STRUCTURETYPE_UNION)
-		{
-			node.attributes << qMakePair(QStringLiteral("IsUnion"), boolText(true));
-		}
+		node.isUnion = structure->structureType == UA_STRUCTURETYPE_UNION;
 		for (size_t i = 0; i < structure->fieldsSize; i++)
 		{
 			const UA_StructureField& source = structure->fields[i];
@@ -999,6 +1024,10 @@ void QUaNodeSetWriter::writeNode(QXmlStreamWriter& writer, const Node& node) con
 	{
 		writer.writeStartElement(kNodeSetNamespace, QStringLiteral("Definition"));
 		writer.writeAttribute(QStringLiteral("Name"), node.definitionName);
+		if (node.isUnion)
+		{
+			writer.writeAttribute(QStringLiteral("IsUnion"), boolText(true));
+		}
 		for (const Field& field : node.definition)
 		{
 			writer.writeStartElement(kNodeSetNamespace, QStringLiteral("Field"));
