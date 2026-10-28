@@ -96,15 +96,6 @@ bool isAddedInTwoSteps(UA_NodeClass nodeClass)
 }
 
 ///
-/// \brief Implements the methods of a NodeSet, which open62541 would otherwise answer with BadInternalError.
-///
-UA_StatusCode notImplementedMethod(UA_Server*, const UA_NodeId*, void*, const UA_NodeId*, void*, const UA_NodeId*,
-                                   void*, size_t, const UA_Variant*, size_t, UA_Variant*)
-{
-	return UA_STATUSCODE_BADNOTIMPLEMENTED;
-}
-
-///
 /// \brief Returns the trimmed value of an XML attribute, or \a defaultValue when it is absent.
 ///
 QString attribute(const QHash<QString, QString>& attributes, const QString& name, const QString& defaultValue)
@@ -910,7 +901,7 @@ UA_StatusCode QUaNodeSetLoader::addNode(const Node& node)
 		attr.executable     = boolAttribute(attributes, QStringLiteral("Executable"), true);
 		attr.userExecutable = boolAttribute(attributes, QStringLiteral("UserExecutable"), true);
 		return UA_Server_addMethodNode(_uaServer, head.nodeId, head.parentNodeId, head.parentReferenceTypeId,
-			head.browseName, attr, &notImplementedMethod, 0, nullptr, 0, nullptr, nullptr, nullptr);
+			head.browseName, attr, &QUaServer::notImplementedMethod, 0, nullptr, 0, nullptr, nullptr, nullptr);
 	}
 	case UA_NODECLASS_VIEW:
 	{

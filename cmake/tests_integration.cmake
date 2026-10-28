@@ -7,6 +7,7 @@ function(quaserver_configure_integration_tests)
     quaserver_add_integration_test(quaserver_tests_nodeset_integration test_nodeset_integration.cpp)
     quaserver_add_integration_test(quaserver_tests_nodeset_compatibility test_nodeset_compatibility.cpp)
     quaserver_add_integration_test(quaserver_tests_nodeset_export_integration test_nodeset_export_integration.cpp)
+    quaserver_add_integration_test(quaserver_tests_methods_integration test_methods_integration.cpp)
     quaserver_add_integration_test(quaserver_tests_structures_integration test_structures_integration.cpp)
     quaserver_add_integration_test(quaserver_tests_discovery_integration test_discovery_integration.cpp)
 
