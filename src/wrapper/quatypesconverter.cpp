@@ -350,22 +350,26 @@ void setVariantArrayDimensions(UA_Variant &variant, const QVector<quint32> &dime
 }
 
 ///
-/// \brief Tells whether values of \a type are converted from and to QUaStructure: structures with or without
-///        optional fields that have no dedicated Qt type.
+/// \brief Recognizes structures and unions represented by QUaStructure instead of a dedicated Qt type.
 ///
 static bool isGenericStructureType(const UA_DataType *type)
 {
 	return type &&
-		(type->typeKind == UA_DATATYPEKIND_STRUCTURE || type->typeKind == UA_DATATYPEKIND_OPTSTRUCT) &&
+		(type->typeKind == UA_DATATYPEKIND_STRUCTURE || type->typeKind == UA_DATATYPEKIND_OPTSTRUCT ||
+		 type->typeKind == UA_DATATYPEKIND_UNION) &&
 		QUaDataType::qTypeByNodeId(type->typeId) == QMetaType::UnknownType;
 }
 
 ///
-/// \brief Returns the type values of \a type are converted as: enumerations are Int32 values.
+/// \brief Maps primitive subtypes to their built-in Qt representation and enumerations to Int32.
 ///
 static const UA_DataType *convertedType(const UA_DataType *type)
 {
-	return type->typeKind == UA_DATATYPEKIND_ENUM ? &UA_TYPES[UA_TYPES_INT32] : type;
+	if (type->typeKind == UA_DATATYPEKIND_ENUM)
+	{
+		return &UA_TYPES[UA_TYPES_INT32];
+	}
+	return type->typeKind <= UA_DATATYPEKIND_DIAGNOSTICINFO ? &UA_TYPES[type->typeKind] : type;
 }
 
 ///
@@ -376,7 +380,7 @@ static bool isConvertibleType(const UA_DataType *type)
 	return isGenericStructureType(type) ||
 		type->typeKind == UA_DATATYPEKIND_ENUM ||
 		type == &UA_TYPES[UA_TYPES_VARIANT] ||
-		QUaDataType::qTypeByNodeId(type->typeId) != QMetaType::UnknownType;
+		QUaDataType::qTypeByNodeId(convertedType(type)->typeId) != QMetaType::UnknownType;
 }
 
 static bool moveQVariantIntoUa(const QVariant &value, const UA_DataType *type, void *dst);
@@ -389,7 +393,12 @@ static bool moveQVariantIntoUa(const QVariant &value, const UA_DataType *type, v
 ///
 static bool fillUaStructure(const QUaStructure &structure, const UA_DataType *type, void *data)
 {
-	if (type->typeKind != UA_DATATYPEKIND_STRUCTURE && type->typeKind != UA_DATATYPEKIND_OPTSTRUCT)
+	const bool isUnion = type->typeKind == UA_DATATYPEKIND_UNION;
+	if (!isUnion && type->typeKind != UA_DATATYPEKIND_STRUCTURE && type->typeKind != UA_DATATYPEKIND_OPTSTRUCT)
+	{
+		return false;
+	}
+	if (isUnion && structure.fieldNames().size() > 1)
 	{
 		return false;
 	}
@@ -401,6 +410,15 @@ static bool fillUaStructure(const QUaStructure &structure, const UA_DataType *ty
 		const QString name = QString::fromUtf8(member->memberName);
 		const bool isSet = structure.hasField(name);
 		const QVariant value = structure.field(name);
+		if (isUnion)
+		{
+			if (!isSet)
+			{
+				continue;
+			}
+			*static_cast<UA_UInt32 *>(data) = static_cast<UA_UInt32>(i + 1);
+			ptr = reinterpret_cast<uintptr_t>(data);
+		}
 		ptr += member->padding;
 		if (member->isArray)
 		{
@@ -456,7 +474,7 @@ static bool fillUaStructure(const QUaStructure &structure, const UA_DataType *ty
 			ptr += memberType->memSize;
 		}
 	}
-	return true;
+	return !isUnion || structure.fieldNames().isEmpty() || *static_cast<UA_UInt32 *>(data) != 0;
 }
 
 ///
@@ -510,9 +528,18 @@ static bool moveQVariantIntoUa(const QVariant &value, const UA_DataType *type, v
 QUaStructure uaStructureToQStructure(const void *data, const UA_DataType *type)
 {
 	QUaStructure structure(type->typeId);
+	const bool isUnion = type->typeKind == UA_DATATYPEKIND_UNION;
 	uintptr_t ptr = reinterpret_cast<uintptr_t>(data);
 	for (size_t i = 0; i < type->membersSize; i++)
 	{
+		if (isUnion)
+		{
+			if (*static_cast<const UA_UInt32 *>(data) != i + 1)
+			{
+				continue;
+			}
+			ptr = reinterpret_cast<uintptr_t>(data);
+		}
 		const UA_DataTypeMember *member = &type->members[i];
 		const UA_DataType *memberType = member->memberType;
 		const QString name = QString::fromUtf8(member->memberName);
@@ -1462,8 +1489,16 @@ template<>
 QVariant uaVariantToQVariantScalar<QVariant, UA_Variant>(const UA_Variant & uaVariant, QMetaType::Type type)
 {
 	Q_ASSERT(type == QMetaType::UnknownType);
-	Q_UNUSED(uaVariant);
-	return QVariant();
+	return uaVariantToQVariant(*static_cast<const UA_Variant *>(uaVariant.data));
+}
+
+///
+/// \brief Unwraps Variant fields and array elements while preserving their actual data type.
+///
+template<>
+QVariant uaVariantToQVariantScalar<QVariant, UA_Variant>(const UA_Variant *data)
+{
+	return uaVariantToQVariant(*data);
 }
 
 template<typename TARGETTYPE, typename UATYPE>

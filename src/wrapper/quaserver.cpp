@@ -4044,7 +4044,7 @@ QList<QUaStructureField> QUaServer::structureFields(const QUaNodeId& typeId) con
 ///
 bool QUaServer::addStructureDataType(const QUaNodeId& typeId, const QUaQualifiedName& browseName,
                                      const QList<QUaStructureField>& fields, const QUaNodeId& binaryEncodingId,
-                                     const QUaNodeId& xmlEncodingId)
+                                     const QUaNodeId& xmlEncodingId, bool isUnion)
 {
 	const bool hasOptionalFields = std::any_of(fields.cbegin(), fields.cend(),
 		[](const QUaStructureField& field) { return field.isOptional; });
@@ -4063,9 +4063,9 @@ bool QUaServer::addStructureDataType(const QUaNodeId& typeId, const QUaQualified
 	description.dataTypeId = typeId;
 	description.name       = browseName;
 	description.structureDefinition.defaultEncodingId = binaryEncodingId;
-	description.structureDefinition.baseDataType      = UA_NODEID_NUMERIC(0, UA_NS0ID_STRUCTURE);
-	description.structureDefinition.structureType     = hasOptionalFields ?
-		UA_STRUCTURETYPE_STRUCTUREWITHOPTIONALFIELDS : UA_STRUCTURETYPE_STRUCTURE;
+	description.structureDefinition.baseDataType      = UA_NODEID_NUMERIC(0, isUnion ? UA_NS0ID_UNION : UA_NS0ID_STRUCTURE);
+	description.structureDefinition.structureType     = isUnion ? UA_STRUCTURETYPE_UNION :
+		(hasOptionalFields ? UA_STRUCTURETYPE_STRUCTUREWITHOPTIONALFIELDS : UA_STRUCTURETYPE_STRUCTURE);
 	description.structureDefinition.fields     = structureFields.data();
 	description.structureDefinition.fieldsSize = static_cast<size_t>(structureFields.size());
 	UA_ExtensionObject wrapped;
@@ -4134,40 +4134,52 @@ bool QUaServer::addEnumerationDataType(const QUaNodeId& typeId, const QUaQualifi
 }
 
 ///
-/// \brief Makes sure open62541 knows the layout of a field type; an enumeration it does not know is described as
-///        an Int32 enumeration, which is how enumerations are encoded.
+/// \brief Registers the binary layout of primitive subtypes and enumerations used as structure fields.
 ///
 bool QUaServer::ensureFieldDataType(const QUaNodeId& dataTypeId)
 {
 	UA_NodeId uaDataTypeId = dataTypeId;
-	const bool isKnown = UA_Server_findDataType(_server, &uaDataTypeId) != nullptr;
+	if (UA_Server_findDataType(_server, &uaDataTypeId))
+	{
+		UA_NodeId_clear(&uaDataTypeId);
+		return true;
+	}
 	bool isEnumeration = false;
+	const UA_DataType *baseType = nullptr;
 	UA_NodeId superTypeId;
 	UA_NodeId_copy(&uaDataTypeId, &superTypeId);
 	const UA_NodeId enumerationId = UA_NODEID_NUMERIC(0, UA_NS0ID_ENUMERATION);
-	while (!isKnown && !UA_NodeId_isNull(&superTypeId) && !isEnumeration)
+	QSet<QUaNodeId> visited;
+	while (!UA_NodeId_isNull(&superTypeId) && !baseType && !visited.contains(QUaNodeId(superTypeId)))
 	{
+		visited.insert(QUaNodeId(superTypeId));
 		UA_NodeId nextId = QUaNode::getFirstInverseReferenceSource(
 			superTypeId, UA_NODEID_NUMERIC(0, UA_NS0ID_HASSUBTYPE), _server);
 		UA_NodeId_clear(&superTypeId);
 		superTypeId = nextId;
 		isEnumeration = UA_NodeId_equal(&superTypeId, &enumerationId);
+		baseType = isEnumeration ? &UA_TYPES[UA_TYPES_INT32] : UA_Server_findDataType(_server, &superTypeId);
+		isEnumeration = isEnumeration || (baseType && baseType->typeKind == UA_DATATYPEKIND_ENUM);
 	}
 	UA_NodeId_clear(&superTypeId);
-	if (isKnown || !isEnumeration)
+	if (!baseType || (!isEnumeration && (baseType->typeKind > UA_DATATYPEKIND_DIAGNOSTICINFO ||
+	                                   baseType->typeKind == UA_DATATYPEKIND_EXTENSIONOBJECT)))
 	{
 		UA_NodeId_clear(&uaDataTypeId);
-		return isKnown;
+		return false;
 	}
 	UA_DataType type;
-	UA_StatusCode st = UA_DataType_copy(&UA_TYPES[UA_TYPES_INT32], &type);
+	UA_StatusCode st = UA_DataType_copy(baseType, &type);
 	if (st == UA_STATUSCODE_GOOD)
 	{
 		UA_NodeId_clear(&type.typeId);
 		UA_NodeId_clear(&type.binaryEncodingId);
 		UA_NodeId_clear(&type.xmlEncodingId);
 		type.typeId   = uaDataTypeId;
-		type.typeKind = UA_DATATYPEKIND_ENUM;
+		if (isEnumeration)
+		{
+			type.typeKind = UA_DATATYPEKIND_ENUM;
+		}
 		return addDataTypeAndRelease(_server, &type) == UA_STATUSCODE_GOOD;
 	}
 	UA_NodeId_clear(&uaDataTypeId);

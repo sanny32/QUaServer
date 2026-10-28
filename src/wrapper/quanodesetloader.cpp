@@ -805,8 +805,8 @@ UA_StatusCode QUaNodeSetLoader::addNode(const Node& node)
 		attr.writeMask   = writeMask;
 		UaNodeId dataTypeId(node.dataTypeId);
 		attr.dataType    = dataTypeId.id;
-		attr.valueRank   = attribute(attributes, QStringLiteral("ValueRank"), QStringLiteral("-1")).toInt();
-		QVector<UA_UInt32> dimensions = arrayDimensions(attributes);
+		attr.valueRank   = this->variableValueRank(node);
+		QVector<UA_UInt32> dimensions = this->variableArrayDimensions(node, attr.valueRank);
 		attr.arrayDimensionsSize = static_cast<size_t>(dimensions.size());
 		attr.arrayDimensions     = dimensions.data();
 		attr.accessLevel     = static_cast<UA_Byte>(attribute(attributes, QStringLiteral("AccessLevel"), QStringLiteral("1")).toUInt());
@@ -829,8 +829,8 @@ UA_StatusCode QUaNodeSetLoader::addNode(const Node& node)
 		attr.writeMask   = writeMask;
 		UaNodeId dataTypeId(node.dataTypeId);
 		attr.dataType    = dataTypeId.id;
-		attr.valueRank   = attribute(attributes, QStringLiteral("ValueRank"), QStringLiteral("-1")).toInt();
-		QVector<UA_UInt32> dimensions = arrayDimensions(attributes);
+		attr.valueRank   = this->variableValueRank(node);
+		QVector<UA_UInt32> dimensions = this->variableArrayDimensions(node, attr.valueRank);
 		attr.arrayDimensionsSize = static_cast<size_t>(dimensions.size());
 		attr.arrayDimensions     = dimensions.data();
 		attr.isAbstract  = boolAttribute(attributes, QStringLiteral("IsAbstract"), false);
@@ -903,6 +903,54 @@ UA_StatusCode QUaNodeSetLoader::addNode(const Node& node)
 }
 
 ///
+/// \brief Recovers array ranks omitted by legacy NodeSets without overriding explicit scalar constraints.
+///
+qint32 QUaNodeSetLoader::variableValueRank(const Node& node) const
+{
+	if (node.attributes.contains(QStringLiteral("ValueRank")))
+	{
+		return node.attributes.value(QStringLiteral("ValueRank")).toInt();
+	}
+	UaNodeId typeId(node.nodeClass == UA_NODECLASS_VARIABLE ? node.typeDefinitionId : node.parentNodeId);
+	UA_Int32 rank = UA_VALUERANK_SCALAR;
+	if (UA_Server_readValueRank(_uaServer, typeId.id, &rank) == UA_STATUSCODE_GOOD && rank > 0)
+	{
+		return rank;
+	}
+	return UA_VALUERANK_SCALAR;
+}
+
+///
+/// \brief Supplies omitted array dimensions from the variable type, or unknown lengths for a positive rank.
+///
+QVector<UA_UInt32> QUaNodeSetLoader::variableArrayDimensions(const Node& node, qint32 valueRank) const
+{
+	if (node.attributes.contains(QStringLiteral("ArrayDimensions")) || valueRank <= 0)
+	{
+		return arrayDimensions(node.attributes);
+	}
+	UaNodeId typeId(node.nodeClass == UA_NODECLASS_VARIABLE ? node.typeDefinitionId : node.parentNodeId);
+	UA_Variant inherited;
+	UA_Variant_init(&inherited);
+	QVector<UA_UInt32> dimensions;
+	if (UA_Server_readArrayDimensions(_uaServer, typeId.id, &inherited) == UA_STATUSCODE_GOOD &&
+	    inherited.type == &UA_TYPES[UA_TYPES_UINT32] && inherited.arrayLength == static_cast<size_t>(valueRank))
+	{
+		const auto *data = static_cast<const UA_UInt32 *>(inherited.data);
+		for (size_t i = 0; i < inherited.arrayLength; ++i)
+		{
+			dimensions << data[i];
+		}
+	}
+	UA_Variant_clear(&inherited);
+	if (dimensions.isEmpty())
+	{
+		dimensions.fill(0, valueRank);
+	}
+	return dimensions;
+}
+
+///
 /// \brief Makes a non-hierarchical reference type usable with QUaNode::addReference() and findReferences(), named by
 ///        its BrowseName and InverseName.
 ///
@@ -923,11 +971,6 @@ void QUaNodeSetLoader::registerDataType(const Node& node)
 {
 	if (node.isOptionSet || node.definition.isEmpty())
 	{
-		return;
-	}
-	if (node.isUnion)
-	{
-		this->warn(node, QStringLiteral("union data types are not supported, their values stay encoded"));
 		return;
 	}
 	const bool isEnumeration = std::all_of(node.definition.cbegin(), node.definition.cend(),
@@ -970,7 +1013,8 @@ void QUaNodeSetLoader::registerStructure(const Node& node)
 			field.valueRank == UA_VALUERANK_ONE_DIMENSION, field.isOptional);
 	}
 	if (!_server->addStructureDataType(node.nodeId, node.browseName, fields,
-		this->encodingId(node, QStringLiteral("Default Binary")), this->encodingId(node, QStringLiteral("Default XML"))))
+		this->encodingId(node, QStringLiteral("Default Binary")), this->encodingId(node, QStringLiteral("Default XML")),
+		node.isUnion))
 	{
 		this->warn(node, QStringLiteral("structure not registered"));
 	}
