@@ -180,7 +180,11 @@ QUaNodeSetResult QUaNodeSetLoader::load(QIODevice* device)
 			this->warn(node, QStringLiteral("skipped, the node already exists"));
 			continue;
 		}
-		const UA_StatusCode status = this->addNode(node);
+		UA_StatusCode status = this->ensureRoleSetParent(node);
+		if (status == UA_STATUSCODE_GOOD)
+		{
+			status = this->addNode(node);
+		}
 		if (status != UA_STATUSCODE_GOOD)
 		{
 			this->warn(node, QStringLiteral("not added: %1").arg(QString::fromLatin1(UA_StatusCode_name(status))));
@@ -459,6 +463,8 @@ void QUaNodeSetLoader::readDefinition(QXmlStreamReader& reader, Node& node)
 			field.valueRank  = attributes.hasAttribute(QStringLiteral("ValueRank")) ?
 				attributes.value(QStringLiteral("ValueRank")).toInt() : -1;
 			field.isOptional = attributes.value(QStringLiteral("IsOptional")).trimmed() == u"true";
+			const auto allowSubTypes = attributes.value(QStringLiteral("AllowSubTypes")).trimmed();
+			field.allowSubTypes = allowSubTypes == u"true" || allowSubTypes == u"1";
 			field.hasValue   = attributes.hasAttribute(QStringLiteral("Value"));
 			field.value      = attributes.value(QStringLiteral("Value")).toLongLong();
 			node.definition << field;
@@ -774,6 +780,26 @@ void QUaNodeSetLoader::visitNode(int index, QVector<char>& states, QList<int>& s
 }
 
 ///
+/// \brief Restores the standard RoleSet removed by open62541 when an imported role needs it as parent.
+///
+UA_StatusCode QUaNodeSetLoader::ensureRoleSetParent(const Node& node)
+{
+	static const QUaNodeId roleSetId(0, quint32(UA_NS0ID_SERVER_SERVERCAPABILITIES_ROLESET));
+	if (node.parentNodeId != roleSetId || _server->isNodeIdUsed(roleSetId))
+	{
+		return UA_STATUSCODE_GOOD;
+	}
+	UA_ObjectAttributes attributes = UA_ObjectAttributes_default;
+	attributes.displayName = UA_LOCALIZEDTEXT(const_cast<char*>(""), const_cast<char*>("RoleSet"));
+	return UA_Server_addObjectNode(_uaServer,
+		UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER_SERVERCAPABILITIES_ROLESET),
+		UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER_SERVERCAPABILITIES),
+		UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT),
+		UA_QUALIFIEDNAME(0, const_cast<char*>("RoleSet")),
+		UA_NODEID_NUMERIC(0, UA_NS0ID_ROLESETTYPE), attributes, nullptr, nullptr);
+}
+
+///
 /// \brief Adds a node with the attributes of its NodeSet element; objects, variables and variable types are only
 ///        begun, see finishNodes().
 ///
@@ -996,6 +1022,13 @@ void QUaNodeSetLoader::registerDataType(const Node& node)
 ///
 void QUaNodeSetLoader::registerStructure(const Node& node)
 {
+	const bool hasSubtypedFields = std::any_of(node.definition.cbegin(), node.definition.cend(),
+		[](const DefinitionField& field) { return field.allowSubTypes; });
+	if (hasSubtypedFields)
+	{
+		this->warn(node, QStringLiteral("definition not registered: AllowSubTypes is not implemented by open62541"));
+		return;
+	}
 	QList<QUaStructureField> fields;
 	for (const auto& field : node.definition)
 	{

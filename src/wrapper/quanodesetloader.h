@@ -31,6 +31,7 @@ private:
 		QString   dataType;
 		qint32    valueRank  = -1;
 		bool      isOptional = false;
+		bool      allowSubTypes = false;
 		qint64    value      = 0;
 		bool      hasValue   = false;
 		QUaNodeId dataTypeId;
@@ -77,6 +78,7 @@ private:
 	void visitNode(int index, QVector<char>& states, QList<int>& sorted) const;
 
 	UA_StatusCode addNode(const Node& node);
+	UA_StatusCode ensureRoleSetParent(const Node& node);
 	qint32 variableValueRank(const Node& node) const;
 	QVector<UA_UInt32> variableArrayDimensions(const Node& node, qint32 valueRank) const;
 	void registerReferenceType(const Node& node);
